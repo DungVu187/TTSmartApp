@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASP.NET Core API với SQL Server"
+  short_description: "Xây dựng backend ASP.NET Core cho app nội bộ"
+  default_prompt: "Dùng $build-aspnet-sqlserver-api để triển khai một thay đổi backend ASP.NET Core có DTO, validation, authorization và test đầy đủ."

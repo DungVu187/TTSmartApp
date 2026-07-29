@@ -1,0 +1,26 @@
+﻿# Database artifacts and local database files
+/DataSQL/
+*.mdf
+*.ldf
+*.bak
+
+# .NET generated files
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Flutter and Android generated files
+mobile/.dart_tool/
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# IDE and tooling metadata
+.vs/
+.idea/
+
+# Logs and local runtime output
+*.log

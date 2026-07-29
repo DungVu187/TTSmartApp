@@ -1,0 +1,8 @@
+interface:
+  display_name: 'Flutter Mobile CRUD'
+  short_description: 'Xây dựng CRUD Flutter ổn định theo REST API'
+  brand_color: '#2563EB'
+  default_prompt: 'Dùng $flutter-mobile-crud để triển khai luồng CRUD cho phân hệ Flutter theo REST API đã xác nhận.'
+
+policy:
+  allow_implicit_invocation: true

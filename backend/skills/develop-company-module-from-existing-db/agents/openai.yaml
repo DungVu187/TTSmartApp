@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phát triển module từ DB công ty"
+  short_description: "Map từng phân hệ từ database và web hiện có"
+  default_prompt: "Dùng $develop-company-module-from-existing-db để khảo sát và triển khai một phân hệ backend từ dangnhap.net/TTSmartMobile_Dev theo đúng schema và nghiệp vụ hiện có."

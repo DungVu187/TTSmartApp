@@ -1,0 +1,8 @@
+interface:
+  display_name: 'Flutter Business Module'
+  short_description: 'Triển khai phân hệ nghiệp vụ Flutter theo API'
+  brand_color: '#1D5D73'
+  default_prompt: 'Dùng $flutter-business-module để khảo sát và triển khai một phân hệ nghiệp vụ Flutter theo API backend đã xác nhận.'
+
+policy:
+  allow_implicit_invocation: true

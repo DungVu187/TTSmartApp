@@ -1,0 +1,70 @@
+@TTSmart.Api_HostAddress = http://localhost:5052
+@userName = <tai-khoan-trong-TTSmartMobile_Dev>
+@password = <mat-khau-tai-khoan>
+@accessToken = <token-tu-api-login>
+@userId = 1
+@roleId = 1
+@functionId = 1
+
+POST {{TTSmart.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "{{userName}}",
+  "password": "{{password}}"
+}
+
+###
+
+GET {{TTSmart.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+GET {{TTSmart.Api_HostAddress}}/api/users?pageNumber=1&pageSize=20&status=1
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+PUT {{TTSmart.Api_HostAddress}}/api/users/{{userId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "isActive": false
+}
+
+###
+
+GET {{TTSmart.Api_HostAddress}}/api/roles?pageNumber=1&pageSize=20&status=1
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+GET {{TTSmart.Api_HostAddress}}/api/roles/{{roleId}}/function-matrix
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+PUT {{TTSmart.Api_HostAddress}}/api/roles/{{roleId}}/functions/{{functionId}}/active-key
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "activeKey": "111111111"
+}
+
+###
+
+DELETE {{TTSmart.Api_HostAddress}}/api/roles/{{roleId}}/functions/{{functionId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+GET {{TTSmart.Api_HostAddress}}/api/functions/tree?status=1
+Authorization: Bearer {{accessToken}}
+Accept: application/json
