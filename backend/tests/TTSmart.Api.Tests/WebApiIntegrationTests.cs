@@ -39,7 +39,7 @@ public sealed class WebApiIntegrationTests(TTSmartApiFactory factory)
         using var client = factory.CreateClient();
         var initialToken = await LoginAsync(client, identity);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", initialToken);
-        var newPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(18));
+        var newPassword = $"Aa1@{Guid.NewGuid():N}";
         var changePasswordResponse = await client.PostAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest
         {
             CurrentPassword = identity.Password,
@@ -295,6 +295,14 @@ public sealed class WebApiIntegrationTests(TTSmartApiFactory factory)
                 Active = 1,
                 Status = WebDataStatus.Active
             });
+            companyDbContext.Branches.Add(new WebBranch
+            {
+                BranchId = 100,
+                Code = "BRANCH_100",
+                Name = "Trạm 100",
+                CompanyId = 10,
+                Status = WebDataStatus.Active
+            });
             await companyDbContext.SaveChangesAsync();
         });
         using var client = factory.CreateClient();
@@ -306,6 +314,7 @@ public sealed class WebApiIntegrationTests(TTSmartApiFactory factory)
         {
             userName = $"blocked_{Guid.NewGuid():N}",
             password = "Password@123",
+            branchId = "100",
             roleIds = new[] { childRoleId }
         });
 
@@ -374,6 +383,14 @@ public sealed class WebApiIntegrationTests(TTSmartApiFactory factory)
                 Active = 1,
                 Status = WebDataStatus.Active
             });
+            companyDbContext.Branches.Add(new WebBranch
+            {
+                BranchId = 101,
+                Code = "BRANCH_101",
+                Name = "Trạm 101",
+                CompanyId = 10,
+                Status = WebDataStatus.Active
+            });
             await companyDbContext.SaveChangesAsync();
         });
         using var client = factory.CreateClient();
@@ -404,6 +421,7 @@ public sealed class WebApiIntegrationTests(TTSmartApiFactory factory)
         {
             userName = $"blocked_after_reduce_{Guid.NewGuid():N}",
             password = "Password@123",
+            branchId = "101",
             roleIds = new[] { childRoleId }
         });
 

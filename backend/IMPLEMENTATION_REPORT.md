@@ -1,6 +1,22 @@
 # Implementation Report
 
-Cập nhật ngày 24/07/2026.
+Cập nhật ngày 30/07/2026.
+
+## Trạng thái hiện tại
+
+Backend đã mở rộng từ nền tảng User/RBAC sang các luồng quản lý công ty và trạm để mobile tích hợp theo từng vertical slice:
+
+- Authentication: đăng nhập, `/me`, đăng xuất, đổi mật khẩu và thu hồi JWT theo `TokenSince`.
+- User/RBAC: CRUD, phân trang, lọc, gán Role, ma trận Function/FunctionRole và kiểm tra ActiveKey 9 bit.
+- Phạm vi dữ liệu: `ADMIN` toàn hệ thống, `CONGTY` theo `CompanyId`, `QUANLY` theo danh sách `User.BranchId`.
+- Company: CRUD, lọc `Status`, khóa dịch vụ, ngày hết hạn theo giờ Việt Nam, logo và quota tài khoản.
+- Branch: CRUD, khôi phục, lọc công ty/loại trạm, kiểm tra mã không phân biệt hoa thường và che mật khẩu trong response.
+- User assignment: tài khoản cấp công ty tạo User role thấp hơn `CONGTY` phải gán ít nhất một Branch cùng Company; assignment legacy hợp lệ được giữ nguyên khi chỉ sửa hồ sơ.
+- Password policy cho dữ liệu tạo mới: tối thiểu 8 ký tự, gồm chữ thường, chữ hoa, số và một trong `@#$%`; login legacy vẫn dùng công thức hash tương thích website.
+
+Đã xác minh bằng `dotnet test`, `dotnet build`, `dotnet format --verify-no-changes` và SQL E2E trên `TTSmartMobile_Dev`; lần kiểm tra gần nhất đạt `68/68` test, build không warning/error và E2E PASS.
+
+Phần Dashboard dữ liệu vận hành chưa triển khai connection động theo `Branch.Dataname`. Cần xác nhận mapping giữa `QUANLYTAITRAM_Local` và một `Branch` test trước khi đọc các bảng `TRAMTRON`, `LSTRON` và `GIAMSATTRON`. Không ghi vào `dangnhap.net`.
 
 ## 1. Phạm vi đã triển khai
 

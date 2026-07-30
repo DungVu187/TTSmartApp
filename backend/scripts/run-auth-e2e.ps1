@@ -367,8 +367,8 @@ SELECT CONVERT(varchar(20), @BootstrapUserId);
         $secureAdminPassword = Read-Host 'Mật khẩu tài khoản quản trị' -AsSecureString
         $plainAdminPassword = ConvertTo-PlainText $secureAdminPassword
     }
-    $testPassword = $testPrefix + '!Aa1'
-    $newTestPassword = $testPrefix + '!Bb2'
+    $testPassword = $testPrefix + '@Aa1'
+    $newTestPassword = $testPrefix + '#Bb2'
 
     Write-Step 'Đăng nhập tài khoản quản trị.'
     $login = Invoke-Api POST '/api/auth/login' $null @{ userName = $AdminUserName; password = $plainAdminPassword } @(200)
@@ -565,6 +565,7 @@ SELECT CONVERT(varchar(20), @BootstrapUserId);
         code = ($testPrefix + '_CODE')
         phone = '0000000000'
         companyId = $testCompanyId
+        branchId = [string]$testBranchId
         roleIds = @([int]$testRoleId)
     } @(201)
     $testUserId = [int]$createdUser.Body.id
@@ -576,6 +577,7 @@ SELECT CONVERT(varchar(20), @BootstrapUserId);
         code = ($testPrefix + '_CODE_UPDATED')
         phone = '0000000001'
         companyId = $testCompanyId
+        branchId = [string]$testBranchId
         roleIds = @([int]$testRoleId)
     } @(200) | Out-Null
     Invoke-Api PUT "/api/users/$testUserId/roles" $adminToken @{ roleIds = @([int]$testRoleId) } @(200) | Out-Null
@@ -636,6 +638,7 @@ SELECT CONVERT(varchar(20), @BootstrapUserId);
         fullName = ($testPrefix + ' Quota Blocked')
         password = $testPassword
         companyId = $testCompanyId
+        branchId = [string]$testBranchId
         roleIds = @([int]$testRoleId)
     } @(409)
     if ([string]$quotaBlocked.Body.detail -notlike '*đã sử dụng đủ 1 tài khoản*') {
@@ -648,6 +651,7 @@ SELECT CONVERT(varchar(20), @BootstrapUserId);
         fullName = ($testPrefix + ' Quota Admin Bypass')
         password = $testPassword
         companyId = $testCompanyId
+        branchId = [string]$testBranchId
         roleIds = @([int]$testRoleId)
     } @(201)
     $testQuotaBypassUserId = [int]$quotaBypassUser.Body.id
@@ -692,7 +696,7 @@ SELECT CONVERT(varchar(20), @BootstrapUserId);
         userName = $deleteUserName
         fullName = ($testPrefix + ' Delete User')
         password = $testPassword
-        roleIds = @()
+        roleIds = @([int]$testRoleId)
     } @(201)
     $testDeleteUserId = [int]$deleteUser.Body.id
     Invoke-Api DELETE "/api/users/$testDeleteUserId" $adminToken $null @(204) | Out-Null

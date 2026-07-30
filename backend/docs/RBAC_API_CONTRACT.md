@@ -118,6 +118,7 @@ Query hỗ trợ pageNumber, pageSize, search, status và roleId. Search áp d�
   "departmentId": 2,
   "positionId": 3,
   "unitId": 4,
+  "branchId": "10,12",
   "roleIds": [3]
 }
 ~~~
@@ -127,6 +128,11 @@ Backend tự đặt Status = 1, thời gian tạo và audit user. RoleIds phải
 - ADMIN có thể chỉ định CompanyId theo request.
 - Tài khoản công ty luôn tạo/cập nhật User trong CompanyId của chính mình; gửi CompanyId khác bị trả 403.
 - Tài khoản không phải ADMIN phải gán đúng một Role và không được gán Role ADMIN hoặc CONGTY.
+- Khi tài khoản công ty tạo hoặc đổi User sang Role thấp hơn `CONGTY`, `branchId` là bắt buộc và phải chứa ít nhất một `BranchId` đang có `Status = 1`, thuộc đúng `CompanyId` của actor. Chuỗi dùng định dạng số phân cách bằng dấu phẩy, ví dụ `10,12`; backend loại ID trùng và lưu dạng chuẩn hóa.
+- Role `CONGTY` không bắt buộc `branchId` vì phạm vi là toàn bộ trạm thuộc Company. `ADMIN` được bỏ qua yêu cầu Company/Branch khi quản trị User, nhưng nếu có gửi `branchId` thì các ID vẫn phải hợp lệ và thuộc Company đã chọn.
+- Khi `PUT /api/users/{id}` thay đổi `roleIds` hoặc `branchId`, backend kiểm tra lại cùng quy tắc. Endpoint `/api/users/{id}/roles` chỉ đổi Role nên `BranchId` hiện có của User phải hợp lệ trước khi chuyển sang Role thấp hơn `CONGTY`.
+- Nếu User legacy đang có assignment không hợp lệ nhưng request chỉ sửa hồ sơ và giữ nguyên Company/Role/Branch, backend vẫn cho cập nhật để không khóa dữ liệu cũ. Assignment phải hợp lệ ngay khi một trong ba thành phần này thay đổi.
+- Mật khẩu mới khi tạo User, reset mật khẩu hoặc tự đổi mật khẩu phải có ít nhất 8 ký tự, gồm chữ thường, chữ hoa, số và ít nhất một ký tự `@`, `#`, `$` hoặc `%`. Login vẫn chấp nhận mật khẩu legacy hiện có và backend tiếp tục băm theo công thức website.
 - `Company.CountUser` là giới hạn số tài khoản con đang hiệu lực của công ty. Backend đếm User cùng `CompanyId`, có `Status = 1`, và không tính User đang có Role hiệu lực `ADMIN` hoặc `CONGTY`.
 - Khi số tài khoản con đang hiệu lực đã bằng hoặc vượt `Company.CountUser`, tài khoản không phải ADMIN tạo User mới nhận `409 Conflict`. ADMIN được phép tạo vượt giới hạn này.
 - User chuyển sang `Status = 99` giải phóng một suất. Khi khôi phục User về `Status = 1`, tài khoản không phải ADMIN cũng phải còn quota; nếu đã đủ quota thì nhận `409 Conflict` và User vẫn giữ trạng thái cũ.
@@ -158,7 +164,7 @@ User bị khóa không thể login và token cũ bị từ chối ở request ti
 
 ### User response
 
-User response có thông tin hồ sơ, trạng thái và roles. Không bao giờ có Password, KeyLock hoặc password hash.
+User response có thông tin hồ sơ, trạng thái, `branchId` đã lưu và roles. Không bao giờ có Password, KeyLock hoặc password hash.
 
 ## 5. Role
 

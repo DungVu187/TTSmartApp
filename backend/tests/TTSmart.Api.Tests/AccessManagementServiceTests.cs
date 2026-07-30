@@ -369,6 +369,14 @@ public sealed class AccessManagementServiceTests
             Status = WebDataStatus.Active
         });
         await dbContext.SaveChangesAsync();
+        companyDbContext.Branches.Add(new WebBranch
+        {
+            BranchId = 100,
+            Code = "BRANCH_100",
+            Name = "Trạm 100",
+            CompanyId = 10,
+            Status = WebDataStatus.Active
+        });
         await companyDbContext.SaveChangesAsync();
         var companyService = new UserAdministrationService(
             dbContext,
@@ -381,6 +389,7 @@ public sealed class AccessManagementServiceTests
             {
                 UserName = $"blocked_{Guid.NewGuid():N}",
                 Password = "Password@123",
+                BranchId = "100",
                 RoleIds = [childRole.RoleId]
             },
             owner.UserId,
@@ -393,6 +402,7 @@ public sealed class AccessManagementServiceTests
             {
                 UserName = $"allowed_{Guid.NewGuid():N}",
                 Password = "Password@123",
+                BranchId = "100",
                 RoleIds = [childRole.RoleId]
             },
             owner.UserId,

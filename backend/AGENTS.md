@@ -38,6 +38,9 @@
 - API auth, User CRUD, Role CRUD, Function CRUD, cây Function, ma trận quyền và xóa mềm FunctionRole đã chuyển sang ID int và ActiveKey 9 bit; contract Flutter nằm tại `docs/RBAC_API_CONTRACT.md`, mapping schema tại `docs/RBAC_SCHEMA_MAPPING.md`.
 - `ActiveKey` là chuỗi đúng 9 ký tự theo thứ tự web: Xem, Tạo mới, Cập nhật, Xóa, Nhập, Xuất, In, Khác, D.Sách. Checkbox `Đầy đủ` chỉ là trạng thái tổng hợp và tương đương `111111111`, không phải ký tự thứ 10.
 - Contract chính thức cho Flutter nằm ở `docs/RBAC_API_CONTRACT.md`; `docs/mobile-access-management-api.md` chỉ giữ vai trò redirect tương thích.
+- `PasswordPolicy` trong `Common/Security` là quy tắc dùng chung cho mật khẩu mới của User và Branch: tối thiểu 8 ký tự, có chữ thường, chữ hoa, số và ít nhất một ký tự `@#$%`; login không áp chính sách này lên mật khẩu legacy đã tồn tại.
+- Ghi mới `User.BranchId` từ app dùng danh sách ID số phân cách bằng dấu phẩy. Backend chuẩn hóa ID trùng, kiểm tra Branch `Status = 1` và cùng `CompanyId`. Khi chỉ sửa hồ sơ mà Company/Role/Branch không đổi, giữ assignment legacy hiện có; khi một trong ba thành phần thay đổi, phải kiểm tra lại toàn bộ assignment.
+- Cột `Branch.Dataname` là bằng chứng kỹ thuật cần khảo sát, không đủ để kết luận mỗi trạm luôn có một database riêng. Chưa triển khai Dashboard hoặc tổng hợp nhiều trạm theo mô hình connection động cho đến khi nguồn dữ liệu vận hành được xác nhận.
 - Module `Employees` demo và các mapping auth cũ chỉ là lịch sử/thử nghiệm; không dùng làm nền mặc định cho schema web mới.
 
 ## 5. Cấu Trúc Dự Án Và Hướng Phụ Thuộc
@@ -252,6 +255,8 @@ Khi phân tích một chức năng, ưu tiên theo thứ tự:
 - `KeyLock`, `RegEmail` và `UserId` là một phần của công thức mật khẩu. Không thay đổi `KeyLock` hoặc `RegEmail` mà không đồng thời tạo lại password hash theo công thức web; endpoint cập nhật user hiện không cho đổi `RegEmail` để tránh khóa nhầm tài khoản.
 - Form sửa User trên mobile map vào cột hiện có: Tên người dùng → `User.FullName`, Tài khoản → `User.UserName`, Ảnh đại diện → `User.Avata` (giữ typo legacy), Email → `User.Email`, Địa chỉ → `User.Address`, Số điện thoại → `User.Phone`, Phân quyền → `UserRole`, Trạm → `User.BranchId`. `User.Email` và `User.RegEmail` không được coi là cùng một trường; form không sửa `RegEmail`, và đổi `Email` không được làm thay đổi hash mật khẩu.
 - Luồng mobile kế thừa thứ tự nghiệp vụ của web: tạo Company trước, tạo Branch thuộc Company sau đó mới tạo User. Role `CONGTY` không bắt buộc gán Branch vì được xem toàn bộ Branch của Company; các role tài khoản con khác phải được gán ít nhất một Branch hợp lệ.
+- Khi actor không phải `ADMIN` tạo User hoặc thay đổi Role/Branch, `User.BranchId` phải parse được thành danh sách số nguyên dương, các Branch phải đang hiệu lực và thuộc đúng Company của actor. `ADMIN` được bỏ qua yêu cầu bắt buộc Company/Branch theo quy tắc super admin, nhưng Branch gửi lên vẫn phải được kiểm tra nếu có.
+- Mật khẩu mới trong luồng tạo User, reset password và change password phải qua `PasswordPolicy`; không áp chính sách độ mạnh ngược lên login của tài khoản legacy để tránh làm mất khả năng đăng nhập dữ liệu website hiện có.
 - Mobile gửi mật khẩu gốc qua HTTPS tới `/api/auth/login`; backend tự mô phỏng bước MD5 frontend và bước MD5 backend của website, không yêu cầu Flutter tự băm mật khẩu.
 - JWT phải kiểm tra issuer, audience, chữ ký, thời hạn và trạng thái tài khoản hiện tại trong database.
 - Mobile có thể ẩn menu hoặc nút theo quyền trả về, nhưng backend vẫn phải kiểm tra authentication, function permission và data scope ở từng endpoint.

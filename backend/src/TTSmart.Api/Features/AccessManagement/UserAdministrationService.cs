@@ -85,9 +85,17 @@ public sealed class UserAdministrationService(
         var userName = RequireValue(request.UserName, "Tên đăng nhập là bắt buộc.");
         await EnsureUserNameAvailableAsync(userName, null, cancellationToken);
         var roleIds = NormalizeIds(request.RoleIds, "RoleId không hợp lệ.");
+        EnsureRoleSelection(roleIds);
         await ValidateActiveRolesAsync(roleIds, cancellationToken);
         await ValidateAssignableRolesAsync(roleIds, scope, cancellationToken);
         var companyId = ResolveCompanyId(request.CompanyId, scope);
+        PasswordPolicy.Validate(request.Password);
+        var normalizedBranchId = await ValidateAndNormalizeBranchAssignmentAsync(
+            request.BranchId,
+            companyId,
+            roleIds,
+            !scope.IsSuperAdmin,
+            cancellationToken);
 
         var userId = await AccessManagementSupport.ExecuteInTransactionAsync(
             dbContext,
@@ -110,6 +118,7 @@ public sealed class UserAdministrationService(
                     Status = WebDataStatus.Active
                 };
                 ApplyFields(user, request);
+                user.BranchId = normalizedBranchId;
                 user.CompanyId = companyId;
                 dbContext.Users.Add(user);
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -144,7 +153,7 @@ public sealed class UserAdministrationService(
         CancellationToken cancellationToken)
     {
         var scope = await GetScopeAsync(currentUserId, cancellationToken);
-        await GetUserExistsAsync(id, scope, cancellationToken);
+        var assignment = await LoadUserAssignmentAsync(id, scope, cancellationToken);
         var userName = RequireValue(request.UserName, "Tên đăng nhập là bắt buộc.");
         await EnsureUserNameAvailableAsync(userName, id, cancellationToken);
         var companyId = ResolveCompanyId(request.CompanyId, scope);
@@ -157,8 +166,26 @@ public sealed class UserAdministrationService(
             }
 
             roleIds = NormalizeIds(request.RoleIds, "RoleId không hợp lệ.");
+            EnsureRoleSelection(roleIds);
             await ValidateActiveRolesAsync(roleIds, cancellationToken);
             await ValidateAssignableRolesAsync(roleIds, scope, cancellationToken);
+        }
+
+        var effectiveRoleIds = roleIds ?? assignment.RoleIds;
+        EnsureRoleSelection(effectiveRoleIds);
+        var roleChanged = roleIds is not null && !HaveSameIds(roleIds, assignment.RoleIds);
+        var branchChanged = request.BranchId is not null &&
+                            !HaveSameBranchIds(request.BranchId, assignment.BranchId);
+        var companyChanged = companyId != assignment.CompanyId;
+        var normalizedBranchId = assignment.BranchId;
+        if (roleChanged || branchChanged || companyChanged)
+        {
+            normalizedBranchId = await ValidateAndNormalizeBranchAssignmentAsync(
+                request.BranchId ?? assignment.BranchId,
+                companyId,
+                effectiveRoleIds,
+                !scope.IsSuperAdmin,
+                cancellationToken);
         }
 
         await AccessManagementSupport.ExecuteInTransactionAsync(
@@ -176,6 +203,7 @@ public sealed class UserAdministrationService(
 
                 user.UserName = userName;
                 ApplyFields(user, request, preserveRegEmailWhenMissing: true);
+                user.BranchId = normalizedBranchId;
                 user.CompanyId = companyId;
                 user.UpdatedAt = DateTime.Now;
                 user.UserEditId = currentUserId;
@@ -246,10 +274,23 @@ public sealed class UserAdministrationService(
             throw new ConflictException("Không thể tự thay đổi vai trò bằng endpoint quản trị người dùng.");
         }
 
-        await GetUserExistsAsync(id, scope, cancellationToken);
+        var assignment = await LoadUserAssignmentAsync(id, scope, cancellationToken);
         var roleIds = NormalizeIds(request.RoleIds, "RoleId không hợp lệ.");
+        EnsureRoleSelection(roleIds);
         await ValidateActiveRolesAsync(roleIds, cancellationToken);
         await ValidateAssignableRolesAsync(roleIds, scope, cancellationToken);
+        var roleChanged = !HaveSameIds(roleIds, assignment.RoleIds);
+        var normalizedBranchId = assignment.BranchId;
+        if (roleChanged)
+        {
+            normalizedBranchId = await ValidateAndNormalizeBranchAssignmentAsync(
+                assignment.BranchId,
+                assignment.CompanyId,
+                roleIds,
+                !scope.IsSuperAdmin,
+                cancellationToken);
+        }
+
         await AccessManagementSupport.ExecuteInTransactionAsync(
             dbContext,
             async () =>
@@ -257,6 +298,7 @@ public sealed class UserAdministrationService(
                 var now = DateTime.Now;
                 await ReplaceRolesAsync(id, roleIds, now, cancellationToken);
                 var user = await GetTrackedUserAsync(id, scope, cancellationToken);
+                user.BranchId = normalizedBranchId;
                 user.UpdatedAt = now;
                 user.UserEditId = currentUserId;
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -371,9 +413,7 @@ public sealed class UserAdministrationService(
         }
     }
 
-    private async Task ValidateActiveRolesAsync(
-        IReadOnlyCollection<int> roleIds,
-        CancellationToken cancellationToken)
+    private async Task ValidateActiveRolesAsync(IReadOnlyCollection<int> roleIds, CancellationToken cancellationToken)
     {
         if (roleIds.Count == 0)
         {
@@ -534,11 +574,17 @@ public sealed class UserAdministrationService(
         return scope.CompanyId.Value;
     }
 
-    private async Task<IReadOnlyList<int>> LoadActiveRoleIdsAsync(
+    private async Task<UserAssignmentSnapshot> LoadUserAssignmentAsync(
         int userId,
         UserAdministrationScope scope,
-        CancellationToken cancellationToken) =>
-        await (
+        CancellationToken cancellationToken)
+    {
+        var user = await ApplyScope(dbContext.Users.AsNoTracking(), scope)
+            .Where(item => item.UserId == userId)
+            .Select(item => new { item.CompanyId, item.BranchId })
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy người dùng.");
+        var roleIds = await (
             from userRole in dbContext.UserRoles.AsNoTracking()
             join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
             where userRole.UserId == userId &&
@@ -547,11 +593,14 @@ public sealed class UserAdministrationService(
             select role.RoleId)
             .Distinct()
             .ToListAsync(cancellationToken);
+        return new UserAssignmentSnapshot(user.CompanyId, user.BranchId, roleIds);
+    }
 
     private async Task<string?> ValidateAndNormalizeBranchAssignmentAsync(
         string? branchValue,
         int? companyId,
         IReadOnlyCollection<int> roleIds,
+        bool enforceScopedAssignment,
         CancellationToken cancellationToken)
     {
         var branchIds = ParseBranchIdsStrict(branchValue);
@@ -562,7 +611,7 @@ public sealed class UserAdministrationService(
 
         var requiresCompany = roleCodes.Any(code =>
             !string.Equals(code, SystemRoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
-        if (requiresCompany && !companyId.HasValue)
+        if (enforceScopedAssignment && requiresCompany && !companyId.HasValue)
         {
             throw new ValidationException("Tài khoản thuộc công ty phải được gán CompanyId.");
         }
@@ -570,7 +619,12 @@ public sealed class UserAdministrationService(
         var requiresBranch = roleCodes.Any(code =>
             !string.Equals(code, SystemRoleCodes.Admin, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(code, SystemRoleCodes.Company, StringComparison.OrdinalIgnoreCase));
-        if (requiresBranch && branchIds.Length == 0)
+        if (!requiresBranch)
+        {
+            return null;
+        }
+
+        if (enforceScopedAssignment && branchIds.Length == 0)
         {
             throw new ValidationException("Tài khoản không phải CONGTY phải được gán ít nhất một trạm.");
         }
@@ -599,6 +653,34 @@ public sealed class UserAdministrationService(
         }
 
         return string.Join(',', branchIds);
+    }
+
+    private static bool HaveSameIds(
+        IReadOnlyCollection<int> left,
+        IReadOnlyCollection<int> right) =>
+        left.Count == right.Count && left.OrderBy(id => id).SequenceEqual(right.OrderBy(id => id));
+
+    private static bool HaveSameBranchIds(string? left, string? right) =>
+        string.Equals(
+            NormalizeBranchIdsForComparison(left),
+            NormalizeBranchIdsForComparison(right),
+            StringComparison.Ordinal);
+
+    private static string? NormalizeBranchIdsForComparison(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            return string.Join(',', ParseBranchIdsStrict(value).OrderBy(id => id));
+        }
+        catch (ValidationException)
+        {
+            return value.Trim();
+        }
     }
 
     private static void EnsureRoleSelection(IReadOnlyCollection<int> roleIds)
@@ -781,6 +863,11 @@ public sealed class UserAdministrationService(
 
         return values;
     }
+
+    private sealed record UserAssignmentSnapshot(
+        int? CompanyId,
+        string? BranchId,
+        IReadOnlyList<int> RoleIds);
 
     private sealed record UserAdministrationScope(bool IsSuperAdmin, int? CompanyId, int CurrentUserId);
 }
