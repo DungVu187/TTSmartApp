@@ -49,18 +49,6 @@ public sealed class CompanyApiTests(TTSmartApiFactory factory) : IClassFixture<T
         Assert.Equal(WebDataStatus.Active, created.Status);
         Assert.False(created.IsLocked);
 
-        var expirationResponse = await client.PutAsJsonAsync(
-            $"/api/companies/{created.Id}/expiration",
-            new { expiredDate = "2027-01-01" });
-        expirationResponse.EnsureSuccessStatusCode();
-        var expiration = await expirationResponse.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
-        Assert.Equal(new DateOnly(2027, 1, 1), expiration?.ExpiredDate);
-        await factory.ExecuteCompanyDatabaseAsync(async dbContext =>
-        {
-            var stored = await dbContext.Companies.SingleAsync(company => company.CompanyId == created.Id);
-            Assert.Equal(new DateTime(2026, 12, 31, 23, 59, 59), stored.ExpiredDate);
-        });
-
         var deleteResponse = await client.DeleteAsync($"/api/companies/{created.Id}");
         deleteResponse.EnsureSuccessStatusCode();
         var deleted = await deleteResponse.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
@@ -79,7 +67,7 @@ public sealed class CompanyApiTests(TTSmartApiFactory factory) : IClassFixture<T
         restoreResponse.EnsureSuccessStatusCode();
         var restored = await restoreResponse.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
         Assert.Equal(WebDataStatus.Active, restored?.Status);
-        Assert.Equal(new DateOnly(2027, 1, 1), restored?.ExpiredDate);
+        Assert.Null(restored?.ExpiredDate);
     }
 
     [Fact]
@@ -235,7 +223,7 @@ public sealed class CompanyApiTests(TTSmartApiFactory factory) : IClassFixture<T
     }
 
     [Fact]
-    public async Task CompanyBiKhoa_JwtCuBiChanNgayLapTuc()
+    public async Task CompanyLockVaExpirationChangesDangTat_Tra409()
     {
         TestIdentity companyUser = null!;
         await factory.ResetDatabaseAsync(async (services, authDbContext) =>
@@ -245,32 +233,65 @@ public sealed class CompanyApiTests(TTSmartApiFactory factory) : IClassFixture<T
                 authDbContext,
                 SystemRoleCodes.Company,
                 1,
-                [ActiveKeyPermission.DSach]);
+                [ActiveKeyPermission.Update, ActiveKeyPermission.DSach]);
         });
         await factory.ExecuteCompanyDatabaseAsync(async dbContext =>
         {
-            dbContext.Companies.Add(CreateCompany(1, "CT_LOCK", "Công ty khóa"));
+            dbContext.Companies.Add(CreateCompany(1, "CT_READ_ONLY", "Công ty chỉ đọc trạng thái"));
             await dbContext.SaveChangesAsync();
         });
         using var client = factory.CreateClient();
         await LoginAsync(client, companyUser);
-        await factory.ExecuteCompanyDatabaseAsync(async dbContext =>
-        {
-            var company = await dbContext.Companies.SingleAsync(item => item.CompanyId == 1);
-            company.IsLocked = true;
-            await dbContext.SaveChangesAsync();
-        });
 
-        var response = await client.GetAsync("/api/auth/me");
+        var lockResponse = await client.PutAsJsonAsync(
+            "/api/companies/1/lock",
+            new { isLocked = true });
+        var expirationResponse = await client.PutAsJsonAsync(
+            "/api/companies/1/expiration",
+            new { expiredDate = "2027-01-01" });
+        var currentUserResponse = await client.GetAsync("/api/auth/me");
+        var lockFilterResponse = await client.GetAsync("/api/companies?isLocked=true");
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal(CompanyAccessErrors.LockedMessage, document.RootElement.GetProperty("detail").GetString());
-        Assert.Equal(CompanyAccessErrors.Locked, document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, lockResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, expirationResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, lockFilterResponse.StatusCode);
+        currentUserResponse.EnsureSuccessStatusCode();
     }
 
     [Fact]
-    public async Task Admin_BoQuaCompanyLockExpiryVaFunctionRole()
+    public async Task CompanyHetHan_MobileVanDangNhapVaHienThiNgay()
+    {
+        TestIdentity companyUser = null!;
+        await factory.ResetDatabaseAsync(async (services, authDbContext) =>
+        {
+            companyUser = await SeedIdentityAsync(
+                services,
+                authDbContext,
+                SystemRoleCodes.Company,
+                1,
+                [ActiveKeyPermission.View]);
+        });
+        await factory.ExecuteCompanyDatabaseAsync(async dbContext =>
+        {
+            var company = CreateCompany(1, "CT_EXPIRED", "Công ty hết hạn");
+            company.ExpiredDate = new DateTime(2020, 1, 1, 23, 59, 59);
+            dbContext.Companies.Add(company);
+            await dbContext.SaveChangesAsync();
+        });
+        using var client = factory.CreateClient();
+
+        await LoginAsync(client, companyUser);
+        var currentUserResponse = await client.GetAsync("/api/auth/me");
+        currentUserResponse.EnsureSuccessStatusCode();
+        var companyResponse = await client.GetAsync("/api/companies/1");
+        companyResponse.EnsureSuccessStatusCode();
+        var company = await companyResponse.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
+
+        Assert.Equal(new DateOnly(2020, 1, 2), company?.ExpiredDate);
+    }
+
+    [Fact]
+    public async Task Admin_BoQuaCompanyScopeVaFunctionRole()
     {
         TestIdentity admin = null!;
         await factory.ResetDatabaseAsync(async (services, authDbContext) =>
@@ -285,8 +306,6 @@ public sealed class CompanyApiTests(TTSmartApiFactory factory) : IClassFixture<T
         await factory.ExecuteCompanyDatabaseAsync(async dbContext =>
         {
             var company = CreateCompany(1, "CT_ADMIN", "Công ty của admin");
-            company.IsLocked = true;
-            company.ExpiredDate = new DateTime(2020, 1, 1, 0, 0, 0);
             dbContext.Companies.Add(company);
             await dbContext.SaveChangesAsync();
         });

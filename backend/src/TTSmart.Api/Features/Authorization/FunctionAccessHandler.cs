@@ -20,7 +20,8 @@ public sealed class FunctionAccessHandler(
         }
 
         var cancellationToken = httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
-        if (systemRoleEvaluator is not null &&
+        if (requirement.AllowSuperAdminBypass &&
+            systemRoleEvaluator is not null &&
             await systemRoleEvaluator.IsSuperAdminAsync(userId, cancellationToken))
         {
             context.Succeed(requirement);

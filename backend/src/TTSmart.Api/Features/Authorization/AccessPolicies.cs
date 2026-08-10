@@ -27,4 +27,11 @@ public static class AccessPolicies
     public const string BranchesCreate = "access.branches.create";
     public const string BranchesUpdate = "access.branches.update";
     public const string BranchesDelete = "access.branches.delete";
+    public const string OrderReportsList = "access.order-reports.list";
+    public const string OrderStatisticsList = "access.order-statistics.list";
+    public const string OrderStatisticsExport = "access.order-statistics.export";
+    public const string MixDesignsList = "access.mix-designs.list";
+    public const string WeighStationsList = "access.weigh-stations.list";
+    public const string WeighStationsExport = "access.weigh-stations.export";
+    public const string WeighStationsPrice = "access.weigh-stations.price";
 }

@@ -214,6 +214,11 @@ class CurrentSession {
   bool hasPermission(String functionCode, AccessPermission permission) =>
       functionByCode(functionCode)?.permissions.allows(permission) ?? false;
 
+  bool hasRole(String roleCode) {
+    final normalized = roleCode.toUpperCase();
+    return roles.any((role) => role.code.toUpperCase() == normalized);
+  }
+
   bool hasAnyPermission(
     Iterable<String> functionCodes,
     AccessPermission permission,

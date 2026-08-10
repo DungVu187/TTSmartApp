@@ -1,6 +1,11 @@
 using System.Security.Cryptography;
 using TTSmart.Api.Data.Company;
+using TTSmart.Api.Data.StationOperations;
 using TTSmart.Api.Data.WebAuth;
+using TTSmart.Api.Features.OrderReporting;
+using TTSmart.Api.Features.OrderStatistics;
+using TTSmart.Api.Features.MixDesignManagement;
+using TTSmart.Api.Features.WeighStationManagement;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -13,11 +18,16 @@ using Microsoft.Extensions.Logging;
 
 namespace TTSmart.Api.Tests;
 
-public sealed class TTSmartApiFactory : WebApplicationFactory<Program>
+public class TTSmartApiFactory : WebApplicationFactory<Program>
 {
     private readonly string authDatabaseName = $"ttsmart-auth-http-tests-{Guid.NewGuid():N}";
     private readonly string companyDatabaseName = $"ttsmart-company-http-tests-{Guid.NewGuid():N}";
     private readonly string signingKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+    internal TestOrderReportDataSource OrderReportDataSource { get; } = new();
+    internal TestOrderStatisticsDataSource OrderStatisticsDataSource { get; } = new();
+    internal TestMixDesignDataSource MixDesignDataSource { get; } = new();
+    internal TestWeighStationDataSource WeighStationDataSource { get; } = new();
+    internal TestStationDatabaseAvailabilityResolver StationDatabaseAvailabilityResolver { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -51,6 +61,16 @@ public sealed class TTSmartApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IDbContextOptionsConfiguration<CompanyDbContext>>();
             services.AddDbContext<CompanyDbContext>(options =>
                 options.UseInMemoryDatabase(companyDatabaseName));
+            services.RemoveAll<IOrderReportDataSource>();
+            services.AddSingleton<IOrderReportDataSource>(OrderReportDataSource);
+            services.RemoveAll<IOrderStatisticsDataSource>();
+            services.AddSingleton<IOrderStatisticsDataSource>(OrderStatisticsDataSource);
+            services.RemoveAll<IMixDesignDataSource>();
+            services.AddSingleton<IMixDesignDataSource>(MixDesignDataSource);
+            services.RemoveAll<IWeighStationDataSource>();
+            services.AddSingleton<IWeighStationDataSource>(WeighStationDataSource);
+            services.RemoveAll<IStationDatabaseAvailabilityResolver>();
+            services.AddSingleton<IStationDatabaseAvailabilityResolver>(StationDatabaseAvailabilityResolver);
         });
     }
 
@@ -64,6 +84,11 @@ public sealed class TTSmartApiFactory : WebApplicationFactory<Program>
         await companyDbContext.Database.EnsureDeletedAsync();
         await authDbContext.Database.EnsureCreatedAsync();
         await companyDbContext.Database.EnsureCreatedAsync();
+        OrderReportDataSource.Reset();
+        OrderStatisticsDataSource.Reset();
+        MixDesignDataSource.Reset();
+        WeighStationDataSource.Reset();
+        StationDatabaseAvailabilityResolver.Reset();
         if (seed is not null)
         {
             await seed(scope.ServiceProvider, authDbContext);

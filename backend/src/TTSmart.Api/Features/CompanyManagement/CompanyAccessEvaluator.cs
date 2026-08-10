@@ -29,7 +29,9 @@ public interface ICompanyAccessEvaluator
 
 public sealed class CompanyAccessEvaluator(
     CompanyDbContext companyDbContext,
-    ISystemRoleEvaluator systemRoleEvaluator) : ICompanyAccessEvaluator
+    ISystemRoleEvaluator systemRoleEvaluator,
+    Microsoft.Extensions.Options.IOptions<CompanyAccessOptions>? companyAccessOptions = null,
+    Microsoft.Extensions.Options.IOptions<CompanyDatabaseOptions>? companyDatabaseOptions = null) : ICompanyAccessEvaluator
 {
     public async Task<CompanyAccessDecision> EvaluateAsync(
         WebUser user,
@@ -47,12 +49,14 @@ public sealed class CompanyAccessEvaluator(
             return new CompanyAccessDecision(false, CompanyAccessErrors.Inactive, CompanyAccessErrors.InactiveMessage);
         }
 
-        if (company.IsLocked)
+        if ((companyDatabaseOptions?.Value.IsLockedColumnAvailable ?? false) && company.IsLocked)
         {
             return new CompanyAccessDecision(false, CompanyAccessErrors.Locked, CompanyAccessErrors.LockedMessage);
         }
 
-        if (company.ExpiredDate.HasValue && VietnamTime.Now > company.ExpiredDate.Value)
+        if ((companyAccessOptions?.Value.EnforceExpiration ?? false) &&
+            company.ExpiredDate.HasValue &&
+            VietnamTime.Now > company.ExpiredDate.Value)
         {
             return new CompanyAccessDecision(false, CompanyAccessErrors.Expired, CompanyAccessErrors.ExpiredMessage);
         }

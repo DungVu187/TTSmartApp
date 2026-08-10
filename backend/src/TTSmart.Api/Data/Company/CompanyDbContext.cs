@@ -1,11 +1,34 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Options;
 
 namespace TTSmart.Api.Data.Company;
 
-public sealed class CompanyDbContext(DbContextOptions<CompanyDbContext> options) : DbContext(options)
+public sealed class CompanyDbContext : DbContext
 {
+    private readonly bool isLockedColumnAvailable;
+    internal bool IsLockedColumnAvailable => isLockedColumnAvailable;
+
+    public CompanyDbContext(DbContextOptions<CompanyDbContext> options) : base(options)
+    {
+        isLockedColumnAvailable = true;
+    }
+
+    public CompanyDbContext(
+        DbContextOptions<CompanyDbContext> options,
+        IOptions<CompanyDatabaseOptions> databaseOptions) : base(options)
+    {
+        isLockedColumnAvailable = databaseOptions.Value.IsLockedColumnAvailable;
+    }
+
     public DbSet<WebCompany> Companies => Set<WebCompany>();
     public DbSet<WebBranch> Branches => Set<WebBranch>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.ReplaceService<IModelCacheKeyFactory, CompanyModelCacheKeyFactory>();
+        base.OnConfiguring(optionsBuilder);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,7 +56,14 @@ public sealed class CompanyDbContext(DbContextOptions<CompanyDbContext> options)
         company.Property(item => item.Note).HasColumnType("ntext");
         company.Property(item => item.Logo).HasColumnType("ntext");
         company.Property(item => item.ExpiredDate).HasColumnType("datetime");
-        company.Property(item => item.IsLocked).HasColumnType("bit").IsRequired();
+        if (isLockedColumnAvailable)
+        {
+            company.Property(item => item.IsLocked).HasColumnType("bit").IsRequired();
+        }
+        else
+        {
+            company.Ignore(item => item.IsLocked);
+        }
 
         var branch = modelBuilder.Entity<WebBranch>();
         branch.ToTable("Branch", "dbo");

@@ -16,8 +16,12 @@ public sealed class UserAdministrationService(
     WebAuthDbContext dbContext,
     CompanyDbContext companyDbContext,
     IDatabasePasswordService passwordService,
-    ISystemRoleEvaluator systemRoleEvaluator) : IUserAdministrationService
+    ISystemRoleEvaluator systemRoleEvaluator,
+    Microsoft.Extensions.Options.IOptions<UserAccountStatusOptions>? userAccountStatusOptions = null) : IUserAdministrationService
 {
+    private const string UserAccountStatusChangesDisabledMessage =
+        "Tính năng khóa/mở khóa tài khoản trên mobile đang tạm tắt. Vui lòng thực hiện trên website.";
+
     public async Task<PagedResponse<UserResponse>> GetPageAsync(
         UserListQuery query,
         int currentUserId,
@@ -224,6 +228,11 @@ public sealed class UserAdministrationService(
         SetUserStatusRequest request,
         CancellationToken cancellationToken)
     {
+        if (!(userAccountStatusOptions?.Value.StatusChangesEnabled ?? false))
+        {
+            throw new ConflictException(UserAccountStatusChangesDisabledMessage);
+        }
+
         var scope = await GetScopeAsync(currentUserId, cancellationToken);
         var isActive = AccessManagementSupport.RequireIsActive(request.IsActive);
         if (id == currentUserId && !isActive)

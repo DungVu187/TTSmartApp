@@ -1,277 +1,175 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
-import '../../../../core/widgets/app_content.dart';
-import '../../../../core/widgets/app_empty_state.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
+import '../../../mix_design_management/data/repositories/mix_design_repository.dart';
 import '../../../shell/presentation/module_registry.dart';
+import '../../../station_management/data/repositories/station_repository.dart';
+import '../../../weigh_station_management/data/repositories/weigh_station_repository.dart';
 import '../more_module_registry.dart';
+import '../widgets/module_panel_grid.dart';
 import 'module_preview_screen.dart';
-import 'system_screen.dart';
 
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key, required this.companyRepository});
+  const MoreScreen({
+    super.key,
+    required this.companyRepository,
+    required this.mixDesignRepository,
+    required this.stationRepository,
+    required this.weighStationRepository,
+  });
 
   final CompanyRepository companyRepository;
+  final MixDesignRepository mixDesignRepository;
+  final StationRepository stationRepository;
+  final WeighStationRepository weighStationRepository;
 
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final hasSystemAccess = visibleAccessModules(controller).isNotEmpty;
     final organizationModules = visibleOrganizationModules(controller);
-    final organizationPreviewModules = _group(MoreModuleGroup.organization);
-    return ListView(
-      key: const PageStorageKey<String>('more-scroll'),
-      children: [
-        AppContent(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppSectionHeader(
-                title: 'Xem thêm',
-                subtitle: 'Các phân hệ vận hành và quản trị khác',
-              ),
-              const SizedBox(height: 22),
-              if (organizationModules.isNotEmpty) ...[
-                _OrganizationModuleSection(
-                  modules: organizationModules,
-                  repository: companyRepository,
-                ),
-                if (organizationPreviewModules.isNotEmpty)
-                  const SizedBox(height: 26),
-              ],
-              _ModuleGroupSection(
-                title: 'Vận hành',
-                modules: _group(MoreModuleGroup.operations),
-              ),
-              if (organizationPreviewModules.isNotEmpty) ...[
-                const SizedBox(height: 26),
-                _ModuleGroupSection(
-                  title: organizationModules.isNotEmpty
-                      ? 'Tổ chức khác'
-                      : 'Tổ chức',
-                  modules: organizationPreviewModules,
-                ),
-              ],
-              if (hasSystemAccess) ...[
-                const SizedBox(height: 26),
-                const _AdministrationSection(),
-              ],
-              const SizedBox(height: 24),
-              const Card(
-                child: AppEmptyState(
-                  icon: Icons.extension_outlined,
-                  title: 'Các phân hệ được hoàn thiện theo từng giai đoạn',
-                  message:
-                      'Giao diện đã tạo sẵn điểm mở module. API và nghiệp vụ '
-                      'sẽ được nối theo từng vertical slice ở giai đoạn sau.',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+    final stationModules = visibleStationModules(controller);
+    final operationalModules = visibleOperationalModules(controller);
+    final mixDesignModules = operationalModules
+        .where((module) => module.keyName == 'mix-designs')
+        .toList(growable: false);
+    final weighStationModules = operationalModules
+        .where((module) => module.keyName == 'weigh-stations')
+        .toList(growable: false);
+    final previewByKey = {
+      for (final module in previewModules) module.keyName: module,
+    };
+    final actions = <_MoreAction>[];
 
-  List<MoreModuleDefinition> _group(MoreModuleGroup group) => previewModules
-      .where((module) => module.group == group)
-      .toList(growable: false);
-}
-
-class _OrganizationModuleSection extends StatelessWidget {
-  const _OrganizationModuleSection({
-    required this.modules,
-    required this.repository,
-  });
-
-  final List<OrganizationModule> modules;
-  final CompanyRepository repository;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tổ chức',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...modules.map(
-          (module) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Card(
-              child: ListTile(
-                minTileHeight: 72,
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(module.icon, color: theme.colorScheme.primary),
-                ),
-                title: Text(module.label),
-                subtitle: Text(module.description),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () =>
-                    openOrganizationModule(context, module, repository),
-              ),
+    void addPreview(String keyName) {
+      final module = previewByKey.remove(keyName);
+      if (module == null) return;
+      actions.add(
+        _MoreAction(
+          label: _panelLabel(module),
+          icon: module.icon,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ModulePreviewScreen(module: module),
             ),
           ),
         ),
-      ],
-    );
-  }
-}
+      );
+    }
 
-class _ModuleGroupSection extends StatelessWidget {
-  const _ModuleGroupSection({required this.title, required this.modules});
-
-  final String title;
-  final List<MoreModuleDefinition> modules;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(
+    actions.addAll(
+      mixDesignModules.map(
+        (module) => _MoreAction(
+          label: module.label,
+          icon: module.icon,
+          onTap: () => openMixDesignModule(
             context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 900
-                ? 4
-                : constraints.maxWidth >= 560
-                ? 3
-                : 2;
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: modules.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                mainAxisExtent: 142,
-              ),
-              itemBuilder: (context, index) =>
-                  _ModuleTile(module: modules[index]),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _ModuleTile extends StatelessWidget {
-  const _ModuleTile({required this.module});
-
-  final MoreModuleDefinition module;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ModulePreviewScreen(module: module),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  module.icon,
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                module.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'Bản xem trước',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            module,
+            mixDesignRepository,
+            companyRepository,
           ),
         ),
       ),
     );
-  }
-}
-
-class _AdministrationSection extends StatelessWidget {
-  const _AdministrationSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quản trị',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
+    actions.addAll(
+      weighStationModules.map(
+        (module) => _MoreAction(
+          label: module.label,
+          icon: module.icon,
+          onTap: () => openWeighStationModule(
+            context,
+            module,
+            weighStationRepository,
+            companyRepository,
           ),
         ),
-        const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            minTileHeight: 72,
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                Icons.admin_panel_settings_outlined,
-                color: theme.colorScheme.primary,
-              ),
+      ),
+    );
+    actions.addAll(
+      stationModules.map(
+        (module) => _MoreAction(
+          label: module.label,
+          icon: module.icon,
+          onTap: () => openStationModule(
+            context,
+            module,
+            stationRepository,
+            companyRepository,
+          ),
+        ),
+      ),
+    );
+    actions.addAll(
+      organizationModules.map(
+        (module) => _MoreAction(
+          label: module.label,
+          icon: module.icon,
+          onTap: () =>
+              openOrganizationModule(context, module, companyRepository),
+        ),
+      ),
+    );
+    for (final module in previewByKey.values) {
+      actions.add(
+        _MoreAction(
+          label: _panelLabel(module),
+          icon: module.icon,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ModulePreviewScreen(module: module),
             ),
-            title: const Text('Hệ thống'),
-            subtitle: const Text('Người dùng, phân quyền và chức năng'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const SystemScreen())),
           ),
         ),
+      );
+    }
+
+    return ModulePanelGrid(
+      compactColumnCount: 4,
+      items: [
+        for (var index = 0; index < actions.length; index++)
+          ModulePanelItem(
+            label: actions[index].label,
+            icon: actions[index].icon,
+            accent: _modulePalettes[index % _modulePalettes.length].accent,
+            backgroundColor:
+                _modulePalettes[index % _modulePalettes.length].background,
+            onTap: actions[index].onTap,
+          ),
       ],
     );
   }
 }
+
+String _panelLabel(MoreModuleDefinition module) => switch (module.keyName) {
+  PreviewModuleKeys.materials => 'Quản lý vật liệu',
+  _ => module.label,
+};
+
+class _MoreAction {
+  const _MoreAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+}
+
+class _ModulePalette {
+  const _ModulePalette({required this.accent, required this.background});
+
+  final Color accent;
+  final Color background;
+}
+
+const _modulePalettes = <_ModulePalette>[
+  _ModulePalette(accent: Color(0xFF2563EB), background: Color(0xFFEEF2FF)),
+  _ModulePalette(accent: Color(0xFF047857), background: Color(0xFFECFDF5)),
+  _ModulePalette(accent: Color(0xFFEA580C), background: Color(0xFFFFF7ED)),
+  _ModulePalette(accent: Color(0xFF7C3AED), background: Color(0xFFF3E8FF)),
+  _ModulePalette(accent: Color(0xFFD97706), background: Color(0xFFFFFBEB)),
+  _ModulePalette(accent: Color(0xFF0284C7), background: Color(0xFFF0F9FF)),
+  _ModulePalette(accent: Color(0xFFE11D48), background: Color(0xFFFFF1F2)),
+];

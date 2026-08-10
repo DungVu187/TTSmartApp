@@ -104,6 +104,162 @@ internal static class BranchTestSupport
         return new BranchTestIdentity(userName, password);
     }
 
+    public static async Task<BranchTestIdentity> SeedOrderReportIdentityAsync(
+        IServiceProvider services,
+        WebAuthDbContext dbContext,
+        string roleCode,
+        int? companyId,
+        string? branchIds,
+        params ActiveKeyPermission[] permissions)
+    {
+        var identity = await SeedIdentityAsync(
+            services,
+            dbContext,
+            roleCode,
+            companyId,
+            branchIds);
+        var user = await dbContext.Users.SingleAsync(item => item.UserName == identity.UserName);
+        var userRole = await dbContext.UserRoles.SingleAsync(item => item.UserId == user.UserId);
+        var function = new WebFunction
+        {
+            Code = OperationalFunctionCodes.OrderReports,
+            Name = "Báo cáo đơn hàng",
+            FunctionParentId = 0,
+            Status = WebDataStatus.Active
+        };
+        dbContext.Functions.Add(function);
+        await dbContext.SaveChangesAsync();
+        dbContext.FunctionRoles.Add(new WebFunctionRole
+        {
+            TargetId = userRole.RoleId,
+            FunctionId = function.FunctionId,
+            Type = WebFunctionRoleType.Role,
+            ActiveKey = permissions.Aggregate(
+                ActiveKeyValue.None,
+                (current, permission) => ActiveKeyValue.Set(current, permission, true)),
+            Status = WebDataStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+        return identity;
+    }
+
+    public static async Task<BranchTestIdentity> SeedOrderStatisticsIdentityAsync(
+        IServiceProvider services,
+        WebAuthDbContext dbContext,
+        string roleCode,
+        int? companyId,
+        string? branchIds,
+        params ActiveKeyPermission[] permissions)
+    {
+        var identity = await SeedIdentityAsync(
+            services,
+            dbContext,
+            roleCode,
+            companyId,
+            branchIds);
+        var user = await dbContext.Users.SingleAsync(item => item.UserName == identity.UserName);
+        var userRole = await dbContext.UserRoles.SingleAsync(item => item.UserId == user.UserId);
+        var function = new WebFunction
+        {
+            Code = OperationalFunctionCodes.OrderStatistics,
+            Name = "Thống kê đơn hàng",
+            FunctionParentId = 0,
+            Status = WebDataStatus.Active
+        };
+        dbContext.Functions.Add(function);
+        await dbContext.SaveChangesAsync();
+        dbContext.FunctionRoles.Add(new WebFunctionRole
+        {
+            TargetId = userRole.RoleId,
+            FunctionId = function.FunctionId,
+            Type = WebFunctionRoleType.Role,
+            ActiveKey = permissions.Aggregate(
+                ActiveKeyValue.None,
+                (current, permission) => ActiveKeyValue.Set(current, permission, true)),
+            Status = WebDataStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+        return identity;
+    }
+
+    public static async Task<BranchTestIdentity> SeedMixDesignIdentityAsync(
+        IServiceProvider services,
+        WebAuthDbContext dbContext,
+        string roleCode,
+        int? companyId,
+        string? branchIds,
+        params ActiveKeyPermission[] permissions)
+    {
+        var identity = await SeedIdentityAsync(
+            services,
+            dbContext,
+            roleCode,
+            companyId,
+            branchIds);
+        var user = await dbContext.Users.SingleAsync(item => item.UserName == identity.UserName);
+        var userRole = await dbContext.UserRoles.SingleAsync(item => item.UserId == user.UserId);
+        var function = new WebFunction
+        {
+            Code = OperationalFunctionCodes.MixDesigns,
+            Name = "Quản lý cấp phối",
+            FunctionParentId = 0,
+            Status = WebDataStatus.Active
+        };
+        dbContext.Functions.Add(function);
+        await dbContext.SaveChangesAsync();
+        dbContext.FunctionRoles.Add(new WebFunctionRole
+        {
+            TargetId = userRole.RoleId,
+            FunctionId = function.FunctionId,
+            Type = WebFunctionRoleType.Role,
+            ActiveKey = permissions.Aggregate(
+                ActiveKeyValue.None,
+                (current, permission) => ActiveKeyValue.Set(current, permission, true)),
+            Status = WebDataStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+        return identity;
+    }
+
+    public static async Task<BranchTestIdentity> SeedWeighStationIdentityAsync(
+        IServiceProvider services,
+        WebAuthDbContext dbContext,
+        string roleCode,
+        int? companyId,
+        string? branchIds,
+        params ActiveKeyPermission[] permissions)
+    {
+        var identity = await SeedIdentityAsync(
+            services,
+            dbContext,
+            roleCode,
+            companyId,
+            branchIds);
+        var user = await dbContext.Users.SingleAsync(item => item.UserName == identity.UserName);
+        var userRole = await dbContext.UserRoles.SingleAsync(item => item.UserId == user.UserId);
+        var function = new WebFunction
+        {
+            Code = OperationalFunctionCodes.WeighStations,
+            Name = "Quản lý cân ô tô",
+            FunctionParentId = 0,
+            Status = WebDataStatus.Active
+        };
+        dbContext.Functions.Add(function);
+        await dbContext.SaveChangesAsync();
+        dbContext.FunctionRoles.Add(new WebFunctionRole
+        {
+            TargetId = userRole.RoleId,
+            FunctionId = function.FunctionId,
+            Type = WebFunctionRoleType.Role,
+            ActiveKey = permissions.Aggregate(
+                ActiveKeyValue.None,
+                (current, permission) => ActiveKeyValue.Set(current, permission, true)),
+            Status = WebDataStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+        return identity;
+    }
+
     public static WebCompany CreateCompany(int id, string code, string name) =>
         new()
         {
@@ -136,6 +292,7 @@ internal static class BranchTestSupport
             Address = "Hà Nội",
             Username = $"{code}_user",
             Password = "Legacy123@#",
+            Dataname = $"{code}_online",
             TypeTram = typeTram,
             Status = status,
             CreatedAt = new DateTime(2026, 7, 1, 8, 0, 0),

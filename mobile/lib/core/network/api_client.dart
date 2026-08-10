@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 import 'api_exception.dart';
+import 'api_request_cancellation.dart';
 import 'problem_details.dart';
 
 typedef UnauthorizedCallback = Future<void> Function();
@@ -29,14 +30,26 @@ class ApiClient {
     String path, {
     Map<String, Object?> query = const <String, Object?>{},
     bool authenticated = true,
-  }) => _send('GET', path, query: query, authenticated: authenticated);
+    ApiRequestCancellation? cancellation,
+  }) => _send(
+    'GET',
+    path,
+    query: query,
+    authenticated: authenticated,
+    cancellation: cancellation,
+  );
 
   Future<Uint8List> getBytes(
     String path, {
     Map<String, Object?> query = const <String, Object?>{},
+    String accept = 'image/*',
+    ApiRequestCancellation? cancellation,
   }) async {
-    final request = http.Request('GET', _buildUri(path, query))
-      ..headers['Accept'] = 'image/*';
+    final request = _request(
+      'GET',
+      _buildUri(path, query),
+      cancellation: cancellation,
+    )..headers['Accept'] = accept;
     final response = await _execute(request, authenticated: true);
     return response.bodyBytes;
   }
@@ -80,9 +93,13 @@ class ApiClient {
     Map<String, Object?> query = const <String, Object?>{},
     Object? body,
     required bool authenticated,
+    ApiRequestCancellation? cancellation,
   }) async {
-    final request = http.Request(method, _buildUri(path, query))
-      ..headers['Accept'] = 'application/json';
+    final request = _request(
+      method,
+      _buildUri(path, query),
+      cancellation: cancellation,
+    )..headers['Accept'] = 'application/json';
     if (body != null) {
       request.headers['Content-Type'] = 'application/json; charset=utf-8';
       request.body = jsonEncode(body);
@@ -135,6 +152,8 @@ class ApiClient {
         type: ApiFailureType.network,
         message: 'Không thể kết nối máy chủ. Hãy kiểm tra mạng và địa chỉ API.',
       );
+    } on http.RequestAbortedException {
+      throw const ApiRequestCancelledException();
     } on http.ClientException {
       throw const ApiException(
         type: ApiFailureType.network,
@@ -162,6 +181,18 @@ class ApiClient {
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
   }
+
+  http.Request _request(
+    String method,
+    Uri uri, {
+    ApiRequestCancellation? cancellation,
+  }) => cancellation == null
+      ? http.Request(method, uri)
+      : http.AbortableRequest(
+          method,
+          uri,
+          abortTrigger: cancellation.whenCancelled,
+        );
 
   Object? _decodeSuccess(http.Response response) {
     if (response.statusCode == 204 || response.bodyBytes.isEmpty) {
@@ -193,7 +224,10 @@ class ApiClient {
     };
     return ApiException(
       type: type,
-      message: problem?.detail ?? _defaultMessage(type),
+      message:
+          problem?.detail ??
+          _firstFieldError(problem?.errors) ??
+          _defaultMessage(type),
       statusCode: response.statusCode,
       title: problem?.title,
       traceId: problem?.traceId,
@@ -211,6 +245,17 @@ class ApiClient {
     ApiFailureType.server => 'Máy chủ đang gặp lỗi. Vui lòng thử lại sau.',
     _ => 'Yêu cầu không thành công. Vui lòng thử lại.',
   };
+
+  String? _firstFieldError(Map<String, List<String>>? errors) {
+    if (errors == null) return null;
+    for (final messages in errors.values) {
+      for (final message in messages) {
+        final normalized = message.trim();
+        if (normalized.isNotEmpty) return normalized;
+      }
+    }
+    return null;
+  }
 
   void close() => _httpClient.close();
 }

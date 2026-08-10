@@ -1,151 +1,173 @@
-import '../../../../core/models/data_scope.dart';
-import '../../../../core/models/time_range_preset.dart';
+import 'dart:typed_data';
+
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/json_helpers.dart';
 import '../models/report_models.dart';
 
-abstract interface class ReportsRepository {
-  Future<List<DataScopeOption>> getAvailableScopes();
-
-  Future<ReportSnapshot> getReport({
-    required DataScopeOption scope,
-    required TimeRangePreset timeRange,
+class OrderStatisticsExportQuery {
+  const OrderStatisticsExportQuery({
+    required this.from,
+    required this.to,
+    required this.branchId,
+    this.companyId,
+    this.vehiclePlate,
+    this.customerName,
+    this.concreteGradeName,
+    this.employeeName,
   });
+
+  final DateTime from;
+  final DateTime to;
+  final int? companyId;
+  final int? branchId;
+  final String? vehiclePlate;
+  final String? customerName;
+  final String? concreteGradeName;
+  final String? employeeName;
+
+  Map<String, Object?> toQueryParameters() => <String, Object?>{
+    'companyId': companyId,
+    'branchId': branchId,
+    'from': formatOrderStatisticsDateTime(from),
+    'to': formatOrderStatisticsDateTime(to),
+    'vehiclePlate': _normalizedFilter(vehiclePlate),
+    'customerName': _normalizedFilter(customerName),
+    'concreteGradeName': _normalizedFilter(concreteGradeName),
+    'employeeName': _normalizedFilter(employeeName),
+  };
+}
+
+class OrderStatisticsExportFile {
+  const OrderStatisticsExportFile({
+    required this.bytes,
+    this.fileName = defaultFileName,
+    this.contentType = defaultContentType,
+  });
+
+  static const String defaultFileName = 'thong-ke-don-hang.xlsx';
+  static const String defaultContentType =
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  final Uint8List bytes;
+  final String fileName;
+  final String contentType;
+}
+
+abstract interface class ReportsRepository {
+  Future<List<OrderStatisticsStation>> getStations({int? companyId});
+
+  Future<OrderStatisticsFilterOptions> getFilterOptions(
+    OrderStatisticsFilterQuery query,
+  );
+
+  Future<OrderStatisticsPage> search(OrderStatisticsQuery query);
+
+  Future<OrderStatisticsExportFile> export(OrderStatisticsExportQuery query);
+}
+
+class ApiReportsRepository implements ReportsRepository {
+  ApiReportsRepository(this._apiClient);
+
+  final ApiClient _apiClient;
+
+  @override
+  Future<List<OrderStatisticsStation>> getStations({int? companyId}) async {
+    _validateId(companyId, 'companyId');
+    final response = await _apiClient.get(
+      '/api/order-statistics/stations',
+      query: <String, Object?>{'companyId': companyId},
+    );
+    return _parse(
+      () => requireJsonList(
+        response,
+        'danh sách trạm thống kê',
+      ).map(OrderStatisticsStation.fromJson).toList(growable: false),
+    );
+  }
+
+  @override
+  Future<OrderStatisticsFilterOptions> getFilterOptions(
+    OrderStatisticsFilterQuery query,
+  ) async {
+    _validateId(query.companyId, 'companyId');
+    _validateId(query.branchId, 'branchId');
+    final response = await _apiClient.get(
+      '/api/order-statistics/filters',
+      query: query.toQueryParameters(),
+    );
+    return _parse(() => OrderStatisticsFilterOptions.fromJson(response));
+  }
+
+  @override
+  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async {
+    _validateId(query.companyId, 'companyId');
+    _validateId(query.branchId, 'branchId');
+    if (query.pageNumber < 1) {
+      throw ArgumentError.value(query.pageNumber, 'pageNumber');
+    }
+    final response = await _apiClient.get(
+      '/api/order-statistics',
+      query: query.toQueryParameters(),
+    );
+    return _parse(() => OrderStatisticsPage.fromJson(response));
+  }
+
+  @override
+  Future<OrderStatisticsExportFile> export(
+    OrderStatisticsExportQuery query,
+  ) async {
+    _validateId(query.companyId, 'companyId');
+    _validateId(query.branchId, 'branchId');
+    final bytes = await _apiClient.getBytes(
+      '/api/order-statistics/export',
+      query: query.toQueryParameters(),
+      accept: OrderStatisticsExportFile.defaultContentType,
+    );
+    return OrderStatisticsExportFile(bytes: bytes);
+  }
+
+  void _validateId(int? value, String name) {
+    if (value != null && value < 1) {
+      throw ArgumentError.value(value, name, 'Phải lớn hơn 0.');
+    }
+  }
+
+  T _parse<T>(T Function() parser) {
+    try {
+      return parser();
+    } on FormatException catch (error) {
+      throw ApiException.invalidResponse(error.message);
+    }
+  }
 }
 
 class MockReportsRepository implements ReportsRepository {
   const MockReportsRepository();
 
-  static const _scopes = <DataScopeOption>[
-    DataScopeOption(
-      keyName: 'all-company',
-      label: 'Toàn công ty',
-      type: DataScopeType.company,
-    ),
-    DataScopeOption(
-      keyName: 'station-tan-phu',
-      label: 'Trạm Tân Phú',
-      type: DataScopeType.station,
-    ),
-    DataScopeOption(
-      keyName: 'station-binh-chanh',
-      label: 'Trạm Bình Chánh',
-      type: DataScopeType.station,
-    ),
-  ];
+  @override
+  Future<List<OrderStatisticsStation>> getStations({int? companyId}) async =>
+      const <OrderStatisticsStation>[];
 
   @override
-  Future<List<DataScopeOption>> getAvailableScopes() async {
-    await Future<void>.delayed(const Duration(milliseconds: 80));
-    return _scopes;
-  }
+  Future<OrderStatisticsFilterOptions> getFilterOptions(
+    OrderStatisticsFilterQuery query,
+  ) async => OrderStatisticsFilterOptions.empty;
 
   @override
-  Future<ReportSnapshot> getReport({
-    required DataScopeOption scope,
-    required TimeRangePreset timeRange,
-  }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 220));
-    final isCompany = scope.type == DataScopeType.company;
-    final multiplier = switch (timeRange) {
-      TimeRangePreset.today => 1,
-      TimeRangePreset.sevenDays => 6,
-      TimeRangePreset.thisMonth => 24,
-    };
-    final scopeFactor = isCompany ? 1.0 : 0.42;
-    final volume = 2450 * multiplier * scopeFactor;
-    final orders = (128 * multiplier * scopeFactor).round();
+  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async =>
+      OrderStatisticsPage.empty(
+        viewMode: query.viewMode,
+        pageNumber: query.pageNumber,
+      );
 
-    return ReportSnapshot(
-      scope: scope,
-      timeRange: timeRange,
-      updatedAt: DateTime.now(),
-      metrics: <ReportMetric>[
-        ReportMetric(
-          type: ReportMetricType.orders,
-          label: 'Đơn hàng',
-          value: '$orders',
-          caption: 'Trong kỳ đã chọn',
-        ),
-        ReportMetric(
-          type: ReportMetricType.mixedVolume,
-          label: 'Sản lượng',
-          value: '${_compact(volume)} m³',
-          caption: 'Khối lượng đã trộn',
-        ),
-        const ReportMetric(
-          type: ReportMetricType.completionRate,
-          label: 'Hoàn thành',
-          value: '92%',
-          caption: 'Đơn giao đủ khối lượng',
-        ),
-        ReportMetric(
-          type: ReportMetricType.activeStations,
-          label: 'Trạm hoạt động',
-          value: isCompany ? '6/7' : '1/1',
-          caption: 'Trong phạm vi hiện tại',
-        ),
-      ],
-      chartLabels: timeRange == TimeRangePreset.today
-          ? const <String>['06h', '08h', '10h', '12h', '14h', '16h', '18h']
-          : timeRange == TimeRangePreset.sevenDays
-          ? const <String>['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-          : const <String>['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'],
-      chartValues: timeRange == TimeRangePreset.today
-          ? <double>[120, 280, 510, 760, 1180, 1850, volume]
-          : timeRange == TimeRangePreset.sevenDays
-          ? <double>[
-              2180,
-              2460,
-              2310,
-              2740,
-              2950,
-              2560,
-              2210,
-            ].map((value) => value * scopeFactor).toList(growable: false)
-          : <double>[
-              14200,
-              15650,
-              14980,
-              16840,
-            ].map((value) => value * scopeFactor).toList(growable: false),
-      stationRows: isCompany
-          ? const <StationReportRow>[
-              StationReportRow(
-                stationName: 'Trạm Tân Phú',
-                orderCount: 46,
-                mixedVolume: 890,
-                completionRate: 0.96,
-              ),
-              StationReportRow(
-                stationName: 'Trạm Bình Chánh',
-                orderCount: 38,
-                mixedVolume: 720,
-                completionRate: 0.89,
-              ),
-              StationReportRow(
-                stationName: 'Trạm Thủ Đức',
-                orderCount: 31,
-                mixedVolume: 650,
-                completionRate: 0.93,
-              ),
-            ]
-          : <StationReportRow>[
-              StationReportRow(
-                stationName: scope.label,
-                orderCount: orders,
-                mixedVolume: volume,
-                completionRate: 0.93,
-              ),
-            ],
-    );
-  }
+  @override
+  Future<OrderStatisticsExportFile> export(
+    OrderStatisticsExportQuery query,
+  ) async => OrderStatisticsExportFile(bytes: Uint8List(0));
+}
 
-  static String _compact(double value) {
-    if (value >= 1000) {
-      final compact = value / 1000;
-      return compact == compact.roundToDouble()
-          ? '${compact.round()}K'
-          : '${compact.toStringAsFixed(1)}K';
-    }
-    return value.round().toString();
-  }
+String? _normalizedFilter(String? value) {
+  final normalized = value?.trim();
+  return normalized == null || normalized.isEmpty ? null : normalized;
 }

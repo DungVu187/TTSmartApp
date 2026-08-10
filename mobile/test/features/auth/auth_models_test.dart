@@ -89,6 +89,7 @@ void main() {
     expect(result.session.user.fullName, 'Quản trị');
     expect(result.session.roles.single.id, 3);
     expect(result.session.roles.single.code, 'ADMIN');
+    expect(result.session.hasRole('admin'), isTrue);
     expect(result.session.roleFunctions.single.functionRoleId, 30);
     expect(result.session.hasPermission('qlnd', AccessPermission.view), isTrue);
     expect(

@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 
 class AppContent extends StatelessWidget {
-  const AppContent({super.key, required this.child, this.maxWidth = 1180});
+  const AppContent({
+    super.key,
+    required this.child,
+    this.maxWidth = 1180,
+    this.topPadding = 16,
+    this.horizontalPadding,
+  });
 
   final Widget child;
   final double maxWidth;
+  final double topPadding;
+  final double? horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
-    final horizontal = MediaQuery.sizeOf(context).width >= 720 ? 24.0 : 16.0;
+    final horizontal =
+        horizontalPadding ??
+        (MediaQuery.sizeOf(context).width >= 720 ? 24.0 : 16.0);
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(horizontal, 16, horizontal, 32),
+          padding: EdgeInsets.fromLTRB(horizontal, topPadding, horizontal, 32),
           child: child,
         ),
       ),

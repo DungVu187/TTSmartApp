@@ -499,6 +499,31 @@ public sealed class WebApiIntegrationTests(TTSmartApiFactory factory)
     }
 
     [Fact]
+    public async Task UserStatusChangesDisabled_Returns409()
+    {
+        TestIdentity identity = null!;
+        await factory.ResetDatabaseAsync(async (services, dbContext) =>
+        {
+            identity = await SeedIdentityAsync(
+                services,
+                dbContext,
+                (ManagementFunctionCodes.Users, ActiveKeyPermission.Update));
+        });
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await LoginAsync(client, identity));
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/users/{identity.UserId}/status",
+            new { isActive = true });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains("đang tạm tắt", document.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
     public async Task OpenApi_CoDayDuRouteRbacMoi()
     {
         await factory.ResetDatabaseAsync();

@@ -24,3 +24,6 @@ mobile/.flutter-plugins-dependencies
 
 # Logs and local runtime output
 *.log
+
+# Local project documentation and agent instructions
+*.md

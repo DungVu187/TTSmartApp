@@ -5,6 +5,11 @@ abstract final class AccessFunctionCodes {
   static const String roles = 'QLQ';
   static const String functions = 'QLCN';
   static const String companies = 'QLCT';
+  static const String branches = 'QLTT';
+  static const String orderReports = 'BCDH';
+  static const String orderStatistics = 'TKĐH';
+  static const String mixDesigns = 'QLCP';
+  static const String weighStations = 'TKTC';
 }
 
 enum AccessPermission {

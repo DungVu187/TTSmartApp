@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/utils/date_time_format.dart';
+import '../../../../core/widgets/app_date_picker.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../access_management/data/models/permission_models.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
@@ -102,15 +103,22 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
   }
 
   Future<void> _setExpiration(CompanyResponse company) async {
-    final selection = await showModalBottomSheet<_ExpirationSelection>(
+    final selection = await showAppDatePicker(
       context: context,
-      isScrollControlled: true,
-      builder: (_) => _ExpirationSheet(initialDate: company.expiredDate),
+      initialDate:
+          company.expiredDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 20)),
+      title: 'Hạn sử dụng',
+      keyPrefix: 'company-expiration',
+      allowClear: true,
+      showTime: false,
     );
     if (selection == null) return;
+    final date = selection.cleared ? null : selection.date;
     await _runAction(
-      () => widget.controller.setExpiration(company.id, selection.date),
-      successMessage: selection.date == null
+      () => widget.controller.setExpiration(company.id, date),
+      successMessage: date == null
           ? 'Đã bỏ giới hạn thời gian sử dụng.'
           : 'Đã cập nhật hạn sử dụng.',
     );
@@ -277,72 +285,74 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                else if (company != null && (canUpdate || canDelete))
-                  PopupMenuButton<_CompanyAction>(
-                    tooltip: 'Thao tác công ty',
-                    onSelected: (action) => switch (action) {
-                      _CompanyAction.edit => _edit(company),
-                      _CompanyAction.lock => _setLock(company),
-                      _CompanyAction.expiration => _setExpiration(company),
-                      _CompanyAction.logo => _uploadLogo(company),
-                      _CompanyAction.delete => _delete(company),
-                      _CompanyAction.restore => _restore(company),
-                    },
-                    itemBuilder: (context) => [
-                      if (canUpdate && !company.isDeleted) ...[
-                        const PopupMenuItem(
-                          value: _CompanyAction.edit,
-                          child: ListTile(
-                            leading: Icon(Icons.edit_outlined),
-                            title: Text('Sửa thông tin'),
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: _CompanyAction.lock,
-                          child: ListTile(
-                            leading: Icon(
-                              company.isLocked
-                                  ? Icons.lock_open_outlined
-                                  : Icons.lock_outline,
+                else if (company != null) ...[
+                  if (canUpdate && !company.isDeleted)
+                    TextButton.icon(
+                      onPressed: () => _edit(company),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Sửa'),
+                    ),
+                  if ((canUpdate && !company.isDeleted) ||
+                      (canDelete && !company.isDeleted) ||
+                      (canUpdate && company.isDeleted))
+                    PopupMenuButton<_CompanyAction>(
+                      tooltip: 'Thao tác khác',
+                      onSelected: (action) => switch (action) {
+                        _CompanyAction.lock => _setLock(company),
+                        _CompanyAction.expiration => _setExpiration(company),
+                        _CompanyAction.logo => _uploadLogo(company),
+                        _CompanyAction.delete => _delete(company),
+                        _CompanyAction.restore => _restore(company),
+                      },
+                      itemBuilder: (context) => [
+                        if (canUpdate && !company.isDeleted) ...[
+                          PopupMenuItem(
+                            value: _CompanyAction.lock,
+                            child: ListTile(
+                              leading: Icon(
+                                company.isLocked
+                                    ? Icons.lock_open_outlined
+                                    : Icons.lock_outline,
+                              ),
+                              title: Text(
+                                company.isLocked ? 'Mở khóa' : 'Khóa công ty',
+                              ),
                             ),
-                            title: Text(
-                              company.isLocked ? 'Mở khóa' : 'Khóa công ty',
+                          ),
+                          const PopupMenuItem(
+                            value: _CompanyAction.expiration,
+                            child: ListTile(
+                              leading: Icon(Icons.event_outlined),
+                              title: Text('Cập nhật hạn sử dụng'),
                             ),
                           ),
-                        ),
-                        const PopupMenuItem(
-                          value: _CompanyAction.expiration,
-                          child: ListTile(
-                            leading: Icon(Icons.event_outlined),
-                            title: Text('Cập nhật hạn sử dụng'),
+                          const PopupMenuItem(
+                            value: _CompanyAction.logo,
+                            child: ListTile(
+                              leading: Icon(Icons.image_outlined),
+                              title: Text('Đổi logo'),
+                            ),
                           ),
-                        ),
-                        const PopupMenuItem(
-                          value: _CompanyAction.logo,
-                          child: ListTile(
-                            leading: Icon(Icons.image_outlined),
-                            title: Text('Đổi logo'),
+                        ],
+                        if (canDelete && !company.isDeleted)
+                          const PopupMenuItem(
+                            value: _CompanyAction.delete,
+                            child: ListTile(
+                              leading: Icon(Icons.delete_outline),
+                              title: Text('Xóa công ty'),
+                            ),
                           ),
-                        ),
+                        if (canUpdate && company.isDeleted)
+                          const PopupMenuItem(
+                            value: _CompanyAction.restore,
+                            child: ListTile(
+                              leading: Icon(Icons.restore_outlined),
+                              title: Text('Khôi phục'),
+                            ),
+                          ),
                       ],
-                      if (canDelete && !company.isDeleted)
-                        const PopupMenuItem(
-                          value: _CompanyAction.delete,
-                          child: ListTile(
-                            leading: Icon(Icons.delete_outline),
-                            title: Text('Xóa công ty'),
-                          ),
-                        ),
-                      if (canUpdate && company.isDeleted)
-                        const PopupMenuItem(
-                          value: _CompanyAction.restore,
-                          child: ListTile(
-                            leading: Icon(Icons.restore_outlined),
-                            title: Text('Khôi phục'),
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
+                ],
               ],
             ),
             body: _buildBody(snapshot),
@@ -548,7 +558,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
   }
 }
 
-enum _CompanyAction { edit, lock, expiration, logo, delete, restore }
+enum _CompanyAction { lock, expiration, logo, delete, restore }
 
 class _CompanyHeaderCard extends StatelessWidget {
   const _CompanyHeaderCard({required this.company, required this.logoFuture});
@@ -631,89 +641,6 @@ class _CompanyHeaderCard extends StatelessWidget {
                 if (company.isLocked)
                   CompanyLockChip(isLocked: company.isLocked),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExpirationSelection {
-  const _ExpirationSelection(this.date);
-
-  final DateTime? date;
-}
-
-class _ExpirationSheet extends StatefulWidget {
-  const _ExpirationSheet({required this.initialDate});
-
-  final DateTime? initialDate;
-
-  @override
-  State<_ExpirationSheet> createState() => _ExpirationSheetState();
-}
-
-class _ExpirationSheetState extends State<_ExpirationSheet> {
-  DateTime? _selectedDate;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedDate = widget.initialDate;
-  }
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now.add(const Duration(days: 30)),
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 20, 12, 31),
-      helpText: 'Chọn hạn sử dụng',
-    );
-    if (selected != null) setState(() => _selectedDate = selected);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Hạn sử dụng',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            const Text('Để trống nghĩa là không giới hạn thời gian sử dụng.'),
-            const SizedBox(height: 18),
-            OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.event_outlined),
-              label: Text(formatCompanyDate(_selectedDate)),
-            ),
-            if (_selectedDate != null)
-              TextButton.icon(
-                onPressed: () => setState(() => _selectedDate = null),
-                icon: const Icon(Icons.clear),
-                label: const Text('Bỏ giới hạn thời gian'),
-              ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(context, _ExpirationSelection(_selectedDate)),
-              child: const Text('Lưu hạn sử dụng'),
             ),
           ],
         ),

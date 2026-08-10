@@ -35,6 +35,10 @@ public sealed class ApiExceptionHandler(
                 StatusCodes.Status409Conflict,
                 "Dữ liệu bị xung đột",
                 exception.Message),
+            ServiceUnavailableException => (
+                StatusCodes.Status503ServiceUnavailable,
+                "Dịch vụ dữ liệu tạm thời không khả dụng",
+                exception.Message),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "Lỗi hệ thống",

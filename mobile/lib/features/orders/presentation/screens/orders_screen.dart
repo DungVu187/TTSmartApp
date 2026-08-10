@@ -89,23 +89,38 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   },
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<TimeRangePreset>(
-                  initialValue: timeRange,
-                  decoration: const InputDecoration(
-                    labelText: 'Khoảng thời gian',
-                    prefixIcon: Icon(Icons.date_range_outlined),
-                  ),
-                  items: TimeRangePreset.values
-                      .map(
-                        (item) => DropdownMenuItem<TimeRangePreset>(
-                          value: item,
-                          child: Text(item.label),
+                Text(
+                  'Khoảng thời gian',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final item in TimeRangePreset.values) ...[
+                        ChoiceChip(
+                          key: ValueKey<String>('orders-time-${item.name}'),
+                          label: Text(item.label),
+                          selected: timeRange == item,
+                          showCheckmark: false,
+                          selectedColor: Theme.of(context).colorScheme.primary,
+                          labelStyle: TextStyle(
+                            color: timeRange == item
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          onSelected: (_) =>
+                              setModalState(() => timeRange = item),
                         ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (value) {
-                    if (value != null) setModalState(() => timeRange = value);
-                  },
+                        if (item != TimeRangePreset.values.last)
+                          const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<OrderStatus?>(

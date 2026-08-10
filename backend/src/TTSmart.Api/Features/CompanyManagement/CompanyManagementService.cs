@@ -7,6 +7,7 @@ using TTSmart.Api.Common.Time;
 using TTSmart.Api.Data.Company;
 using TTSmart.Api.Data.WebAuth;
 using TTSmart.Api.Features.Authorization;
+using Microsoft.Extensions.Options;
 
 namespace TTSmart.Api.Features.CompanyManagement;
 
@@ -14,7 +15,9 @@ public sealed class CompanyManagementService(
     CompanyDbContext companyDbContext,
     WebAuthDbContext authDbContext,
     ICompanyLogoStorage logoStorage,
-    ISystemRoleEvaluator systemRoleEvaluator) : ICompanyManagementService
+    ISystemRoleEvaluator systemRoleEvaluator,
+    IOptions<CompanyDatabaseOptions>? companyDatabaseOptions = null,
+    IOptions<CompanyManagementOptions>? companyManagementOptions = null) : ICompanyManagementService
 {
     private const string CaseSensitiveCollation = "SQL_Latin1_General_CP1_CS_AS";
 
@@ -41,6 +44,11 @@ public sealed class CompanyManagementService(
 
         if (query.IsLocked.HasValue)
         {
+            if (!(companyDatabaseOptions?.Value.IsLockedColumnAvailable ?? false))
+            {
+                throw new ValidationException("Bộ lọc IsLocked tạm thời không được hỗ trợ trên mobile.");
+            }
+
             companiesQuery = companiesQuery.Where(company => company.IsLocked == query.IsLocked.Value);
         }
 
@@ -136,6 +144,13 @@ public sealed class CompanyManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
+        if (!(companyDatabaseOptions?.Value.IsLockedColumnAvailable ?? false) ||
+            !(companyManagementOptions?.Value.LockChangesEnabled ?? false))
+        {
+            throw new ConflictException(
+                "Tính năng khóa/mở khóa công ty trên mobile đang tạm tắt. Vui lòng thực hiện trên website.");
+        }
+
         var scope = await GetScopeAsync(currentUserId, cancellationToken);
         var company = await GetTrackedCompanyAsync(id, scope, cancellationToken);
         company.IsLocked = request.IsLocked
@@ -151,6 +166,12 @@ public sealed class CompanyManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
+        if (!(companyManagementOptions?.Value.ExpirationChangesEnabled ?? false))
+        {
+            throw new ConflictException(
+                "Tính năng thay đổi ngày hết hạn trên mobile đang tạm tắt. Vui lòng thực hiện trên website.");
+        }
+
         var scope = await GetScopeAsync(currentUserId, cancellationToken);
         var company = await GetTrackedCompanyAsync(id, scope, cancellationToken);
         company.ExpiredDate = VietnamTime.ToStorage(request.ExpiredDate);

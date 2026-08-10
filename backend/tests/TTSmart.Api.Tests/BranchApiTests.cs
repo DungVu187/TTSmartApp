@@ -192,7 +192,9 @@ public sealed class BranchApiTests(TTSmartApiFactory factory) : IClassFixture<TT
                 ActiveKeyPermission.View,
                 ActiveKeyPermission.Update);
             var companyDbContext = services.GetRequiredService<CompanyDbContext>();
-            companyDbContext.Companies.Add(BranchTestSupport.CreateCompany(1, "CT_1", "Công ty 1"));
+            companyDbContext.Companies.AddRange(
+                BranchTestSupport.CreateCompany(1, "CT_1", "Công ty 1"),
+                BranchTestSupport.CreateCompany(2, "NGUNG_DICH_VU", "Ngưng dịch vụ"));
             companyDbContext.Branches.AddRange(
                 BranchTestSupport.CreateBranch(10, 1, "ASSIGNED", "Trạm được gán"),
                 BranchTestSupport.CreateBranch(11, 1, "NOT_ASSIGNED", "Trạm chưa gán"));
@@ -207,6 +209,20 @@ public sealed class BranchApiTests(TTSmartApiFactory factory) : IClassFixture<TT
         Assert.NotNull(page);
         Assert.Equal([10], page.Items.Select(item => item.Id).ToArray());
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/branches/11")).StatusCode);
+
+        await factory.ExecuteCompanyDatabaseAsync(async dbContext =>
+        {
+            var reassignedBranch = await dbContext.Branches.SingleAsync(branch => branch.BranchId == 10);
+            reassignedBranch.CompanyId = 2;
+            await dbContext.SaveChangesAsync();
+        });
+        var pageAfterWebLock = await client.GetFromJsonAsync<PagedResponse<BranchListItemResponse>>(
+            "/api/branches",
+            BranchTestSupport.JsonOptions);
+        Assert.NotNull(pageAfterWebLock);
+        Assert.Empty(pageAfterWebLock.Items);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/branches/10")).StatusCode);
+
         var updateResponse = await client.PutAsJsonAsync("/api/branches/10", new
         {
             name = "Không được sửa"

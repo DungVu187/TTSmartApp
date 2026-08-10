@@ -179,6 +179,8 @@ class AppController extends ChangeNotifier {
   bool hasPermission(String functionCode, AccessPermission permission) =>
       _session?.hasPermission(functionCode, permission) ?? false;
 
+  bool hasRole(String roleCode) => _session?.hasRole(roleCode) ?? false;
+
   bool hasAnyPermission(
     Iterable<String> functionCodes,
     AccessPermission permission,

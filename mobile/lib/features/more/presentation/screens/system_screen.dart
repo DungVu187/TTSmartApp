@@ -1,138 +1,70 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
-import '../../../../core/widgets/app_content.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../shell/presentation/module_registry.dart';
+import '../widgets/module_panel_grid.dart';
 
 class SystemScreen extends StatelessWidget {
   const SystemScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final modules = visibleAccessModules(AppScope.of(context));
-    return Scaffold(
-      appBar: AppBar(title: const Text('Hệ thống')),
-      body: SafeArea(
-        child: ListView(
-          children: [
-            AppContent(
-              maxWidth: 920,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Quản trị truy cập',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Các mục hiển thị theo quyền hiện tại của tài khoản.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (modules.isEmpty)
-                    const Card(
-                      child: AppEmptyState(
-                        icon: Icons.lock_outline,
-                        title: 'Không có chức năng quản trị',
-                        message:
-                            'Tài khoản hiện tại chưa được cấp quyền quản trị hệ thống.',
-                      ),
-                    )
-                  else
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final columns = constraints.maxWidth >= 680 ? 2 : 1;
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: modules.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                mainAxisExtent: 154,
-                              ),
-                          itemBuilder: (context, index) =>
-                              _SystemModuleCard(module: modules[index]),
-                        );
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ],
+    final modules = visibleAccessModules(AppScope.of(context))
+      ..sort(
+        (first, second) =>
+            _moduleOrder(first.keyName).compareTo(_moduleOrder(second.keyName)),
+      );
+    if (modules.isEmpty) {
+      return const SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: AppEmptyState(
+          icon: Icons.lock_outline,
+          title: 'Không có chức năng quản trị',
+          message: 'Tài khoản hiện tại chưa được cấp quyền quản trị hệ thống.',
         ),
-      ),
-    );
-  }
-}
-
-class _SystemModuleCard extends StatelessWidget {
-  const _SystemModuleCard({required this.module});
-
-  final AccessModule module;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => openAccessModule(context, module),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(module.icon, color: theme.colorScheme.primary),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      module.label,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Expanded(
-                      child: Text(
-                        module.description,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    const Align(
-                      alignment: Alignment.centerRight,
-                      child: Icon(Icons.arrow_forward, size: 20),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      );
+    }
+    return ModulePanelGrid(
+      compactColumnCount: 4,
+      items: [
+        for (final module in modules)
+          ModulePanelItem(
+            label: module.label,
+            icon: _systemIcon(module.keyName, module.icon),
+            accent: _systemAccent(module.keyName),
+            backgroundColor: _systemBackground(module.keyName),
+            onTap: () => openAccessModule(context, module),
           ),
-        ),
-      ),
+      ],
     );
   }
+
+  int _moduleOrder(String keyName) => switch (keyName) {
+    'functions' => 0,
+    'roles' => 1,
+    'users' => 2,
+    _ => 3,
+  };
 }
+
+IconData _systemIcon(String keyName, IconData fallback) => switch (keyName) {
+  'functions' => Icons.settings_outlined,
+  'roles' => Icons.admin_panel_settings_outlined,
+  'users' => Icons.person_outline,
+  _ => fallback,
+};
+
+Color _systemAccent(String keyName) => switch (keyName) {
+  'functions' => const Color(0xFF2563EB),
+  'roles' => const Color(0xFF047857),
+  'users' => const Color(0xFF7C3AED),
+  _ => const Color(0xFF2563EB),
+};
+
+Color _systemBackground(String keyName) => switch (keyName) {
+  'functions' => const Color(0xFFEEF2FF),
+  'roles' => const Color(0xFFECFDF5),
+  'users' => const Color(0xFFF3E8FF),
+  _ => const Color(0xFFEEF2FF),
+};

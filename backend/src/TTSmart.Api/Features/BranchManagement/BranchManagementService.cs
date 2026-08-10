@@ -7,14 +7,12 @@ using TTSmart.Api.Common.Security;
 using TTSmart.Api.Common.Time;
 using TTSmart.Api.Data.Company;
 using TTSmart.Api.Data.WebAuth;
-using TTSmart.Api.Features.Authorization;
 
 namespace TTSmart.Api.Features.BranchManagement;
 
 public sealed class BranchManagementService(
     CompanyDbContext companyDbContext,
-    WebAuthDbContext authDbContext,
-    ISystemRoleEvaluator systemRoleEvaluator) : IBranchManagementService
+    IBranchAccessResolver branchAccessResolver) : IBranchManagementService
 {
     private const string CaseSensitiveCollation = "SQL_Latin1_General_CP1_CS_AS";
     private const string CaseInsensitiveCollation = "SQL_Latin1_General_CP1_CI_AS";
@@ -25,16 +23,16 @@ public sealed class BranchManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var scope = await branchAccessResolver.GetScopeAsync(currentUserId, cancellationToken);
         var status = ResolveStatus(query.Status);
         if (status == WebDataStatus.Inactive && !scope.IsSuperAdmin)
         {
             throw new ForbiddenException("Chỉ ADMIN được xem trạm đã xóa mềm.");
         }
 
-        EnsureCompanyFilterAllowed(query.CompanyId, scope);
+        scope.EnsureCompanyFilterAllowed(query.CompanyId);
         var typeTram = ResolveTypeTram(query.TypeTram);
-        var branchesQuery = ApplyScope(companyDbContext.Branches.AsNoTracking(), scope)
+        var branchesQuery = scope.ApplyTo(companyDbContext.Branches.AsNoTracking())
             .Where(branch => branch.Status == status);
 
         if (query.CompanyId.HasValue)
@@ -84,8 +82,8 @@ public sealed class BranchManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var scope = await GetScopeAsync(currentUserId, cancellationToken);
-        var branchesQuery = ApplyScope(companyDbContext.Branches.AsNoTracking(), scope);
+        var scope = await branchAccessResolver.GetScopeAsync(currentUserId, cancellationToken);
+        var branchesQuery = scope.ApplyTo(companyDbContext.Branches.AsNoTracking());
         if (!scope.IsSuperAdmin)
         {
             branchesQuery = branchesQuery.Where(branch => branch.Status == WebDataStatus.Active);
@@ -103,7 +101,7 @@ public sealed class BranchManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var scope = await branchAccessResolver.GetScopeAsync(currentUserId, cancellationToken);
         EnsureSuperAdmin(scope, "Chỉ ADMIN mới được tạo trạm.");
 
         var companyId = request.CompanyId
@@ -158,7 +156,7 @@ public sealed class BranchManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var scope = await branchAccessResolver.GetScopeAsync(currentUserId, cancellationToken);
         if (!scope.IsSuperAdmin && !scope.IsCompany)
         {
             throw new ForbiddenException("Role này chỉ được xem trạm, không được sửa trạm.");
@@ -266,7 +264,7 @@ public sealed class BranchManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var scope = await branchAccessResolver.GetScopeAsync(currentUserId, cancellationToken);
         EnsureSuperAdmin(scope, "Chỉ ADMIN mới được xóa trạm.");
         var branchId = await ExecuteInSerializableTransactionAsync(
             async () =>
@@ -288,7 +286,7 @@ public sealed class BranchManagementService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var scope = await branchAccessResolver.GetScopeAsync(currentUserId, cancellationToken);
         EnsureSuperAdmin(scope, "Chỉ ADMIN mới được khôi phục trạm.");
         var branchId = await ExecuteInSerializableTransactionAsync(
             async () =>
@@ -313,57 +311,12 @@ public sealed class BranchManagementService(
         return await GetByIdAsync(branchId, currentUserId, cancellationToken);
     }
 
-    private async Task<BranchActorScope> GetScopeAsync(
-        int currentUserId,
-        CancellationToken cancellationToken)
-    {
-        var user = await authDbContext.Users.AsNoTracking()
-            .SingleOrDefaultAsync(
-                item => item.UserId == currentUserId && item.Status == WebDataStatus.Active,
-                cancellationToken)
-            ?? throw new UnauthorizedException("Phiên đăng nhập không còn hợp lệ.");
-
-        var roleCodes = await (
-            from userRole in authDbContext.UserRoles.AsNoTracking()
-            join role in authDbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
-            where userRole.UserId == currentUserId &&
-                  userRole.Status == WebDataStatus.Active &&
-                  role.Status == WebDataStatus.Active
-            select role.Code)
-            .ToListAsync(cancellationToken);
-        var isSuperAdmin = await systemRoleEvaluator.IsSuperAdminAsync(currentUserId, cancellationToken);
-        return new BranchActorScope(
-            isSuperAdmin,
-            !isSuperAdmin && roleCodes.Contains(SystemRoleCodes.Company, StringComparer.Ordinal),
-            user.CompanyId,
-            ParseBranchIds(user.BranchId));
-    }
-
-    private static IQueryable<WebBranch> ApplyScope(
-        IQueryable<WebBranch> branches,
-        BranchActorScope scope)
-    {
-        if (scope.IsSuperAdmin)
-        {
-            return branches;
-        }
-
-        if (scope.IsCompany && scope.CompanyId.HasValue)
-        {
-            return branches.Where(branch => branch.CompanyId == scope.CompanyId.Value);
-        }
-
-        return scope.BranchIds.Length == 0
-            ? branches.Where(_ => false)
-            : branches.Where(branch => branch.BranchId > 0 && scope.BranchIds.Contains(branch.BranchId));
-    }
-
     private async Task<WebBranch> GetTrackedBranchAsync(
         int id,
-        BranchActorScope scope,
+        BranchAccessScope scope,
         CancellationToken cancellationToken)
     {
-        var query = ApplyScope(companyDbContext.Branches, scope);
+        var query = scope.ApplyTo(companyDbContext.Branches);
         if (!scope.IsSuperAdmin)
         {
             query = query.Where(branch => branch.Status == WebDataStatus.Active);
@@ -482,19 +435,6 @@ public sealed class BranchManagementService(
         }
     }
 
-    private static void EnsureCompanyFilterAllowed(int? companyId, BranchActorScope scope)
-    {
-        if (!companyId.HasValue || scope.IsSuperAdmin)
-        {
-            return;
-        }
-
-        if (!scope.IsCompany || scope.CompanyId != companyId.Value)
-        {
-            throw new ForbiddenException("Không được lọc trạm ngoài phạm vi được cấp.");
-        }
-    }
-
     private static byte ResolveStatus(byte? status)
     {
         if (!status.HasValue)
@@ -556,15 +496,7 @@ public sealed class BranchManagementService(
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 
-    private static int[] ParseBranchIds(string? value) =>
-        (value ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(token => int.TryParse(token, out var id) ? id : 0)
-            .Where(id => id > 0)
-            .Distinct()
-            .ToArray();
-
-    private static void EnsureSuperAdmin(BranchActorScope scope, string message)
+    private static void EnsureSuperAdmin(BranchAccessScope scope, string message)
     {
         if (!scope.IsSuperAdmin)
         {
@@ -572,9 +504,4 @@ public sealed class BranchManagementService(
         }
     }
 
-    private sealed record BranchActorScope(
-        bool IsSuperAdmin,
-        bool IsCompany,
-        int? CompanyId,
-        int[] BranchIds);
 }

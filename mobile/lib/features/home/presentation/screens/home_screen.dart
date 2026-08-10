@@ -14,14 +14,14 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.controller,
-    required this.onOpenOrders,
-    required this.onOpenReports,
+    this.onOpenOrders,
+    this.onOpenStatistics,
     required this.onOpenMore,
   });
 
   final HomeController controller;
-  final VoidCallback onOpenOrders;
-  final VoidCallback onOpenReports;
+  final VoidCallback? onOpenOrders;
+  final VoidCallback? onOpenStatistics;
   final VoidCallback onOpenMore;
 
   @override
@@ -109,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             key: const PageStorageKey<String>('home-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
             children: [
               AppContent(
                 child: Column(
@@ -174,16 +175,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context, constraints) {
                           final wide = constraints.maxWidth >= 700;
                           final children = <Widget>[
-                            QuickActionButton(
-                              icon: Icons.search,
-                              label: 'Tra cứu đơn hàng',
-                              onTap: widget.onOpenOrders,
-                            ),
-                            QuickActionButton(
-                              icon: Icons.query_stats_outlined,
-                              label: 'Xem báo cáo',
-                              onTap: widget.onOpenReports,
-                            ),
+                            if (widget.onOpenOrders != null)
+                              QuickActionButton(
+                                icon: Icons.search,
+                                label: 'Tra cứu đơn hàng',
+                                onTap: widget.onOpenOrders!,
+                              ),
+                            if (widget.onOpenStatistics != null)
+                              QuickActionButton(
+                                icon: Icons.query_stats_outlined,
+                                label: 'Xem thống kê',
+                                onTap: widget.onOpenStatistics!,
+                              ),
                             QuickActionButton(
                               icon: Icons.factory_outlined,
                               label: 'Danh sách trạm',

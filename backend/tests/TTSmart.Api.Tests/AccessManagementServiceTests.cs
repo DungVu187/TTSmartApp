@@ -490,7 +490,8 @@ public sealed class AccessManagementServiceTests
             dbContext,
             companyDbContext,
             CreatePasswordService(),
-            new TestSystemRoleEvaluator(false));
+            new TestSystemRoleEvaluator(false),
+            Options.Create(new UserAccountStatusOptions { StatusChangesEnabled = true }));
 
         await Assert.ThrowsAsync<ConflictException>(() => companyService.SetStatusAsync(
             deletedChild.UserId,
@@ -502,7 +503,8 @@ public sealed class AccessManagementServiceTests
             dbContext,
             companyDbContext,
             CreatePasswordService(),
-            new TestSystemRoleEvaluator(true));
+            new TestSystemRoleEvaluator(true),
+            Options.Create(new UserAccountStatusOptions { StatusChangesEnabled = true }));
         var restored = await adminService.SetStatusAsync(
             deletedChild.UserId,
             999,
