@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
-import '../../../../core/models/data_scope.dart';
 import '../../../../core/models/time_range_preset.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/widgets/app_content.dart';
 import '../../../../core/widgets/error_panel.dart';
+import '../../../../core/widgets/searchable_autocomplete_field.dart';
 import '../../data/models/dashboard_models.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/dashboard_widgets.dart';
@@ -16,13 +16,11 @@ class HomeScreen extends StatefulWidget {
     required this.controller,
     this.onOpenOrders,
     this.onOpenStatistics,
-    required this.onOpenMore,
   });
 
   final HomeController controller;
   final VoidCallback? onOpenOrders;
   final VoidCallback? onOpenStatistics;
-  final VoidCallback onOpenMore;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -35,66 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.controller.initialize();
     });
-  }
-
-  Future<void> _chooseScope() async {
-    final selected = await showModalBottomSheet<DataScopeOption>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Phạm vi dữ liệu',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Chỉ hiển thị công ty và trạm tài khoản được cấp quyền.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              RadioGroup<DataScopeOption>(
-                groupValue: widget.controller.selectedScope,
-                onChanged: (scope) {
-                  if (scope != null) Navigator.pop(context, scope);
-                },
-                child: Column(
-                  children: [
-                    for (final scope in widget.controller.scopes)
-                      RadioListTile<DataScopeOption>(
-                        value: scope,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(scope.label),
-                        subtitle: scope.description == null
-                            ? null
-                            : Text(scope.description!),
-                        secondary: Icon(
-                          scope.type == DataScopeType.company
-                              ? Icons.apartment_outlined
-                              : Icons.factory_outlined,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (selected != null) {
-      await widget.controller.selectScope(selected);
-    }
   }
 
   @override
@@ -115,21 +53,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _WelcomeBlock(
+                    _DashboardHeading(
                       displayName: displayName,
-                      selectedScope: widget.controller.selectedScope,
                       updatedAt: snapshot?.updatedAt,
-                      onChooseScope: widget.controller.scopes.isEmpty
-                          ? null
-                          : _chooseScope,
                     ),
-                    const SizedBox(height: 20),
-                    _TimeRangeSelector(controller: widget.controller),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    _DashboardFilters(controller: widget.controller),
+                    const SizedBox(height: 16),
                     if (widget.controller.errorMessage != null) ...[
                       ErrorPanel(
                         message: widget.controller.errorMessage!,
-                        onRetry: widget.controller.refresh,
+                        onRetry: widget.controller.retry,
                       ),
                       const SizedBox(height: 20),
                     ],
@@ -139,14 +73,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Center(child: CircularProgressIndicator()),
                       )
                     else if (snapshot != null) ...[
-                      const AppSectionHeader(
-                        title: 'Tổng quan',
-                        subtitle: 'Các chỉ số theo phạm vi đang xem',
-                      ),
-                      const SizedBox(height: 14),
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          final columns = constraints.maxWidth >= 780 ? 4 : 2;
+                          final isWide = constraints.maxWidth >= 780;
+                          final columns = isWide ? 4 : 2;
                           return GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -154,104 +84,40 @@ class _HomeScreenState extends State<HomeScreen> {
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: columns,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  mainAxisExtent: 164,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  mainAxisExtent: isWide ? 92 : 96,
                                 ),
-                            itemBuilder: (context, index) =>
-                                DashboardMetricCard(
-                                  metric: snapshot.metrics[index],
-                                ),
+                            itemBuilder: (context, index) {
+                              final metric = snapshot.metrics[index];
+                              final onTap = switch (metric.type) {
+                                DashboardMetricType.orders ||
+                                DashboardMetricType.salesWithOrders =>
+                                  widget.onOpenOrders,
+                                DashboardMetricType.concreteGrades ||
+                                DashboardMetricType.mixerTrucks =>
+                                  widget.onOpenStatistics,
+                              };
+                              return DashboardMetricCard(
+                                metric: metric,
+                                onTap: onTap,
+                              );
+                            },
                           );
                         },
                       ),
-                      const SizedBox(height: 24),
-                      const AppSectionHeader(
-                        title: 'Hành động nhanh',
-                        subtitle: 'Đi thẳng đến công việc thường dùng',
-                      ),
-                      const SizedBox(height: 12),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final wide = constraints.maxWidth >= 700;
-                          final children = <Widget>[
-                            if (widget.onOpenOrders != null)
-                              QuickActionButton(
-                                icon: Icons.search,
-                                label: 'Tra cứu đơn hàng',
-                                onTap: widget.onOpenOrders!,
-                              ),
-                            if (widget.onOpenStatistics != null)
-                              QuickActionButton(
-                                icon: Icons.query_stats_outlined,
-                                label: 'Xem thống kê',
-                                onTap: widget.onOpenStatistics!,
-                              ),
-                            QuickActionButton(
-                              icon: Icons.factory_outlined,
-                              label: 'Danh sách trạm',
-                              onTap: widget.onOpenMore,
-                            ),
-                          ];
-                          if (wide) {
-                            return Row(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < children.length;
-                                  index++
-                                ) ...[
-                                  if (index > 0) const SizedBox(width: 12),
-                                  Expanded(child: children[index]),
-                                ],
-                              ],
-                            );
-                          }
-                          return Column(
-                            children: [
-                              for (
-                                var index = 0;
-                                index < children.length;
-                                index++
-                              ) ...[
-                                if (index > 0) const SizedBox(height: 10),
-                                children[index],
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
                       ProductionChartCard(snapshot: snapshot),
-                      const SizedBox(height: 24),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final stationSection = _StationSection(
-                            stations: snapshot.stations,
-                            onOpenMore: widget.onOpenMore,
-                          );
-                          final activitySection = _ActivitySection(
-                            activities: snapshot.activities,
-                          );
-                          if (constraints.maxWidth >= 900) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: stationSection),
-                                const SizedBox(width: 16),
-                                Expanded(child: activitySection),
-                              ],
-                            );
-                          }
-                          return Column(
-                            children: [
-                              stationSection,
-                              const SizedBox(height: 24),
-                              activitySection,
-                            ],
-                          );
-                        },
-                      ),
+                      if (snapshot.unavailableStationCount > 0) ...[
+                        const SizedBox(height: 16),
+                        _UnavailableStationNotice(
+                          count: snapshot.unavailableStationCount,
+                        ),
+                      ],
+                      if (snapshot.stations.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _StationSection(stations: snapshot.stations),
+                      ],
                     ],
                   ],
                 ),
@@ -264,149 +130,186 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _WelcomeBlock extends StatelessWidget {
-  const _WelcomeBlock({
-    required this.displayName,
-    required this.selectedScope,
-    required this.updatedAt,
-    required this.onChooseScope,
-  });
+class _DashboardHeading extends StatelessWidget {
+  const _DashboardHeading({required this.displayName, required this.updatedAt});
 
   final String displayName;
-  final DataScopeOption? selectedScope;
   final DateTime? updatedAt;
-  final VoidCallback? onChooseScope;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Xin chào, $displayName',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: theme.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Theo dõi nhanh hoạt động sản xuất và đơn hàng.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onPrimaryContainer.withValues(
-                alpha: 0.78,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onChooseScope,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      selectedScope?.type == DataScopeType.station
-                          ? Icons.factory_outlined
-                          : Icons.apartment_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selectedScope?.label ?? 'Đang tải phạm vi...',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            updatedAt == null
-                                ? 'Đang cập nhật dữ liệu'
-                                : 'Cập nhật ${formatLocalDateTime(updatedAt!)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.expand_more),
-                  ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trang tổng quan',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.6,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                'Xin chào, $displayName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (updatedAt != null)
+          Text(
+            formatLocalDateTime(updatedAt!),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-class _TimeRangeSelector extends StatelessWidget {
-  const _TimeRangeSelector({required this.controller});
+class _DashboardFilters extends StatelessWidget {
+  const _DashboardFilters({required this.controller});
 
   final HomeController controller;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final value in TimeRangePreset.values) ...[
-            ChoiceChip(
-              label: Text(value.label),
-              selected: controller.timeRange == value,
-              onSelected: (_) => controller.selectTimeRange(value),
-            ),
-            if (value != TimeRangePreset.values.last) const SizedBox(width: 8),
-          ],
-        ],
+    final theme = Theme.of(context);
+    final selectedCompany = controller.selectedCompany;
+    final selectedStation = controller.selectedStation;
+    final companyField = SearchableAutocompleteField<DashboardScope>(
+      key: const ValueKey<String>('dashboard-company-filter'),
+      options: controller.companyScopes,
+      selectedOption: selectedCompany,
+      displayStringForOption: (option) => option.label,
+      searchStringForOption: (option) => [
+        option.label,
+        if (option.description != null) option.description!,
+        'công ty',
+      ].join(' '),
+      optionSubtitle: (option) {
+        final description = option.description?.trim();
+        return description == null || description.isEmpty
+            ? 'Công ty'
+            : description;
+      },
+      onSelected: controller.selectCompany,
+      onCleared: selectedCompany == null ? null : controller.clearCompany,
+      enabled: controller.companyScopes.isNotEmpty && !controller.isLoading,
+      loading: controller.scopes.isEmpty && controller.isLoading,
+      hintText: 'Tất cả công ty',
+      labelText: 'Công ty (tùy chọn)',
+      prefixIcon: Icons.apartment_outlined,
+      compact: true,
+      showDropdownIcon: true,
+    );
+    final stationField = SearchableAutocompleteField<DashboardScope>(
+      key: const ValueKey<String>('dashboard-station-filter'),
+      options: controller.stationScopes,
+      selectedOption: selectedStation,
+      displayStringForOption: (option) => option.label,
+      searchStringForOption: (option) => [
+        option.label,
+        if (option.description != null) option.description!,
+        'trạm',
+      ].join(' '),
+      optionSubtitle: (option) => option.description,
+      onSelected: controller.selectStation,
+      onCleared: selectedStation == null ? null : controller.clearStation,
+      enabled: controller.stationScopes.isNotEmpty && !controller.isLoading,
+      hintText: 'Tất cả trạm',
+      labelText: 'Trạm (tùy chọn)',
+      prefixIcon: Icons.factory_outlined,
+      compact: true,
+      showDropdownIcon: true,
+    );
+    final timeRangeField = DropdownButtonFormField<TimeRangePreset>(
+      key: ValueKey<String>(
+        'dashboard-time-range-${controller.timeRange.name}',
+      ),
+      initialValue: controller.timeRange,
+      isExpanded: true,
+      menuMaxHeight: 320,
+      decoration: const InputDecoration(
+        labelText: 'Thời gian',
+        prefixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+      ),
+      items: [
+        for (final value in TimeRangePreset.values)
+          DropdownMenuItem<TimeRangePreset>(
+            key: ValueKey<String>('dashboard-range-${value.name}'),
+            value: value,
+            child: Text(value.label),
+          ),
+      ],
+      onChanged: controller.isLoading
+          ? null
+          : (value) {
+              if (value != null) controller.selectTimeRange(value);
+            },
+    );
+    return Container(
+      key: const ValueKey<String>('dashboard-filters'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 840) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: companyField),
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: stationField),
+                const SizedBox(width: 12),
+                Expanded(flex: 2, child: timeRangeField),
+              ],
+            );
+          }
+          return Column(
+            children: [
+              companyField,
+              const SizedBox(height: 10),
+              stationField,
+              const SizedBox(height: 10),
+              timeRangeField,
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 class _StationSection extends StatelessWidget {
-  const _StationSection({required this.stations, required this.onOpenMore});
+  const _StationSection({required this.stations});
 
   final List<StationOverview> stations;
-  final VoidCallback onOpenMore;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppSectionHeader(
-          title: 'Trạng thái trạm',
-          subtitle: 'Theo dõi phạm vi được cấp quyền',
-          trailing: TextButton(
-            onPressed: onOpenMore,
-            child: const Text('Xem tất cả'),
-          ),
+        const AppSectionHeader(
+          title: 'Dữ liệu theo trạm',
+          subtitle: 'Tổng hợp trong khoảng thời gian đã chọn',
         ),
         const SizedBox(height: 12),
         Card(
@@ -424,32 +327,37 @@ class _StationSection extends StatelessWidget {
   }
 }
 
-class _ActivitySection extends StatelessWidget {
-  const _ActivitySection({required this.activities});
+class _UnavailableStationNotice extends StatelessWidget {
+  const _UnavailableStationNotice({required this.count});
 
-  final List<DashboardActivity> activities;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const AppSectionHeader(
-          title: 'Hoạt động gần đây',
-          subtitle: 'Các thay đổi mới nhất trong phạm vi',
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: Column(
-            children: [
-              for (var index = 0; index < activities.length; index++) ...[
-                if (index > 0) const Divider(),
-                DashboardActivityTile(activity: activities[index]),
-              ],
-            ],
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Color(0xFFC2410C)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$count trạm chưa thể truy cập nên chưa được tính vào tổng hợp.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF9A3412),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

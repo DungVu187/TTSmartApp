@@ -34,4 +34,5 @@ public static class AccessPolicies
     public const string WeighStationsList = "access.weigh-stations.list";
     public const string WeighStationsExport = "access.weigh-stations.export";
     public const string WeighStationsPrice = "access.weigh-stations.price";
+    public const string MaterialReportsView = "access.material-reports.view";
 }

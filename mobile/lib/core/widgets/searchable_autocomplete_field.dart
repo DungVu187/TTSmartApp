@@ -18,6 +18,7 @@ class SearchableAutocompleteField<T extends Object> extends StatefulWidget {
     this.enabled = true,
     this.compact = false,
     this.loading = false,
+    this.showDropdownIcon = false,
     this.borderColor,
     this.borderWidth = 1,
     this.errorText,
@@ -34,6 +35,7 @@ class SearchableAutocompleteField<T extends Object> extends StatefulWidget {
   final bool enabled;
   final bool compact;
   final bool loading;
+  final bool showDropdownIcon;
   final Color? borderColor;
   final double borderWidth;
   final String hintText;
@@ -166,7 +168,9 @@ class _SearchableAutocompleteFieldState<T extends Object>
   Iterable<T> _optionsBuilder(TextEditingValue textEditingValue) {
     if (!widget.enabled) return Iterable<T>.empty();
     final query = textEditingValue.text.trim().toLowerCase();
-    if (query.isEmpty) return widget.options;
+    if (query.isEmpty || query == _selectedText.trim().toLowerCase()) {
+      return widget.options;
+    }
     return widget.options.where((option) {
       final searchableText =
           widget.searchStringForOption?.call(option) ??
@@ -264,18 +268,37 @@ class _SearchableAutocompleteFieldState<T extends Object>
         ),
       );
     }
-    if (widget.onCleared == null || widget.selectedOption == null) {
+    if (widget.onCleared != null && widget.selectedOption != null) {
+      return SizedBox.square(
+        dimension: widget.compact ? 36 : 48,
+        child: IconButton(
+          tooltip: 'Xóa lựa chọn',
+          onPressed: widget.enabled ? _clearSelection : null,
+          padding: EdgeInsets.zero,
+          icon: Icon(Icons.close, size: widget.compact ? 16 : 18),
+        ),
+      );
+    }
+    if (!widget.showDropdownIcon) {
       return Icon(Icons.search, size: widget.compact ? 16 : 18);
     }
     return SizedBox.square(
       dimension: widget.compact ? 36 : 48,
       child: IconButton(
-        tooltip: 'Xóa lựa chọn',
-        onPressed: widget.enabled ? _clearSelection : null,
+        tooltip: 'Mở danh sách',
+        onPressed: widget.enabled ? _openOptions : null,
         padding: EdgeInsets.zero,
-        icon: Icon(Icons.close, size: widget.compact ? 16 : 18),
+        icon: Icon(
+          Icons.keyboard_arrow_down_rounded,
+          size: widget.compact ? 18 : 22,
+        ),
       ),
     );
+  }
+
+  void _openOptions() {
+    _focusNode.requestFocus();
+    _selectCurrentText();
   }
 
   void _selectCurrentText() {

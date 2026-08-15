@@ -2,63 +2,94 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/time_range_preset.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/widgets/simple_line_chart.dart';
 import '../../data/models/dashboard_models.dart';
 
 class DashboardMetricCard extends StatelessWidget {
-  const DashboardMetricCard({super.key, required this.metric});
+  const DashboardMetricCard({super.key, required this.metric, this.onTap});
 
   final DashboardMetric metric;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tone = _toneFor(metric.type, theme.colorScheme);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: tone.background,
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(_iconFor(metric.type), color: tone.foreground),
+    final tone = _toneFor(metric.type);
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: tone.foreground.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
             ),
-            const Spacer(),
-            Text(
-              metric.value,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+            child: Icon(
+              _iconFor(metric.type),
+              size: 19,
+              color: tone.foreground,
             ),
-            const SizedBox(height: 2),
-            Text(
-              metric.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  metric.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFF334155),
+                    fontWeight: FontWeight.w800,
+                    height: 1.12,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  metric.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              metric.caption,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            metric.value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: tone.foreground,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+    return Material(
+      key: ValueKey<String>('dashboard-metric-${metric.type.name}'),
+      color: tone.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: tone.foreground.withValues(alpha: 0.18)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? content
+          : InkWell(
+              onTap: onTap,
+              splashColor: tone.foreground.withValues(alpha: 0.08),
+              highlightColor: Colors.transparent,
+              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+              child: content,
+            ),
     );
   }
 
@@ -69,27 +100,25 @@ class DashboardMetricCard extends StatelessWidget {
     DashboardMetricType.salesWithOrders => Icons.groups_outlined,
   };
 
-  ({Color background, Color foreground}) _toneFor(
-    DashboardMetricType type,
-    ColorScheme colors,
-  ) => switch (type) {
-    DashboardMetricType.orders => (
-      background: colors.primaryContainer,
-      foreground: colors.onPrimaryContainer,
-    ),
-    DashboardMetricType.concreteGrades => (
-      background: const Color(0xFFDDF4EC),
-      foreground: AppColors.success,
-    ),
-    DashboardMetricType.mixerTrucks => (
-      background: const Color(0xFFFFEBC8),
-      foreground: AppColors.warning,
-    ),
-    DashboardMetricType.salesWithOrders => (
-      background: const Color(0xFFFBE0E3),
-      foreground: AppColors.danger,
-    ),
-  };
+  ({Color background, Color foreground}) _toneFor(DashboardMetricType type) =>
+      switch (type) {
+        DashboardMetricType.orders => (
+          background: const Color(0xFFEAF8FC),
+          foreground: const Color(0xFF1389AA),
+        ),
+        DashboardMetricType.concreteGrades => (
+          background: const Color(0xFFECF9F1),
+          foreground: const Color(0xFF16845B),
+        ),
+        DashboardMetricType.mixerTrucks => (
+          background: const Color(0xFFFFF8E1),
+          foreground: const Color(0xFFB76A00),
+        ),
+        DashboardMetricType.salesWithOrders => (
+          background: const Color(0xFFFFEFF1),
+          foreground: const Color(0xFFC43D4B),
+        ),
+      };
 }
 
 class ProductionChartCard extends StatelessWidget {
@@ -100,73 +129,94 @@ class ProductionChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      key: const ValueKey<String>('dashboard-production-chart'),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD6DCE4)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            color: const Color(0xFFF1F3F5),
+            child: Row(
               children: [
+                const Icon(
+                  Icons.pie_chart_rounded,
+                  size: 18,
+                  color: Color(0xFF0F3554),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Khối lượng đã trộn',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_formatVolume(snapshot.totalMixedVolume)} m³',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Khối lượng đã trộn',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: const Color(0xFF183B56),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    snapshot.timeRange.label,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                Text(
+                  snapshot.timeRange.label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            SimpleLineChart(
-              values: snapshot.chartValues,
-              labels: snapshot.chartLabels,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFB8C7).withValues(alpha: 0.8),
+                        border: Border.all(
+                          color: const Color(0xFFFF5F7E),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Tổng khối lượng: '
+                        '${_formatVolume(snapshot.totalMixedVolume)} m³',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF111827),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SimpleLineChart(
+                  values: snapshot.chartValues,
+                  labels: snapshot.chartLabels,
+                  height: 250,
+                  lineColor: const Color(0xFFFF5F7E),
+                  fillColor: const Color(0xFFFFB8C7),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _formatVolume(double value) {
-    final digits = value.round().toString();
-    final buffer = StringBuffer();
-    for (var index = 0; index < digits.length; index++) {
-      if (index > 0 && (digits.length - index) % 3 == 0) buffer.write('.');
-      buffer.write(digits[index]);
-    }
-    return buffer.toString();
   }
 }
 
@@ -178,7 +228,7 @@ class StationOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tone = _stationTone(station.health);
+    final tone = _stationTone(station.isAvailable);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -210,28 +260,18 @@ class StationOverviewCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _StationStatusBadge(health: station.health),
+                    _StationStatusBadge(isAvailable: station.isAvailable),
                   ],
                 ),
                 const SizedBox(height: 5),
                 Text(
                   '${station.orderCount} đơn · '
-                  '${station.mixedVolume.round()} m³ · '
-                  '${station.activeVehicles} xe hoạt động',
+                  '${_formatVolume(station.mixedVolume)} m³ · '
+                  '${station.mixerTruckCount} xe trộn có đơn',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                if (station.alertCount > 0) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '${station.alertCount} cảnh báo cần kiểm tra',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -240,47 +280,22 @@ class StationOverviewCard extends StatelessWidget {
     );
   }
 
-  ({Color background, Color foreground}) _stationTone(StationHealth health) =>
-      switch (health) {
-        StationHealth.stable => (
-          background: const Color(0xFFDDF4EC),
-          foreground: AppColors.success,
-        ),
-        StationHealth.attention => (
-          background: const Color(0xFFFFEBC8),
-          foreground: AppColors.warning,
-        ),
-        StationHealth.offline => (
-          background: const Color(0xFFFBE0E3),
-          foreground: AppColors.danger,
-        ),
-      };
+  ({Color background, Color foreground}) _stationTone(bool isAvailable) =>
+      isAvailable
+      ? (background: const Color(0xFFDDF4EC), foreground: AppColors.success)
+      : (background: const Color(0xFFFBE0E3), foreground: AppColors.danger);
 }
 
 class _StationStatusBadge extends StatelessWidget {
-  const _StationStatusBadge({required this.health});
+  const _StationStatusBadge({required this.isAvailable});
 
-  final StationHealth health;
+  final bool isAvailable;
 
   @override
   Widget build(BuildContext context) {
-    final (label, color, background) = switch (health) {
-      StationHealth.stable => (
-        'Ổn định',
-        AppColors.success,
-        const Color(0xFFDDF4EC),
-      ),
-      StationHealth.attention => (
-        'Chú ý',
-        AppColors.warning,
-        const Color(0xFFFFEBC8),
-      ),
-      StationHealth.offline => (
-        'Ngoại tuyến',
-        AppColors.danger,
-        const Color(0xFFFBE0E3),
-      ),
-    };
+    final (label, color, background) = isAvailable
+        ? ('Có dữ liệu', AppColors.success, const Color(0xFFDDF4EC))
+        : ('Chưa tải được', AppColors.danger, const Color(0xFFFBE0E3));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -309,114 +324,16 @@ class _StationStatusBadge extends StatelessWidget {
   }
 }
 
-class DashboardActivityTile extends StatelessWidget {
-  const DashboardActivityTile({super.key, required this.activity});
-
-  final DashboardActivity activity;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 19,
-            backgroundColor: theme.colorScheme.secondaryContainer,
-            foregroundColor: theme.colorScheme.onSecondaryContainer,
-            child: Icon(_activityIcon(activity.type), size: 19),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  activity.title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  activity.description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _formatTime(activity.occurredAt),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
+String _formatVolume(double value) {
+  var text = value.toStringAsFixed(3);
+  text = text.replaceFirst(RegExp(r'\.?0+$'), '');
+  final parts = text.split('.');
+  final integer = parts.first;
+  final buffer = StringBuffer();
+  for (var index = 0; index < integer.length; index++) {
+    if (index > 0 && (integer.length - index) % 3 == 0) buffer.write('.');
+    buffer.write(integer[index]);
   }
-
-  IconData _activityIcon(DashboardActivityType type) => switch (type) {
-    DashboardActivityType.order => Icons.receipt_long_outlined,
-    DashboardActivityType.station => Icons.factory_outlined,
-    DashboardActivityType.report => Icons.query_stats_outlined,
-    DashboardActivityType.alert => Icons.warning_amber_outlined,
-  };
-
-  String _formatTime(DateTime value) {
-    final formatted = formatLocalDateTime(value);
-    return formatted.substring(formatted.length - 5);
-  }
-}
-
-class QuickActionButton extends StatelessWidget {
-  const QuickActionButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Icon(Icons.chevron_right, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  if (parts.length == 1) return buffer.toString();
+  return '${buffer.toString()},${parts.last}';
 }

@@ -3,6 +3,51 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ttsmart_mobile/core/widgets/searchable_autocomplete_field.dart';
 
 void main() {
+  testWidgets('opens all options with a light tap when a value is selected', (
+    tester,
+  ) async {
+    String? selectedOption = 'Công ty A';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return SizedBox(
+                width: 320,
+                child: SearchableAutocompleteField<String>(
+                  options: const ['Công ty A', 'Công ty B', 'Công ty C'],
+                  selectedOption: selectedOption,
+                  displayStringForOption: (option) => option,
+                  onSelected: (option) {
+                    setState(() => selectedOption = option);
+                  },
+                  hintText: 'Gõ tên công ty',
+                  labelText: 'Công ty',
+                  prefixIcon: Icons.apartment_outlined,
+                  compact: true,
+                  showDropdownIcon: true,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+
+    expect(find.text('Công ty B'), findsOneWidget);
+    expect(find.text('Công ty C'), findsOneWidget);
+
+    await tester.tap(find.text('Công ty B'));
+    await tester.pumpAndSettle();
+
+    expect(selectedOption, 'Công ty B');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('filters, selects and clears long-list options', (tester) async {
     String? selectedOption;
 

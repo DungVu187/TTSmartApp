@@ -14,10 +14,12 @@ using TTSmart.Api.Features.Auth;
 using TTSmart.Api.Features.Authorization;
 using TTSmart.Api.Features.CompanyManagement;
 using TTSmart.Api.Features.BranchManagement;
+using TTSmart.Api.Features.Dashboard;
 using TTSmart.Api.Features.OrderReporting;
 using TTSmart.Api.Features.OrderStatistics;
 using TTSmart.Api.Features.MixDesignManagement;
 using TTSmart.Api.Features.WeighStationManagement;
+using TTSmart.Api.Features.MaterialReporting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -106,6 +108,12 @@ builder.Services
             StationDatabaseEnvironmentRules.AllowBranchDatabaseOverrides(builder.Environment),
         "StationDatabase:BranchDatabaseOverrides chỉ được dùng trong Development, Testing hoặc E2E.")
     .ValidateOnStart();
+builder.Services
+    .AddOptions<MaterialReportingOptions>()
+    .Bind(builder.Configuration.GetSection(MaterialReportingOptions.SectionName))
+    .Validate(options => options.CommandTimeoutSeconds is > 0 and <= 300,
+        "MaterialReporting:CommandTimeoutSeconds phải từ 1 đến 300.")
+    .ValidateOnStart();
 builder.Services.AddScoped<IDatabasePasswordService, DatabasePasswordService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserAdministrationService, UserAdministrationService>();
@@ -121,11 +129,14 @@ builder.Services.AddScoped<IOrderReportService, OrderReportService>();
 builder.Services.AddScoped<IOrderStatisticsDataSource, SqlOrderStatisticsDataSource>();
 builder.Services.AddScoped<IOrderStatisticsService, OrderStatisticsService>();
 builder.Services.AddScoped<IOrderStatisticsExportService, OrderStatisticsExportService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IMixDesignDataSource, SqlMixDesignDataSource>();
 builder.Services.AddScoped<IMixDesignService, MixDesignService>();
 builder.Services.AddScoped<IWeighStationDataSource, SqlWeighStationDataSource>();
 builder.Services.AddScoped<IWeighStationService, WeighStationService>();
 builder.Services.AddScoped<IWeighStationExportService, WeighStationExportService>();
+builder.Services.AddScoped<IMaterialReportDataSource, SqlMaterialReportDataSource>();
+builder.Services.AddScoped<IMaterialReportService, MaterialReportService>();
 builder.Services.AddScoped<ICompanyAccessEvaluator, CompanyAccessEvaluator>();
 builder.Services.AddScoped<ISystemRoleEvaluator, SystemRoleEvaluator>();
 builder.Services.AddSingleton<ICompanyLogoStorage, LocalCompanyLogoStorage>();
@@ -301,6 +312,12 @@ builder.Services.AddAuthorization(options =>
         AccessPolicies.WeighStationsPrice,
         ActiveKeyPermission.Other,
         OperationalFunctionCodes.WeighStations,
+        allowSuperAdminBypass: false);
+    AddPolicy(
+        options,
+        AccessPolicies.MaterialReportsView,
+        ActiveKeyPermission.View,
+        OperationalFunctionCodes.MaterialReports,
         allowSuperAdminBypass: false);
 });
 builder.Services

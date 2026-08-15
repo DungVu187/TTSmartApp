@@ -9,18 +9,42 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
     private readonly HashSet<int> unavailableBranches = [];
 
     public List<StationDatabaseTarget> SeenTargets { get; } = [];
+    public List<(int BranchId, DateTime From, DateTime To)> SeenDashboardMetricRanges { get; } = [];
 
     public void Reset()
     {
         ordersByBranch.Clear();
         unavailableBranches.Clear();
         SeenTargets.Clear();
+        SeenDashboardMetricRanges.Clear();
     }
 
     public void Seed(int branchId, params TestOrder[] orders) =>
         ordersByBranch[branchId] = orders.ToList();
 
     public void SetUnavailable(int branchId) => unavailableBranches.Add(branchId);
+
+    public Task<OrderReportDashboardMetrics> GetDashboardMetricsAsync(
+        StationDatabaseTarget target,
+        DateTime from,
+        DateTime toExclusive,
+        CancellationToken cancellationToken)
+    {
+        EnsureAvailable(target);
+        SeenDashboardMetricRanges.Add((target.BranchId, from, toExclusive));
+        var filtered = GetOrders(target.BranchId)
+            .Where(order => order.OrderedAt >= from && order.OrderedAt < toExclusive)
+            .ToArray();
+        var employeeKeys = filtered
+            .Select(order => order.EmployeeName?.Trim() is { Length: > 0 } name
+                ? $"name:{name}"
+                : null)
+            .Where(key => key is not null)
+            .Select(key => key!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return Task.FromResult(new OrderReportDashboardMetrics(filtered.Length, employeeKeys));
+    }
 
     public Task<IReadOnlyList<string>> GetEmployeeNamesAsync(
         StationDatabaseTarget target,

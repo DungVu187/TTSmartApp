@@ -53,6 +53,7 @@ public sealed class StationOperationsMappingTests
         using var dbContext = new StationOperationsDbContext(options);
 
         AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "OrderHistoryId", "STT");
+        AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "SalesEmployeeId", "MANV");
         AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "SalesEmployeeCode", "MATHENV");
         AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "EmployeeName", "TENNV");
         AssertColumn<StationMixingHistory>(dbContext, "LSTRON", "MixingHistoryId", "MALSTRON");

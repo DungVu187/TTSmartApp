@@ -1,5 +1,37 @@
 import '../../../../core/models/data_scope.dart';
 import '../../../../core/models/time_range_preset.dart';
+import '../../../../core/network/json_helpers.dart';
+
+class DashboardScope extends DataScopeOption {
+  const DashboardScope({
+    required super.keyName,
+    required super.label,
+    required super.type,
+    super.description,
+    this.companyId,
+    this.branchId,
+  });
+
+  final int? companyId;
+  final int? branchId;
+
+  factory DashboardScope.fromJson(Object? value) {
+    final json = requireJsonObject(value, 'phạm vi dashboard');
+    final typeValue = requireString(json, 'type');
+    return DashboardScope(
+      keyName: requireString(json, 'keyName'),
+      label: requireString(json, 'label'),
+      type: switch (typeValue) {
+        'company' => DataScopeType.company,
+        'station' => DataScopeType.station,
+        _ => throw FormatException('type phạm vi dashboard không hợp lệ.'),
+      },
+      description: optionalString(json, 'description'),
+      companyId: optionalInt(json, 'companyId'),
+      branchId: optionalInt(json, 'branchId'),
+    );
+  }
+}
 
 enum DashboardMetricType {
   orders,
@@ -22,42 +54,22 @@ class DashboardMetric {
   final String caption;
 }
 
-enum StationHealth { stable, attention, offline }
-
 class StationOverview {
   const StationOverview({
     required this.id,
     required this.name,
-    required this.health,
+    required this.isAvailable,
     required this.orderCount,
     required this.mixedVolume,
-    required this.activeVehicles,
-    this.alertCount = 0,
+    required this.mixerTruckCount,
   });
 
   final String id;
   final String name;
-  final StationHealth health;
+  final bool isAvailable;
   final int orderCount;
   final double mixedVolume;
-  final int activeVehicles;
-  final int alertCount;
-}
-
-enum DashboardActivityType { order, station, report, alert }
-
-class DashboardActivity {
-  const DashboardActivity({
-    required this.type,
-    required this.title,
-    required this.description,
-    required this.occurredAt,
-  });
-
-  final DashboardActivityType type;
-  final String title;
-  final String description;
-  final DateTime occurredAt;
+  final int mixerTruckCount;
 }
 
 class DashboardSnapshot {
@@ -70,10 +82,10 @@ class DashboardSnapshot {
     required this.chartLabels,
     required this.chartValues,
     required this.stations,
-    required this.activities,
+    this.unavailableStationCount = 0,
   });
 
-  final DataScopeOption scope;
+  final DataScopeOption? scope;
   final TimeRangePreset timeRange;
   final DateTime updatedAt;
   final double totalMixedVolume;
@@ -81,5 +93,5 @@ class DashboardSnapshot {
   final List<String> chartLabels;
   final List<double> chartValues;
   final List<StationOverview> stations;
-  final List<DashboardActivity> activities;
+  final int unavailableStationCount;
 }

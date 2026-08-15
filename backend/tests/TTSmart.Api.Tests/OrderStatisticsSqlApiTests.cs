@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using TTSmart.Api.Data.Company;
 using TTSmart.Api.Features.Authorization;
+using TTSmart.Api.Features.Dashboard;
 using TTSmart.Api.Features.OrderStatistics;
 
 namespace TTSmart.Api.Tests;
@@ -76,6 +77,30 @@ public sealed class OrderStatisticsSqlApiTests
             detail.MaterialSummaryRows
                 .SelectMany(row => row.Cells)
                 .Sum(cell => cell.ActualQuantity));
+
+        const string dashboardTimeRange =
+            "from=2024-10-01T00%3A00%3A00%2B07%3A00&to=2024-11-01T00%3A00%3A00%2B07%3A00";
+        var dailyDashboard = await client.GetFromJsonAsync<DashboardResponse>(
+            "/api/dashboard?companyId=1&branchId=10&interval=day&" + dashboardTimeRange,
+            BranchTestSupport.JsonOptions);
+        Assert.NotNull(dailyDashboard);
+        Assert.Equal(3, dailyDashboard.OrderCount);
+        Assert.Equal(2, dailyDashboard.ConcreteGradeCount);
+        Assert.Equal(2, dailyDashboard.MixerTruckCount);
+        Assert.Equal(1, dailyDashboard.SalesEmployeeCount);
+        Assert.Equal(12.333m, dailyDashboard.TotalMixedVolume);
+        Assert.Equal(
+            dailyDashboard.TotalMixedVolume,
+            dailyDashboard.VolumePoints.Sum(point => point.MixedVolume));
+
+        var hourlyDashboard = await client.GetFromJsonAsync<DashboardResponse>(
+            "/api/dashboard?companyId=1&branchId=10&interval=hour&" + dashboardTimeRange,
+            BranchTestSupport.JsonOptions);
+        Assert.NotNull(hourlyDashboard);
+        Assert.Equal(dailyDashboard.TotalMixedVolume, hourlyDashboard.TotalMixedVolume);
+        Assert.Equal(
+            hourlyDashboard.TotalMixedVolume,
+            hourlyDashboard.VolumePoints.Sum(point => point.MixedVolume));
 
         var total = await client.GetFromJsonAsync<OrderStatisticsResponse>(
             "/api/order-statistics?companyId=1&branchId=10&viewMode=total&pageNumber=1&pageSize=10&" + timeRange,

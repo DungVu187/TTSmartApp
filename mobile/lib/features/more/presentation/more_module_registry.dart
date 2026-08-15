@@ -22,12 +22,4 @@ class MoreModuleDefinition {
   final IconData icon;
 }
 
-const previewModules = <MoreModuleDefinition>[
-  MoreModuleDefinition(
-    keyName: PreviewModuleKeys.materials,
-    group: MoreModuleGroup.operations,
-    label: 'Vật liệu',
-    description: 'Theo dõi nguyên vật liệu và tồn kho vận hành.',
-    icon: Icons.inventory_2_outlined,
-  ),
-];
+const previewModules = <MoreModuleDefinition>[];

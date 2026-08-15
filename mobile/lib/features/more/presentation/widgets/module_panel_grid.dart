@@ -63,6 +63,8 @@ class _ModulePanelTile extends StatelessWidget {
         child: InkWell(
           key: ValueKey<String>('module-panel-tile-$index'),
           borderRadius: BorderRadius.circular(12),
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          splashFactory: NoSplash.splashFactory,
           onTap: item.onTap,
           child: Column(
             children: [

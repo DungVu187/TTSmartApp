@@ -10,6 +10,7 @@ abstract final class AccessFunctionCodes {
   static const String orderStatistics = 'TKĐH';
   static const String mixDesigns = 'QLCP';
   static const String weighStations = 'TKTC';
+  static const String materialReports = 'QLKHO';
 }
 
 enum AccessPermission {

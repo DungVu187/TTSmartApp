@@ -12,10 +12,9 @@ import 'package:ttsmart_mobile/features/auth/presentation/screens/splash_screen.
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
 import 'package:ttsmart_mobile/features/home/data/repositories/home_repository.dart';
 import 'package:ttsmart_mobile/features/mix_design_management/data/repositories/mix_design_repository.dart';
-import 'package:ttsmart_mobile/features/notifications/data/repositories/notifications_repository.dart';
+import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 import 'package:ttsmart_mobile/features/order_reporting/data/repositories/order_report_repository.dart';
 import 'package:ttsmart_mobile/features/reports/data/repositories/reports_repository.dart';
-import 'package:ttsmart_mobile/features/settings/data/repositories/settings_repository.dart';
 import 'package:ttsmart_mobile/features/station_management/data/repositories/station_repository.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/data/repositories/weigh_station_repository.dart';
 
@@ -52,12 +51,11 @@ void main() {
       TTsmartApp(
         controller: controller,
         repositories: AppFeatureRepositories(
-          home: const MockHomeRepository(),
+          home: ApiHomeRepository(apiClient),
           mixDesigns: ApiMixDesignRepository(apiClient),
+          materialReports: ApiMaterialReportRepository(apiClient),
           orderReports: ApiOrderReportRepository(apiClient),
           reports: const MockReportsRepository(),
-          notifications: const MockNotificationsRepository(),
-          settings: MemorySettingsRepository(),
           companies: ApiCompanyRepository(apiClient),
           stations: ApiStationRepository(apiClient),
           weighStations: ApiWeighStationRepository(apiClient),

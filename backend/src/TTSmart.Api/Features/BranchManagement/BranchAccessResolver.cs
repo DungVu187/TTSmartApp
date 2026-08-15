@@ -61,6 +61,22 @@ public interface IBranchAccessResolver
 {
     Task<BranchAccessScope> GetScopeAsync(int currentUserId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<AuthorizedBranch>> GetDashboardBranchesAsync(
+        int currentUserId,
+        int? companyId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AuthorizedBranch>> GetMaterialReportBranchesAsync(
+        int currentUserId,
+        int? companyId,
+        CancellationToken cancellationToken);
+
+    Task<AuthorizedBranch> GetRequiredMaterialReportBranchAsync(
+        int currentUserId,
+        int? companyId,
+        int? branchId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<AuthorizedBranch>> GetOrderStatisticsBranchesAsync(
         int currentUserId,
         int? companyId,
@@ -124,6 +140,64 @@ public sealed class BranchAccessResolver(
         }
 
         return await BuildScopeAsync(user, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuthorizedBranch>> GetDashboardBranchesAsync(
+        int currentUserId,
+        int? companyId,
+        CancellationToken cancellationToken)
+    {
+        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        scope.EnsureCompanyFilterAllowed(companyId);
+        var branches = await ApplyAuthorizedOrderReportScope(scope, companyId)
+            .ToListAsync(cancellationToken);
+
+        return branches
+            .OrderBy(branch => branch.Name)
+            .ThenBy(branch => branch.Id)
+            .ToArray();
+    }
+
+    public async Task<IReadOnlyList<AuthorizedBranch>> GetMaterialReportBranchesAsync(
+        int currentUserId,
+        int? companyId,
+        CancellationToken cancellationToken)
+    {
+        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        if (scope.IsSuperAdmin && !companyId.HasValue)
+        {
+            throw new ValidationException("Chưa chọn công ty.");
+        }
+
+        scope.EnsureCompanyFilterAllowed(companyId);
+        var branches = await ApplyAuthorizedOrderReportScope(scope, companyId)
+            .ToListAsync(cancellationToken);
+        return branches
+            .OrderBy(branch => branch.Name)
+            .ThenBy(branch => branch.Id)
+            .ToArray();
+    }
+
+    public async Task<AuthorizedBranch> GetRequiredMaterialReportBranchAsync(
+        int currentUserId,
+        int? companyId,
+        int? branchId,
+        CancellationToken cancellationToken)
+    {
+        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        if (scope.IsSuperAdmin && !companyId.HasValue)
+        {
+            throw new ValidationException("Chưa chọn công ty.");
+        }
+        if (!branchId.HasValue)
+        {
+            throw new ValidationException("Chưa chọn trạm trộn.");
+        }
+
+        scope.EnsureCompanyFilterAllowed(companyId);
+        var branch = await ApplyAuthorizedOrderReportScope(scope, companyId, branchId.Value)
+            .SingleOrDefaultAsync(cancellationToken);
+        return branch ?? throw new ForbiddenException("Không được truy cập trạm trộn đã chọn.");
     }
 
     public async Task<IReadOnlyList<AuthorizedBranch>> GetOrderReportBranchesAsync(

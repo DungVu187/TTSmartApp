@@ -11,6 +11,7 @@ internal sealed class TestOrderStatisticsDataSource : IOrderStatisticsDataSource
     private readonly Dictionary<int, OrderStatisticsPage> pages = [];
     private OrderStatisticsFilterOptions filterOptions = new([], [], [], []);
     private bool unavailable;
+    private OrderStatisticsDashboardData dashboardData = EmptyDashboard();
 
     public List<StationDatabaseTarget> SeenTargets { get; } = [];
     public List<OrderStatisticsFilter> SeenFilterOptionFilters { get; } = [];
@@ -20,6 +21,8 @@ internal sealed class TestOrderStatisticsDataSource : IOrderStatisticsDataSource
     public int SearchCallCount { get; private set; }
     public int SearchAllCallCount { get; private set; }
     public int FilterCallCount { get; private set; }
+    public int DashboardCallCount { get; private set; }
+    public List<OrderStatisticsFilter> SeenDashboardMetricFilters { get; } = [];
 
     public void Reset()
     {
@@ -28,6 +31,7 @@ internal sealed class TestOrderStatisticsDataSource : IOrderStatisticsDataSource
         pages.Clear();
         filterOptions = new([], [], [], []);
         unavailable = false;
+        dashboardData = EmptyDashboard();
         SeenTargets.Clear();
         SeenFilterOptionFilters.Clear();
         SeenFilters.Clear();
@@ -36,6 +40,8 @@ internal sealed class TestOrderStatisticsDataSource : IOrderStatisticsDataSource
         SearchCallCount = 0;
         SearchAllCallCount = 0;
         FilterCallCount = 0;
+        DashboardCallCount = 0;
+        SeenDashboardMetricFilters.Clear();
     }
 
     public void SetPage(OrderStatisticsPage value)
@@ -60,6 +66,32 @@ internal sealed class TestOrderStatisticsDataSource : IOrderStatisticsDataSource
     public void SetFilterOptions(OrderStatisticsFilterOptions value) => filterOptions = value;
 
     public void SetUnavailable() => unavailable = true;
+
+    public void SetDashboardData(OrderStatisticsDashboardData value) => dashboardData = value;
+
+    public Task<OrderStatisticsDashboardMetrics> GetDashboardMetricsAsync(
+        StationDatabaseTarget target,
+        OrderStatisticsFilter filter,
+        CancellationToken cancellationToken)
+    {
+        SeenDashboardMetricFilters.Add(filter);
+        EnsureAvailable(target);
+        return Task.FromResult(new OrderStatisticsDashboardMetrics(
+            dashboardData.ConcreteGradeNames,
+            dashboardData.VehiclePlates));
+    }
+
+    public Task<OrderStatisticsDashboardData> GetDashboardAsync(
+        StationDatabaseTarget target,
+        OrderStatisticsFilter filter,
+        DashboardAggregationInterval interval,
+        CancellationToken cancellationToken)
+    {
+        DashboardCallCount++;
+        SeenFilters.Add(filter);
+        EnsureAvailable(target);
+        return Task.FromResult(dashboardData);
+    }
 
     public Task<OrderStatisticsFilterOptions> GetFilterOptionsAsync(
         StationDatabaseTarget target,
@@ -128,4 +160,7 @@ internal sealed class TestOrderStatisticsDataSource : IOrderStatisticsDataSource
             0,
             new OrderStatisticsSummary(0, 0, []),
             []);
+
+    private static OrderStatisticsDashboardData EmptyDashboard() =>
+        new(0, [], [], [], 0, []);
 }

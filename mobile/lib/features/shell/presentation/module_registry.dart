@@ -5,6 +5,8 @@ import '../../company_management/data/repositories/company_repository.dart';
 import '../../company_management/presentation/screens/companies_screen.dart';
 import '../../mix_design_management/data/repositories/mix_design_repository.dart';
 import '../../mix_design_management/presentation/screens/mix_designs_screen.dart';
+import '../../material_reporting/data/repositories/material_report_repository.dart';
+import '../../material_reporting/presentation/screens/material_report_screen.dart';
 import '../../station_management/data/repositories/station_repository.dart';
 import '../../station_management/presentation/screens/stations_screen.dart';
 import '../../weigh_station_management/data/repositories/weigh_station_repository.dart';
@@ -144,6 +146,7 @@ class OperationalModule {
     required this.label,
     required this.description,
     required this.icon,
+    this.permission = AccessPermission.dSach,
   });
 
   final String keyName;
@@ -151,12 +154,22 @@ class OperationalModule {
   final String label;
   final String description;
   final IconData icon;
+  final AccessPermission permission;
 
   bool canOpen(AppController controller) =>
-      controller.hasPermission(functionCode, AccessPermission.dSach);
+      controller.hasPermission(functionCode, permission);
 }
 
 const operationalModules = <OperationalModule>[
+  OperationalModule(
+    keyName: 'material-reports',
+    functionCode: AccessFunctionCodes.materialReports,
+    label: 'Quản lý vật liệu',
+    description:
+        'Xem nhập, xuất, tồn kho và giá trị vật liệu theo từng trạm trộn.',
+    icon: Icons.inventory_2_outlined,
+    permission: AccessPermission.view,
+  ),
   OperationalModule(
     keyName: 'order-reports',
     functionCode: AccessFunctionCodes.orderReports,
@@ -186,6 +199,33 @@ const operationalModules = <OperationalModule>[
     icon: Icons.scale_outlined,
   ),
 ];
+
+Future<void> openMaterialReportModule(
+  BuildContext context,
+  OperationalModule module,
+  MaterialReportRepository repository,
+  CompanyRepository companyRepository,
+) async {
+  final controller = AppScope.read(context);
+  if (!module.canOpen(controller)) {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NoAccessScreen()));
+    return;
+  }
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => AppScope(
+        controller: controller,
+        child: MaterialReportScreen(
+          repository: repository,
+          companyRepository: companyRepository,
+          isAdmin: controller.hasRole('ADMIN'),
+        ),
+      ),
+    ),
+  );
+}
 
 List<OperationalModule> visibleOperationalModules(AppController controller) =>
     operationalModules.where((module) => module.canOpen(controller)).toList();

@@ -4,6 +4,7 @@ public sealed class StationOrderHistory
 {
     public long OrderHistoryId { get; set; }
     public int? OrderId { get; set; }
+    public int? SalesEmployeeId { get; set; }
     public float? OrderedVolume { get; set; }
     public string? CustomerName { get; set; }
     public DateTime? OrderedAt { get; set; }

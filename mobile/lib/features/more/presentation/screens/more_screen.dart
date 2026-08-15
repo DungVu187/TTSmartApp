@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/app_scope.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../../mix_design_management/data/repositories/mix_design_repository.dart';
+import '../../../material_reporting/data/repositories/material_report_repository.dart';
 import '../../../shell/presentation/module_registry.dart';
 import '../../../station_management/data/repositories/station_repository.dart';
 import '../../../weigh_station_management/data/repositories/weigh_station_repository.dart';
@@ -15,12 +16,14 @@ class MoreScreen extends StatelessWidget {
     super.key,
     required this.companyRepository,
     required this.mixDesignRepository,
+    required this.materialReportRepository,
     required this.stationRepository,
     required this.weighStationRepository,
   });
 
   final CompanyRepository companyRepository;
   final MixDesignRepository mixDesignRepository;
+  final MaterialReportRepository materialReportRepository;
   final StationRepository stationRepository;
   final WeighStationRepository weighStationRepository;
 
@@ -33,6 +36,9 @@ class MoreScreen extends StatelessWidget {
     final mixDesignModules = operationalModules
         .where((module) => module.keyName == 'mix-designs')
         .toList(growable: false);
+    final materialReportModules = operationalModules
+        .where((module) => module.keyName == 'material-reports')
+        .toList(growable: false);
     final weighStationModules = operationalModules
         .where((module) => module.keyName == 'weigh-stations')
         .toList(growable: false);
@@ -40,22 +46,6 @@ class MoreScreen extends StatelessWidget {
       for (final module in previewModules) module.keyName: module,
     };
     final actions = <_MoreAction>[];
-
-    void addPreview(String keyName) {
-      final module = previewByKey.remove(keyName);
-      if (module == null) return;
-      actions.add(
-        _MoreAction(
-          label: _panelLabel(module),
-          icon: module.icon,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ModulePreviewScreen(module: module),
-            ),
-          ),
-        ),
-      );
-    }
 
     actions.addAll(
       mixDesignModules.map(
@@ -80,6 +70,20 @@ class MoreScreen extends StatelessWidget {
             context,
             module,
             weighStationRepository,
+            companyRepository,
+          ),
+        ),
+      ),
+    );
+    actions.addAll(
+      materialReportModules.map(
+        (module) => _MoreAction(
+          label: module.label,
+          icon: module.icon,
+          onTap: () => openMaterialReportModule(
+            context,
+            module,
+            materialReportRepository,
             companyRepository,
           ),
         ),

@@ -7,6 +7,25 @@ import 'package:ttsmart_mobile/core/network/api_client.dart';
 import 'package:ttsmart_mobile/core/network/api_exception.dart';
 
 void main() {
+  test('GET can use a longer timeout for a heavy report', () async {
+    final client = ApiClient(
+      baseUri: Uri.parse('http://localhost:5052'),
+      timeout: const Duration(milliseconds: 10),
+      httpClient: MockClient((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return http.Response('{"ok":true}', 200);
+      }),
+    )..accessToken = 'token-test';
+    addTearDown(client.close);
+
+    final response = await client.get(
+      '/api/material-reports',
+      requestTimeout: const Duration(milliseconds: 200),
+    );
+
+    expect(response, <String, dynamic>{'ok': true});
+  });
+
   test('parse JSON thành công và gắn Bearer token', () async {
     final client = ApiClient(
       baseUri: Uri.parse('http://localhost:5052'),

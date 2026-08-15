@@ -100,6 +100,7 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         orderHistory.HasKey(item => item.OrderHistoryId);
         orderHistory.Property(item => item.OrderHistoryId).HasColumnName("STT");
         orderHistory.Property(item => item.OrderId).HasColumnName("MADATHANG");
+        orderHistory.Property(item => item.SalesEmployeeId).HasColumnName("MANV");
         orderHistory.Property(item => item.OrderedVolume).HasColumnName("METKHOIDATHANG").HasColumnType("real");
         orderHistory.Property(item => item.CustomerName).HasColumnName("TENKHACHHANG").HasColumnType("nvarchar(max)");
         orderHistory.Property(item => item.OrderedAt).HasColumnName("NGAYDATHANG").HasColumnType("datetime");

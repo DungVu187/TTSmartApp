@@ -6,6 +6,7 @@ using TTSmart.Api.Features.OrderReporting;
 using TTSmart.Api.Features.OrderStatistics;
 using TTSmart.Api.Features.MixDesignManagement;
 using TTSmart.Api.Features.WeighStationManagement;
+using TTSmart.Api.Features.MaterialReporting;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,6 +28,7 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
     internal TestOrderStatisticsDataSource OrderStatisticsDataSource { get; } = new();
     internal TestMixDesignDataSource MixDesignDataSource { get; } = new();
     internal TestWeighStationDataSource WeighStationDataSource { get; } = new();
+    internal TestMaterialReportDataSource MaterialReportDataSource { get; } = new();
     internal TestStationDatabaseAvailabilityResolver StationDatabaseAvailabilityResolver { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -69,8 +71,13 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IMixDesignDataSource>(MixDesignDataSource);
             services.RemoveAll<IWeighStationDataSource>();
             services.AddSingleton<IWeighStationDataSource>(WeighStationDataSource);
+            services.RemoveAll<IMaterialReportDataSource>();
+            services.AddSingleton<IMaterialReportDataSource>(MaterialReportDataSource);
             services.RemoveAll<IStationDatabaseAvailabilityResolver>();
             services.AddSingleton<IStationDatabaseAvailabilityResolver>(StationDatabaseAvailabilityResolver);
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(
+                new FixedTimeProvider(new DateTimeOffset(2026, 8, 13, 1, 0, 0, TimeSpan.Zero)));
         });
     }
 
@@ -88,6 +95,7 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
         OrderStatisticsDataSource.Reset();
         MixDesignDataSource.Reset();
         WeighStationDataSource.Reset();
+        MaterialReportDataSource.Reset();
         StationDatabaseAvailabilityResolver.Reset();
         if (seed is not null)
         {
@@ -109,4 +117,9 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
         await operation(dbContext);
     }
 
+}
+
+internal sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => utcNow;
 }

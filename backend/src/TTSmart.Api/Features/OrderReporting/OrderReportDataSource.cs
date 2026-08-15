@@ -21,8 +21,18 @@ public sealed record StationOrderReportPage(
     double TotalOrderedVolume,
     double TotalProducedVolume);
 
+public sealed record OrderReportDashboardMetrics(
+    int OrderCount,
+    IReadOnlyList<string> SalesEmployeeKeys);
+
 public interface IOrderReportDataSource
 {
+    Task<OrderReportDashboardMetrics> GetDashboardMetricsAsync(
+        StationDatabaseTarget target,
+        DateTime fromLocal,
+        DateTime toExclusive,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<string>> GetEmployeeNamesAsync(
         StationDatabaseTarget target,
         DateTime fromLocal,
@@ -42,6 +52,40 @@ public interface IOrderReportDataSource
 public sealed class SqlOrderReportDataSource(
     IStationOperationsDbContextFactory dbContextFactory) : IOrderReportDataSource
 {
+    public Task<OrderReportDashboardMetrics> GetDashboardMetricsAsync(
+        StationDatabaseTarget target,
+        DateTime fromLocal,
+        DateTime toExclusive,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(target, async dbContext =>
+        {
+            var rows = await (
+                from order in dbContext.Orders.AsNoTracking()
+                join employee in dbContext.Employees.AsNoTracking()
+                    on order.EmployeeId equals (int?)employee.EmployeeId into employeeGroup
+                from employee in employeeGroup.DefaultIfEmpty()
+                where order.OrderedAt >= fromLocal && order.OrderedAt < toExclusive
+                select new
+                {
+                    order.EmployeeId,
+                    EmployeeName = employee == null ? null : employee.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            var employeeKeys = rows
+                .Select(row => row.EmployeeId.HasValue
+                    ? $"id:{row.EmployeeId.Value}"
+                    : TrimOrNull(row.EmployeeName) is { } name
+                        ? $"name:{name}"
+                        : null)
+                .Where(key => key is not null)
+                .Select(key => key!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return new OrderReportDashboardMetrics(rows.Count, employeeKeys);
+        });
+
     public Task<IReadOnlyList<string>> GetEmployeeNamesAsync(
         StationDatabaseTarget target,
         DateTime fromLocal,
@@ -171,5 +215,11 @@ public sealed class SqlOrderReportDataSource(
                 "Không thể kết nối dữ liệu vận hành của trạm.",
                 exception);
         }
+    }
+
+    private static string? TrimOrNull(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 }

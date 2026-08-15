@@ -31,12 +31,14 @@ class ApiClient {
     Map<String, Object?> query = const <String, Object?>{},
     bool authenticated = true,
     ApiRequestCancellation? cancellation,
+    Duration? requestTimeout,
   }) => _send(
     'GET',
     path,
     query: query,
     authenticated: authenticated,
     cancellation: cancellation,
+    requestTimeout: requestTimeout,
   );
 
   Future<Uint8List> getBytes(
@@ -94,6 +96,7 @@ class ApiClient {
     Object? body,
     required bool authenticated,
     ApiRequestCancellation? cancellation,
+    Duration? requestTimeout,
   }) async {
     final request = _request(
       method,
@@ -104,7 +107,11 @@ class ApiClient {
       request.headers['Content-Type'] = 'application/json; charset=utf-8';
       request.body = jsonEncode(body);
     }
-    final response = await _execute(request, authenticated: authenticated);
+    final response = await _execute(
+      request,
+      authenticated: authenticated,
+      requestTimeout: requestTimeout,
+    );
     try {
       return _decodeSuccess(response);
     } on FormatException {
@@ -115,6 +122,7 @@ class ApiClient {
   Future<http.Response> _execute(
     http.BaseRequest request, {
     required bool authenticated,
+    Duration? requestTimeout,
   }) async {
     if (authenticated) {
       final token = accessToken;
@@ -129,7 +137,9 @@ class ApiClient {
     }
 
     try {
-      final streamed = await _httpClient.send(request).timeout(timeout);
+      final streamed = await _httpClient
+          .send(request)
+          .timeout(requestTimeout ?? timeout);
       final response = await http.Response.fromStream(streamed);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return response;

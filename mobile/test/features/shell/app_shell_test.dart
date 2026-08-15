@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/app_dependencies.dart';
 import 'package:ttsmart_mobile/core/app_scope.dart';
+import 'package:ttsmart_mobile/core/models/data_scope.dart';
+import 'package:ttsmart_mobile/core/models/time_range_preset.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
@@ -12,12 +14,12 @@ import 'package:ttsmart_mobile/features/auth/data/models/auth_models.dart';
 import 'package:ttsmart_mobile/features/auth/data/repositories/auth_repository.dart';
 import 'package:ttsmart_mobile/features/auth/presentation/controllers/app_controller.dart';
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
+import 'package:ttsmart_mobile/features/home/data/models/dashboard_models.dart';
 import 'package:ttsmart_mobile/features/home/data/repositories/home_repository.dart';
 import 'package:ttsmart_mobile/features/mix_design_management/data/repositories/mix_design_repository.dart';
-import 'package:ttsmart_mobile/features/notifications/data/repositories/notifications_repository.dart';
+import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 import 'package:ttsmart_mobile/features/order_reporting/data/repositories/order_report_repository.dart';
 import 'package:ttsmart_mobile/features/reports/data/repositories/reports_repository.dart';
-import 'package:ttsmart_mobile/features/settings/data/repositories/settings_repository.dart';
 import 'package:ttsmart_mobile/features/shell/presentation/screens/app_shell.dart';
 import 'package:ttsmart_mobile/features/station_management/data/repositories/station_repository.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/data/repositories/weigh_station_repository.dart';
@@ -70,6 +72,9 @@ class _AuthorizedAppController extends AppController {
 
   @override
   bool hasPermission(String functionCode, AccessPermission permission) {
+    if (functionCode == AccessFunctionCodes.materialReports) {
+      return permission == AccessPermission.view;
+    }
     return permission == AccessPermission.dSach &&
         const <String>{
           AccessFunctionCodes.orderReports,
@@ -86,6 +91,77 @@ class _AuthorizedAppController extends AppController {
 
   @override
   bool hasRole(String roleCode) => roleCode == 'ADMIN';
+}
+
+class _ShellHomeRepository implements HomeRepository {
+  DashboardScope? lastScope;
+  TimeRangePreset? lastTimeRange;
+  var dashboardCallCount = 0;
+
+  static const scopes = <DashboardScope>[
+    DashboardScope(
+      keyName: 'company-1',
+      label: 'Công ty A',
+      type: DataScopeType.company,
+      companyId: 1,
+    ),
+    DashboardScope(
+      keyName: 'station-10',
+      label: 'Trạm A',
+      type: DataScopeType.station,
+      companyId: 1,
+      branchId: 10,
+      description: 'Công ty A',
+    ),
+  ];
+
+  @override
+  Future<List<DashboardScope>> getAvailableScopes() async => scopes;
+
+  @override
+  Future<DashboardSnapshot> getDashboard({
+    required DashboardScope? scope,
+    required TimeRangePreset timeRange,
+  }) async {
+    dashboardCallCount++;
+    lastScope = scope;
+    lastTimeRange = timeRange;
+    return DashboardSnapshot(
+      scope: scope,
+      timeRange: timeRange,
+      updatedAt: DateTime.utc(2026, 8, 12),
+      totalMixedVolume: 0,
+      metrics: const <DashboardMetric>[
+        DashboardMetric(
+          type: DashboardMetricType.orders,
+          label: 'Đơn hàng',
+          value: '0',
+          caption: 'Hôm nay',
+        ),
+        DashboardMetric(
+          type: DashboardMetricType.concreteGrades,
+          label: 'Mác bê tông',
+          value: '0',
+          caption: 'Hôm nay',
+        ),
+        DashboardMetric(
+          type: DashboardMetricType.mixerTrucks,
+          label: 'Xe trộn',
+          value: '0',
+          caption: 'Hôm nay',
+        ),
+        DashboardMetric(
+          type: DashboardMetricType.salesWithOrders,
+          label: 'Kinh doanh có đơn',
+          value: '0',
+          caption: 'Hôm nay',
+        ),
+      ],
+      chartLabels: const <String>[],
+      chartValues: const <double>[],
+      stations: const <StationOverview>[],
+    );
+  }
 }
 
 void main() {
@@ -105,6 +181,7 @@ void main() {
     final appController = _AuthorizedAppController(apiClient);
     addTearDown(appController.dispose);
 
+    final homeRepository = _ShellHomeRepository();
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -112,12 +189,11 @@ void main() {
           controller: appController,
           child: AppShell(
             repositories: AppFeatureRepositories(
-              home: const MockHomeRepository(),
+              home: homeRepository,
               mixDesigns: ApiMixDesignRepository(apiClient),
+              materialReports: ApiMaterialReportRepository(apiClient),
               orderReports: ApiOrderReportRepository(apiClient),
               reports: const MockReportsRepository(),
-              notifications: const MockNotificationsRepository(),
-              settings: MemorySettingsRepository(),
               companies: ApiCompanyRepository(apiClient),
               stations: ApiStationRepository(apiClient),
               weighStations: ApiWeighStationRepository(apiClient),
@@ -141,6 +217,62 @@ void main() {
     ]) {
       expect(find.byKey(ValueKey<String>('shell-nav-$tab')), findsOneWidget);
     }
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-filters')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-company-filter')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-station-filter')),
+      findsOneWidget,
+    );
+    expect(homeRepository.dashboardCallCount, 1);
+    expect(homeRepository.lastScope, isNull);
+    expect(homeRepository.lastTimeRange, TimeRangePreset.today);
+    final companyInput = tester.widget<TextFormField>(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('dashboard-company-filter')),
+        matching: find.byType(TextFormField),
+      ),
+    );
+    expect(companyInput.controller?.text, isEmpty);
+    final stationInput = find.descendant(
+      of: find.byKey(const ValueKey<String>('dashboard-station-filter')),
+      matching: find.byType(TextFormField),
+    );
+    await tester.tap(stationInput);
+    await tester.pump();
+    await tester.tap(find.text('Trạm A').last);
+    await tester.pumpAndSettle();
+
+    expect(homeRepository.lastScope?.branchId, 10);
+    expect(homeRepository.lastScope?.companyId, 1);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('dashboard-station-filter')),
+        matching: find.text('Trạm A'),
+      ),
+      findsOneWidget,
+    );
+    for (final metric in <String>[
+      'orders',
+      'concreteGrades',
+      'mixerTrucks',
+      'salesWithOrders',
+    ]) {
+      expect(
+        find.byKey(ValueKey<String>('dashboard-metric-$metric')),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-production-chart')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byKey(const ValueKey<String>('shell-nav-system')));
     await tester.pumpAndSettle();
@@ -172,6 +304,7 @@ void main() {
       find.byKey(const ValueKey<String>('shell-bottom-navigation')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byKey(const ValueKey<String>('shell-panel-close')));
     await tester.pumpAndSettle();
@@ -214,6 +347,7 @@ void main() {
       find.byKey(const ValueKey<String>('shell-bottom-navigation')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byKey(const ValueKey<String>('module-panel-tile-0')));
     await tester.pumpAndSettle();
@@ -300,6 +434,13 @@ void _expectModuleTileDesign(
   expect(tile, findsOneWidget);
   expect(iconBackground, findsOneWidget);
   expect(tester.getSize(iconBackground), const Size(36, 36));
+
+  final inkWell = tester.widget<InkWell>(tile);
+  expect(
+    inkWell.overlayColor?.resolve(<WidgetState>{WidgetState.pressed}),
+    Colors.transparent,
+  );
+  expect(inkWell.splashFactory, NoSplash.splashFactory);
 
   final iconFinder = find.descendant(
     of: iconBackground,

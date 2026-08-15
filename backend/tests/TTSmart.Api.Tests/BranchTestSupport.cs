@@ -260,6 +260,45 @@ internal static class BranchTestSupport
         return identity;
     }
 
+    public static async Task<BranchTestIdentity> SeedMaterialReportIdentityAsync(
+        IServiceProvider services,
+        WebAuthDbContext dbContext,
+        string roleCode,
+        int? companyId,
+        string? branchIds,
+        params ActiveKeyPermission[] permissions)
+    {
+        var identity = await SeedIdentityAsync(
+            services,
+            dbContext,
+            roleCode,
+            companyId,
+            branchIds);
+        var user = await dbContext.Users.SingleAsync(item => item.UserName == identity.UserName);
+        var userRole = await dbContext.UserRoles.SingleAsync(item => item.UserId == user.UserId);
+        var function = new WebFunction
+        {
+            Code = OperationalFunctionCodes.MaterialReports,
+            Name = "Quản lý vật liệu",
+            FunctionParentId = 0,
+            Status = WebDataStatus.Active
+        };
+        dbContext.Functions.Add(function);
+        await dbContext.SaveChangesAsync();
+        dbContext.FunctionRoles.Add(new WebFunctionRole
+        {
+            TargetId = userRole.RoleId,
+            FunctionId = function.FunctionId,
+            Type = WebFunctionRoleType.Role,
+            ActiveKey = permissions.Aggregate(
+                ActiveKeyValue.None,
+                (current, permission) => ActiveKeyValue.Set(current, permission, true)),
+            Status = WebDataStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+        return identity;
+    }
+
     public static WebCompany CreateCompany(int id, string code, string name) =>
         new()
         {

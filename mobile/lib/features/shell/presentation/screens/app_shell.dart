@@ -8,11 +8,8 @@ import '../../../home/presentation/controllers/home_controller.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import '../../../more/presentation/screens/more_screen.dart';
 import '../../../more/presentation/screens/system_screen.dart';
-import '../../../notifications/presentation/controllers/notifications_controller.dart';
-import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../order_reporting/presentation/screens/order_reports_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
-import '../../../settings/presentation/controllers/settings_controller.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../widgets/app_header.dart';
 import '../module_registry.dart';
@@ -50,8 +47,6 @@ class _AppShellState extends State<AppShell>
   _ShellTabKey _contentTab = _ShellTabKey.home;
   _ShellTabKey? _panelTab;
   late final HomeController _homeController;
-  late final NotificationsController _notificationsController;
-  late final SettingsController _settingsController;
   late final AnimationController _panelController;
   late final Animation<Offset> _panelSlideAnimation;
   late final Animation<double> _panelScrimAnimation;
@@ -78,10 +73,6 @@ class _AppShellState extends State<AppShell>
       reverseCurve: Curves.easeIn,
     );
     _homeController = HomeController(widget.repositories.home);
-    _notificationsController = NotificationsController(
-      widget.repositories.notifications,
-    );
-    _settingsController = SettingsController(widget.repositories.settings);
   }
 
   @override
@@ -90,8 +81,6 @@ class _AppShellState extends State<AppShell>
       ..removeStatusListener(_handlePanelAnimationStatus)
       ..dispose();
     _homeController.dispose();
-    _notificationsController.dispose();
-    _settingsController.dispose();
     super.dispose();
   }
 
@@ -141,21 +130,10 @@ class _AppShellState extends State<AppShell>
     );
   }
 
-  void _openNotifications() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            NotificationsScreen(controller: _notificationsController),
-      ),
-    );
-  }
-
   void _openSettings() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => SettingsScreen(controller: _settingsController),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
 
   @override
@@ -183,7 +161,6 @@ class _AppShellState extends State<AppShell>
           onOpenStatistics: canViewOrderStatistics
               ? () => _selectTab(_ShellTabKey.statistics)
               : null,
-          onOpenMore: () => _selectTab(_ShellTabKey.more),
         ),
       ),
       if (canViewOrderReports)
@@ -247,16 +224,10 @@ class _AppShellState extends State<AppShell>
           Positioned.fill(
             child: Column(
               children: [
-                AnimatedBuilder(
-                  animation: _notificationsController,
-                  builder: (context, _) => AppHeader(
-                    displayName: session.user.displayName,
-                    unreadNotificationCount:
-                        _notificationsController.unreadCount,
-                    onOpenAccount: _openAccount,
-                    onOpenNotifications: _openNotifications,
-                    onOpenSettings: _openSettings,
-                  ),
+                AppHeader(
+                  displayName: session.user.displayName,
+                  onOpenAccount: _openAccount,
+                  onOpenSettings: _openSettings,
                 ),
                 Expanded(
                   child: RepaintBoundary(
@@ -289,6 +260,8 @@ class _AppShellState extends State<AppShell>
                     : MoreScreen(
                         companyRepository: widget.repositories.companies,
                         mixDesignRepository: widget.repositories.mixDesigns,
+                        materialReportRepository:
+                            widget.repositories.materialReports,
                         stationRepository: widget.repositories.stations,
                         weighStationRepository:
                             widget.repositories.weighStations,
