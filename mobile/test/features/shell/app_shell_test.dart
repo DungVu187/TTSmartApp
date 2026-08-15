@@ -19,10 +19,11 @@ import 'package:ttsmart_mobile/features/home/data/repositories/home_repository.d
 import 'package:ttsmart_mobile/features/mix_design_management/data/repositories/mix_design_repository.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 import 'package:ttsmart_mobile/features/order_reporting/data/repositories/order_report_repository.dart';
-import 'package:ttsmart_mobile/features/reports/data/repositories/reports_repository.dart';
 import 'package:ttsmart_mobile/features/shell/presentation/screens/app_shell.dart';
 import 'package:ttsmart_mobile/features/station_management/data/repositories/station_repository.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/data/repositories/weigh_station_repository.dart';
+
+import '../../support/empty_reports_repository.dart';
 
 const _surfaceSize = Size(411, 914);
 const _selectedBackground = Color(0xFFEEF2FF);
@@ -193,7 +194,7 @@ void main() {
               mixDesigns: ApiMixDesignRepository(apiClient),
               materialReports: ApiMaterialReportRepository(apiClient),
               orderReports: ApiOrderReportRepository(apiClient),
-              reports: const MockReportsRepository(),
+              reports: const EmptyReportsRepository(),
               companies: ApiCompanyRepository(apiClient),
               stations: ApiStationRepository(apiClient),
               weighStations: ApiWeighStationRepository(apiClient),

@@ -6,6 +6,16 @@ import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
 import 'package:ttsmart_mobile/core/network/api_exception.dart';
 
+class _InspectingClient extends http.BaseClient {
+  _InspectingClient(this._send);
+
+  final Future<http.StreamedResponse> Function(http.BaseRequest request) _send;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _send(request);
+}
+
 void main() {
   test('GET can use a longer timeout for a heavy report', () async {
     final client = ApiClient(
@@ -109,7 +119,7 @@ void main() {
     final client = ApiClient(
       baseUri: Uri.parse('http://localhost:5052'),
       timeout: const Duration(seconds: 1),
-      httpClient: MockClient((request) async {
+      httpClient: _InspectingClient((request) async {
         expect(request.method, 'POST');
         expect(request.url.path, '/api/companies/12/logo');
         expect(request.headers['Authorization'], 'Bearer token-test');
@@ -118,7 +128,10 @@ void main() {
         expect(multipart.files.single.field, 'file');
         expect(multipart.files.single.filename, 'logo.png');
         expect(multipart.files.single.contentType.mimeType, 'image/png');
-        return http.Response('{"ok":true}', 200);
+        return http.StreamedResponse(
+          Stream<List<int>>.value(utf8.encode('{"ok":true}')),
+          200,
+        );
       }),
     )..accessToken = 'token-test';
 

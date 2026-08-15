@@ -142,31 +142,6 @@ class ApiReportsRepository implements ReportsRepository {
   }
 }
 
-class MockReportsRepository implements ReportsRepository {
-  const MockReportsRepository();
-
-  @override
-  Future<List<OrderStatisticsStation>> getStations({int? companyId}) async =>
-      const <OrderStatisticsStation>[];
-
-  @override
-  Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  ) async => OrderStatisticsFilterOptions.empty;
-
-  @override
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async =>
-      OrderStatisticsPage.empty(
-        viewMode: query.viewMode,
-        pageNumber: query.pageNumber,
-      );
-
-  @override
-  Future<OrderStatisticsExportFile> export(
-    OrderStatisticsExportQuery query,
-  ) async => OrderStatisticsExportFile(bytes: Uint8List(0));
-}
-
 String? _normalizedFilter(String? value) {
   final normalized = value?.trim();
   return normalized == null || normalized.isEmpty ? null : normalized;

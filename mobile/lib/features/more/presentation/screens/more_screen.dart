@@ -7,9 +7,7 @@ import '../../../material_reporting/data/repositories/material_report_repository
 import '../../../shell/presentation/module_registry.dart';
 import '../../../station_management/data/repositories/station_repository.dart';
 import '../../../weigh_station_management/data/repositories/weigh_station_repository.dart';
-import '../more_module_registry.dart';
 import '../widgets/module_panel_grid.dart';
-import 'module_preview_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
@@ -42,9 +40,6 @@ class MoreScreen extends StatelessWidget {
     final weighStationModules = operationalModules
         .where((module) => module.keyName == 'weigh-stations')
         .toList(growable: false);
-    final previewByKey = {
-      for (final module in previewModules) module.keyName: module,
-    };
     final actions = <_MoreAction>[];
 
     actions.addAll(
@@ -113,20 +108,6 @@ class MoreScreen extends StatelessWidget {
         ),
       ),
     );
-    for (final module in previewByKey.values) {
-      actions.add(
-        _MoreAction(
-          label: _panelLabel(module),
-          icon: module.icon,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ModulePreviewScreen(module: module),
-            ),
-          ),
-        ),
-      );
-    }
-
     return ModulePanelGrid(
       compactColumnCount: 4,
       items: [
@@ -143,11 +124,6 @@ class MoreScreen extends StatelessWidget {
     );
   }
 }
-
-String _panelLabel(MoreModuleDefinition module) => switch (module.keyName) {
-  PreviewModuleKeys.materials => 'Quản lý vật liệu',
-  _ => module.label,
-};
 
 class _MoreAction {
   const _MoreAction({
