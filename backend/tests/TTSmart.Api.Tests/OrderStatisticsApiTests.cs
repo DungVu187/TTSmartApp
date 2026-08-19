@@ -460,6 +460,64 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
     }
 
     [Fact]
+    public async Task TimKiem_LayoutLichSuTrungSoCua_GopDuLieuKhongCrash()
+    {
+        BranchTestIdentity identity = null!;
+        await factory.ResetDatabaseAsync(async (services, authDbContext) =>
+        {
+            identity = await BranchTestSupport.SeedOrderStatisticsIdentityAsync(
+                services,
+                authDbContext,
+                SystemRoleCodes.Company,
+                1,
+                null,
+                ActiveKeyPermission.DSach);
+            await SeedCompanyAndBranchAsync(services);
+        });
+        var previousSlot = new OrderStatisticsMaterialValue(
+            500,
+            5,
+            "Cát cũ",
+            "Cát",
+            1,
+            2,
+            3,
+            2,
+            "SAND",
+            1);
+        var currentSlot = new OrderStatisticsMaterialValue(
+            501,
+            5,
+            "Cát mới",
+            "Cát",
+            4,
+            5,
+            6,
+            2,
+            "SAND",
+            1);
+        factory.OrderStatisticsDataSource.SetPage(CreatePage(
+            [CreateRow(201, [previousSlot, currentSlot])],
+            [currentSlot],
+            [CreateColumn(currentSlot)]));
+
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        var response = await client.GetFromJsonAsync<OrderStatisticsResponse>(
+            "/api/order-statistics?branchId=10&viewMode=total&" + SearchTimeQuery,
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(response);
+        var item = Assert.Single(response.Items);
+        var material = Assert.Single(item.Materials);
+        Assert.Equal(5, material.SlotNumber);
+        Assert.Equal("Cát mới", material.MaterialName);
+        Assert.Equal(9m, material.ActualQuantity);
+        Assert.Single(response.Layouts.Single().Columns);
+    }
+
+    [Fact]
     public async Task TimKiem_MapDuLieuPhanTrangUtcTongVaDungLayoutVatLieuDong()
     {
         BranchTestIdentity identity = null!;

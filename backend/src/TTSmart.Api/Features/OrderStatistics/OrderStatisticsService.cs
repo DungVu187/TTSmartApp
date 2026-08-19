@@ -258,6 +258,14 @@ public sealed class OrderStatisticsService(
                     value.CategoryCode,
                     value.TypePosition);
             })
+            // Một số layout lịch sử có nhiều MaterialSlotId cho cùng một cửa.
+            // Layout mobile chỉ có một cột cho mỗi cửa, ưu tiên cấu hình mới nhất;
+            // các định lượng vẫn được cộng ở AggregateMaterialsBy* phía dưới.
+            .GroupBy(column => column.SlotNumber!.Value)
+            .Select(group => group
+                .OrderByDescending(column => column.MaterialSlotId)
+                .ThenByDescending(column => column.TypePosition)
+                .First())
             .ToArray();
 
     private static MaterialLayoutMapping BuildRowMaterialLayout(
