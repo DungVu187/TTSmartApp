@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Diagnostics;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TTSmart.Api.Common.Diagnostics;
@@ -679,33 +680,53 @@ public sealed class SqlOrderStatisticsDataSource(
     }
 
     private static IQueryable<TotalQueryRow> CreateTotalQuery(
-        IQueryable<BatchQueryRow> filteredBatches) =>
-        from batch in filteredBatches
-        group batch by batch.MixingHistoryId
-        into grouped
-        select new TotalQueryRow
-        {
-            MixingHistoryId = grouped.Key,
-            MixingDate = grouped.Max(row => row.MixingDate),
-            StartedAt = grouped.Min(row => row.StartedAt),
-            FinishedAt = grouped.Max(row => row.FinishedAt),
-            CustomerName = grouped.Max(row => row.CustomerName),
-            ProjectName = grouped.Max(row => row.ProjectName),
-            WorkItemName = grouped.Max(row => row.WorkItemName),
-            LocationName = grouped.Max(row => row.LocationName),
-            VehiclePlate = grouped.Max(row => row.VehiclePlate),
-            DriverName = grouped.Max(row => row.DriverName),
-            ConcreteGradeName = grouped.Max(row => row.ConcreteGradeName),
-            Slump = grouped.Max(row => row.Slump),
-            RequestedVolume = grouped.Sum(row => row.RequestedVolume ?? 0d),
-            MixedVolume = grouped.Sum(row => (double)(row.MixedVolume ?? 0f)),
-            SalesEmployeeId = grouped.Max(row => row.SalesEmployeeId),
-            SalesEmployeeCode = grouped.Max(row => row.SalesEmployeeCode),
-            SalesEmployeeName = grouped.Max(row => row.SalesEmployeeName),
-            EmployeeName = grouped.Max(row => row.EmployeeName),
-            BatchNumber = grouped.Max(row => row.BatchNumber),
-            CompletedBatchCount = grouped.Count()
-        };
+        IQueryable<BatchQueryRow> filteredBatches)
+    {
+        // Database trạm legacy có thể dùng text/ntext cho thông tin đơn hàng.
+        // SQL Server không cho aggregate MAX/MIN trực tiếp trên các kiểu đó,
+        // nên chỉ aggregate dữ liệu số rồi join lại một chi tiết đại diện của mẻ.
+        var aggregates =
+            from batch in filteredBatches
+            group batch by batch.MixingHistoryId
+            into grouped
+            select new
+            {
+                MixingHistoryId = grouped.Key,
+                RepresentativeDetailId = grouped.Min(row => row.MixingDetailId),
+                BatchNumber = grouped.Max(row => row.BatchNumber),
+                RequestedVolume = grouped.Sum(row => row.RequestedVolume ?? 0d),
+                MixedVolume = grouped.Sum(row => (double)(row.MixedVolume ?? 0f)),
+                CompletedBatchCount = grouped.Count()
+            };
+
+        return
+            from aggregate in aggregates
+            join representative in filteredBatches
+                on aggregate.RepresentativeDetailId equals representative.MixingDetailId
+            select new TotalQueryRow
+            {
+                MixingHistoryId = aggregate.MixingHistoryId,
+                BatchNumber = aggregate.BatchNumber,
+                MixingDate = representative.MixingDate,
+                StartedAt = representative.StartedAt,
+                FinishedAt = representative.FinishedAt,
+                CustomerName = representative.CustomerName,
+                ProjectName = representative.ProjectName,
+                WorkItemName = representative.WorkItemName,
+                LocationName = representative.LocationName,
+                VehiclePlate = representative.VehiclePlate,
+                DriverName = representative.DriverName,
+                ConcreteGradeName = representative.ConcreteGradeName,
+                Slump = representative.Slump,
+                RequestedVolume = aggregate.RequestedVolume,
+                MixedVolume = aggregate.MixedVolume,
+                SalesEmployeeId = representative.SalesEmployeeId,
+                SalesEmployeeCode = representative.SalesEmployeeCode,
+                SalesEmployeeName = representative.SalesEmployeeName,
+                EmployeeName = representative.EmployeeName,
+                CompletedBatchCount = aggregate.CompletedBatchCount
+            };
+    }
 
     private static async Task<IReadOnlyList<BatchQueryRow>> LoadDetailRowsAsync(
         IQueryable<BatchQueryRow> filteredBatches,
@@ -1485,6 +1506,20 @@ public sealed class SqlOrderStatisticsDataSource(
                 CurrentTraceId,
                 stage,
                 stopwatch.ElapsedMilliseconds);
+            throw;
+        }
+        catch (SqlException exception)
+        {
+            stopwatch.Stop();
+            logger.LogError(
+                "Order statistics data stage failed. TraceId={TraceId}, Stage={Stage}, ElapsedMs={ElapsedMs}, ErrorType={ErrorType}, SqlNumber={SqlNumber}, SqlState={SqlState}, SqlClass={SqlClass}",
+                CurrentTraceId,
+                stage,
+                stopwatch.ElapsedMilliseconds,
+                exception.GetType().Name,
+                exception.Number,
+                exception.State,
+                exception.Class);
             throw;
         }
         catch (Exception exception)
