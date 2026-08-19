@@ -261,7 +261,11 @@ public sealed class MaterialReportService(
         int rowNumber)
     {
         var details = snapshot.Issues
-            .Where(item => item.OccurredAt >= fromLocal && item.OccurredAt <= toLocal && item.QuantityKg > 0)
+            .Where(item =>
+                item.OccurredAt >= fromLocal &&
+                item.OccurredAt <= toLocal &&
+                (item.QuantityKg > 0 ||
+                 item.IsQuantityOnlyAdjustment && item.QuantityKg < 0))
             .Select(item => new { Issue = item, Material = resolve(item.MaterialCode, item.MaterialName) })
             .Where(item => item.Material is not null)
             .GroupBy(item => item.Material!.Material.Code)

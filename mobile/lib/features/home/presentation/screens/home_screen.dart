@@ -114,10 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           count: snapshot.unavailableStationCount,
                         ),
                       ],
-                      if (snapshot.stations.isNotEmpty) ...[
-                        const SizedBox(height: 24),
-                        _StationSection(stations: snapshot.stations),
-                      ],
                     ],
                   ],
                 ),
@@ -293,36 +289,6 @@ class _DashboardFilters extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class _StationSection extends StatelessWidget {
-  const _StationSection({required this.stations});
-
-  final List<StationOverview> stations;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const AppSectionHeader(
-          title: 'Dữ liệu theo trạm',
-          subtitle: 'Tổng hợp trong khoảng thời gian đã chọn',
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: Column(
-            children: [
-              for (var index = 0; index < stations.length; index++) ...[
-                if (index > 0) const Divider(),
-                StationOverviewCard(station: stations[index]),
-              ],
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

@@ -192,7 +192,7 @@ void main() {
       now: () => now,
     );
     await controller.initialize(isAdmin: true, initialCompanyId: null);
-    expect(repository.stationCompanyIds, [null]);
+    expect(repository.stationCompanyIds, isEmpty);
 
     await controller.selectCompany(3);
     await controller.selectStation(10);

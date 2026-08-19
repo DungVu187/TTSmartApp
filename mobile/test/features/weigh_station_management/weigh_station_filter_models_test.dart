@@ -2,6 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/data/models/weigh_station_filter_models.dart';
 
 void main() {
+  test('nhãn stage phản ánh đúng trạng thái xe của website', () {
+    expect(WeighStationStage.first.label, 'Xe chưa ra');
+    expect(WeighStationStage.second.label, 'Xe đã ra');
+  });
+
   test('filter query không gửi stage khi chưa chọn giai đoạn', () {
     final query = WeighStationFilterQuery(
       branchId: 42,

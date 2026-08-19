@@ -150,7 +150,8 @@ public sealed class DashboardApiTests(TTSmartApiFactory factory) : IClassFixture
         Assert.All(factory.OrderStatisticsDataSource.SeenFilters, filter =>
         {
             Assert.Equal(new DateTime(2026, 8, 13, 0, 0, 0), filter.FromInclusive);
-            Assert.Equal(new DateTime(2026, 8, 14, 0, 0, 0), filter.ToExclusive);
+            Assert.Equal(new DateTime(2026, 8, 14, 0, 0, 0).AddTicks(-1), filter.ToExclusive);
+            Assert.True(filter.UseFinishedAtInclusive);
         });
         Assert.Equal(2, factory.OrderReportDataSource.SeenDashboardMetricRanges.Count);
         Assert.Equal(
@@ -162,7 +163,8 @@ public sealed class DashboardApiTests(TTSmartApiFactory factory) : IClassFixture
         Assert.All(factory.OrderStatisticsDataSource.SeenDashboardMetricFilters, filter =>
         {
             Assert.Equal(new DateTime(2026, 8, 13), filter.FromInclusive);
-            Assert.Equal(new DateTime(2026, 8, 14), filter.ToExclusive);
+            Assert.Equal(new DateTime(2026, 8, 14).AddTicks(-1), filter.ToExclusive);
+            Assert.True(filter.UseFinishedAtInclusive);
         });
     }
 
@@ -227,13 +229,15 @@ public sealed class DashboardApiTests(TTSmartApiFactory factory) : IClassFixture
                 .Distinct());
         var filter = Assert.Single(factory.OrderStatisticsDataSource.SeenFilters);
         Assert.Equal(new DateTime(2026, 8, 12, 0, 0, 0), filter.FromInclusive);
-        Assert.Equal(new DateTime(2026, 8, 13, 0, 0, 0), filter.ToExclusive);
+        Assert.Equal(new DateTime(2026, 8, 13, 0, 0, 0).AddTicks(-1), filter.ToExclusive);
+        Assert.True(filter.UseFinishedAtInclusive);
         var metricRange = Assert.Single(factory.OrderReportDataSource.SeenDashboardMetricRanges);
         Assert.Equal(new DateTime(2026, 8, 12), metricRange.From);
         Assert.Equal(new DateTime(2026, 8, 13), metricRange.To);
         var metricFilter = Assert.Single(factory.OrderStatisticsDataSource.SeenDashboardMetricFilters);
         Assert.Equal(new DateTime(2026, 8, 12), metricFilter.FromInclusive);
-        Assert.Equal(new DateTime(2026, 8, 13), metricFilter.ToExclusive);
+        Assert.Equal(new DateTime(2026, 8, 13).AddTicks(-1), metricFilter.ToExclusive);
+        Assert.True(metricFilter.UseFinishedAtInclusive);
     }
 
     [Fact]

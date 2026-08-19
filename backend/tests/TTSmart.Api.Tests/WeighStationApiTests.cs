@@ -142,7 +142,7 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
         Assert.Equal(WeighStationStage.First, Assert.Single(factory.WeighStationDataSource.SeenStages));
         var filter = Assert.Single(factory.WeighStationDataSource.SeenFilters);
         Assert.Equal(new DateTime(2026, 8, 5), filter.FromInclusive);
-        Assert.Equal(new DateTime(2026, 8, 6), filter.ToExclusive);
+        Assert.Equal(new DateTime(2026, 8, 6), filter.ToInclusive);
         Assert.Equal(2, Assert.Single(factory.WeighStationDataSource.SeenTargets).TypeTram);
     }
 
@@ -228,6 +228,7 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
         Assert.Equal(new DateTimeOffset(2026, 8, 5, 4, 4, 8, TimeSpan.Zero), item.WeighedOutAt);
         Assert.Equal(10, Assert.Single(factory.WeighStationDataSource.SeenPageOffsets));
         Assert.Equal("89 C 11415", Assert.Single(factory.WeighStationDataSource.SeenFilters).VehiclePlate);
+        Assert.Equal(0, factory.WeighStationMaterialValueDataSource.CallCount);
     }
 
     [Theory]
@@ -283,8 +284,8 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
         var items = response!.Items;
         Assert.False(items[0].HasConversionConfiguration);
         Assert.Null(items[0].ConvertedQuantity);
-        Assert.Equal("m³", items[0].ConvertedUnit);
-        Assert.Null(items[0].ConversionMessage);
+        Assert.Null(items[0].ConvertedUnit);
+        Assert.Equal(WeighStationConversionMessages.Undefined, items[0].ConversionMessage);
 
         foreach (var item in items.Skip(1).Take(2))
         {
@@ -294,14 +295,14 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
             Assert.Equal(WeighStationConversionMessages.Undefined, item.ConversionMessage);
         }
 
-        Assert.True(items[3].HasConversionConfiguration);
-        Assert.Equal(1m, items[3].ConvertedQuantity);
-        Assert.Equal("tấn", items[3].ConvertedUnit);
-        Assert.Null(items[3].ConversionMessage);
+        Assert.False(items[3].HasConversionConfiguration);
+        Assert.Null(items[3].ConvertedQuantity);
+        Assert.Null(items[3].ConvertedUnit);
+        Assert.Equal(WeighStationConversionMessages.Undefined, items[3].ConversionMessage);
 
         Assert.False(items[4].HasConversionConfiguration);
         Assert.Null(items[4].ConvertedQuantity);
-        Assert.Equal("tấn", items[4].ConvertedUnit);
+        Assert.Null(items[4].ConvertedUnit);
         Assert.Equal(WeighStationConversionMessages.Undefined, items[4].ConversionMessage);
     }
 
@@ -313,7 +314,10 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
             1,
             null,
             ActiveKeyPermission.Other);
-        factory.WeighStationDataSource.SetPage(new WeighStationPage([CreateRow(Guid.NewGuid())], 1));
+        var row = CreateRow(Guid.NewGuid());
+        factory.WeighStationDataSource.SetPage(new WeighStationPage([row], 1));
+        factory.WeighStationMaterialValueDataSource.SetValues(
+            new Dictionary<int, decimal> { [row.TicketNumber] = 12_345_678m });
         using var client = factory.CreateClient();
         await BranchTestSupport.LoginAsync(client, identity);
 
@@ -323,6 +327,105 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
 
         Assert.NotNull(response);
         Assert.True(response.CanViewMaterialValue);
+        Assert.Equal(12_345_678m, Assert.Single(response.Items).MaterialValueVnd);
+        Assert.Equal(1, factory.WeighStationMaterialValueDataSource.CallCount);
+        Assert.Equal(0, factory.WeighStationDataSource.SearchAllCallCount);
+        Assert.Same(row, Assert.Single(factory.WeighStationMaterialValueDataSource.LastScaleRows));
+    }
+
+    [Fact]
+    public async Task CoQuyenOther_NguonGiaLoi_VanTraDuLieuCanKhongCoGia()
+    {
+        var identity = await ResetAndSeedIdentityAsync(
+            SystemRoleCodes.Company,
+            1,
+            null,
+            ActiveKeyPermission.Other);
+        var row = CreateRow(Guid.NewGuid());
+        factory.WeighStationDataSource.SetPage(new WeighStationPage([row], 1));
+        factory.WeighStationMaterialValueDataSource.SetException(
+            new InvalidOperationException("Unavailable optional price source."));
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        var response = await client.GetFromJsonAsync<WeighStationResponse>(
+            "/api/weigh-station-management?branchId=10&stage=Second&" + TimeQuery,
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(response);
+        Assert.True(response.CanViewMaterialValue);
+        Assert.Null(Assert.Single(response.Items).MaterialValueVnd);
+        Assert.Equal(1, response.TotalCount);
+        Assert.Equal(1, factory.WeighStationMaterialValueDataSource.CallCount);
+    }
+
+    [Fact]
+    public async Task Summary_CoQuyenOther_CongGiaTheoMatHangNhomVaTong()
+    {
+        var identity = await ResetAndSeedIdentityAsync(
+            SystemRoleCodes.Company,
+            1,
+            null,
+            ActiveKeyPermission.Other);
+        var first = CreateRow(Guid.NewGuid()) with
+        {
+            TicketNumber = 1,
+            GoodsName = "Bê tông thương phẩm",
+            WeighingType = "Bán hàng"
+        };
+        var second = first with { TicketNumber = 2, Id = Guid.NewGuid() };
+        factory.WeighStationDataSource.SetAllRows([first, second]);
+        factory.WeighStationDataSource.SetSummary(
+        [
+            new("Bê tông thương phẩm", "Bán hàng", 49_940m, 2, "M3", 2)
+        ]);
+        factory.WeighStationMaterialValueDataSource.SetValues(
+            new Dictionary<int, decimal> { [1] = 1_000_000m, [2] = 2_000_000m });
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        var response = await client.GetFromJsonAsync<WeighStationSummaryResponse>(
+            "/api/weigh-station-management/summary?branchId=10&stage=Second&" + TimeQuery,
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(response);
+        Assert.Equal(3_000_000m, response.TotalMaterialValueVnd);
+        Assert.Equal(3_000_000m, Assert.Single(response.Items).MaterialValueVnd);
+        Assert.Equal(3_000_000m, response.Groups.Single(item => item.Key == "XUAT_HANG").MaterialValueVnd);
+    }
+
+    [Fact]
+    public async Task Summary_CoQuyenOther_NguonGiaBiHuy_VanTraTongKhoiLuong()
+    {
+        var identity = await ResetAndSeedIdentityAsync(
+            SystemRoleCodes.Company,
+            1,
+            null,
+            ActiveKeyPermission.Other);
+        var row = CreateRow(Guid.NewGuid()) with
+        {
+            TicketNumber = 1,
+            GoodsName = "Đá 1x2",
+            WeighingType = "Nhập hàng"
+        };
+        factory.WeighStationDataSource.SetAllRows([row]);
+        factory.WeighStationDataSource.SetSummary(
+        [
+            new("Đá 1x2", "Nhập hàng", 46_990m, 1, "T", 1)
+        ]);
+        factory.WeighStationMaterialValueDataSource.SetException(
+            new OperationCanceledException("Optional price time budget exceeded."));
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        var response = await client.GetFromJsonAsync<WeighStationSummaryResponse>(
+            "/api/weigh-station-management/summary?branchId=10&stage=Second&" + TimeQuery,
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(response);
+        Assert.True(response.CanViewMaterialValue);
+        Assert.Equal(46_990m, response.TotalGoodsWeightKg);
+        Assert.Null(response.TotalMaterialValueVnd);
         Assert.Null(Assert.Single(response.Items).MaterialValueVnd);
     }
 
@@ -354,7 +457,7 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
         Assert.Equal(2000m, response.TopGoods?.GoodsWeightKg);
         Assert.Equal(10, response.PageSize);
         Assert.Equal(6, response.Items.Count);
-        Assert.Empty(response.Groups);
+        Assert.Equal(6, response.Groups.Count);
         AssertConverted(response.TotalConvertedQuantities, "m³", 1000m);
         AssertConverted(response.TotalConvertedQuantities, "tấn", 2.4m);
         AssertConverted(response.TotalConvertedQuantities, "L", 150m);
@@ -378,7 +481,7 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
 
         Assert.NotNull(response);
         Assert.Equal(1000m, response.TotalGoodsWeightKg);
-        Assert.Empty(response.Groups);
+        Assert.Equal("NHAP_CAT_DA", Assert.Single(response.Groups).Key);
         AssertConverted(response.TotalConvertedQuantities, "tấn", 1m);
     }
 
@@ -388,8 +491,8 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
         var identity = await ResetAndSeedIdentityAsync(SystemRoleCodes.Company, 1, null);
         factory.WeighStationDataSource.SetSummary(
         [
-            new("Xi A", "Nhập hàng", 280010, 0, null),
-            new("Xi B", "Nhập hàng", 175120, 1, null)
+            new("Không xác định", "Nhập hàng", 280010, 0, null),
+            new("Xi măng B", "Nhập hàng", 175120, 1, null)
         ]);
         using var client = factory.CreateClient();
         await BranchTestSupport.LoginAsync(client, identity);
@@ -399,11 +502,11 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
             BranchTestSupport.JsonOptions);
 
         Assert.NotNull(response);
-        var undefined = Assert.Single(response.Items, item => item.GoodsName == "Xi A");
+        var undefined = Assert.Single(response.Items, item => item.GoodsName == "Không xác định");
         Assert.Empty(undefined.ConvertedQuantities);
         Assert.Equal(WeighStationConversionMessages.Undefined, undefined.ConversionMessage);
 
-        var defaultKg = Assert.Single(response.Items, item => item.GoodsName == "Xi B");
+        var defaultKg = Assert.Single(response.Items, item => item.GoodsName == "Xi măng B");
         AssertConverted(defaultKg.ConvertedQuantities, "tấn", 175.12m);
         Assert.Null(defaultKg.ConversionMessage);
     }
@@ -422,7 +525,7 @@ public sealed class WeighStationApiTests(TTSmartApiFactory factory) : IClassFixt
         await AssertProblemAsync(
             response,
             HttpStatusCode.BadRequest,
-            "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
+            "Thời gian bắt đầu phải nhỏ hơn hoặc bằng thời gian kết thúc.");
         Assert.Equal(0, factory.WeighStationDataSource.SearchCallCount);
     }
 

@@ -213,6 +213,34 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
     }
 
     [Fact]
+    public async Task MocThoiGianBangNhau_DuocChapNhanViWebLocInclusive()
+    {
+        BranchTestIdentity identity = null!;
+        await factory.ResetDatabaseAsync(async (services, authDbContext) =>
+        {
+            identity = await BranchTestSupport.SeedOrderStatisticsIdentityAsync(
+                services,
+                authDbContext,
+                SystemRoleCodes.Company,
+                1,
+                null,
+                ActiveKeyPermission.DSach);
+            await SeedCompanyAndBranchAsync(services);
+        });
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+        const string sameTime =
+            "from=2026-08-03T08%3A15%3A42%2B07%3A00&to=2026-08-03T08%3A15%3A42%2B07%3A00";
+
+        var response = await client.GetAsync(
+            "/api/order-statistics?branchId=10&" + sameTime);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(Assert.Single(factory.OrderStatisticsDataSource.SeenFilters)
+            .UseFinishedAtInclusive);
+    }
+
+    [Fact]
     public async Task CONGTY_LocCheoCongTy_Tra403VaKhongQueryDataSource()
     {
         BranchTestIdentity identity = null!;
@@ -349,6 +377,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
             factory.OrderStatisticsDataSource.SeenFilterOptionFilters);
         Assert.Equal(new DateTime(2026, 8, 3, 8, 15, 42), optionFilter.FromInclusive);
         Assert.Equal(new DateTime(2026, 8, 3, 8, 30, 59), optionFilter.ToExclusive);
+        Assert.True(optionFilter.UseFinishedAtInclusive);
         Assert.Null(optionFilter.VehiclePlate);
         Assert.Null(optionFilter.CustomerName);
         Assert.Null(optionFilter.ConcreteGradeName);
@@ -358,6 +387,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
         {
             Assert.Equal(new DateTime(2026, 8, 3, 8, 15, 42), filter.FromInclusive);
             Assert.Equal(new DateTime(2026, 8, 3, 8, 30, 59), filter.ToExclusive);
+            Assert.True(filter.UseFinishedAtInclusive);
             Assert.Equal("30A-12345", filter.VehiclePlate);
             Assert.Equal("Khách hàng A", filter.CustomerName);
             Assert.Equal("M300", filter.ConcreteGradeName);
@@ -502,6 +532,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
             BranchTestSupport.JsonOptions);
         Assert.NotNull(stations);
         Assert.Equal([10], stations.Select(station => station.Id).ToArray());
+        Assert.Equal("TRAM_10", stations[0].Code);
 
         var filters = await client.GetFromJsonAsync<OrderStatisticsFilterOptionsResponse>(
             "/api/order-statistics/filters?branchId=10&" + SearchTimeQuery,
@@ -521,6 +552,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
         Assert.Equal(6m, response.TotalConcreteVolume);
         Assert.Single(response.Items);
         Assert.Equal(11, response.Items[0].RowNumber);
+        Assert.Equal("TRAM_10", response.Items[0].StationCode);
         Assert.Single(response.Items[0].Materials);
         Assert.Single(response.Layouts);
         Assert.Single(response.Layouts.Single().Columns);
@@ -578,6 +610,46 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
             cell => Assert.Equal(
                 cell.CategoryCode == OrderStatisticsMaterialCategories.Water ? "LÍT" : "KG",
                 cell.Unit));
+    }
+
+    [Fact]
+    public async Task VatLieu_LamTronTheoNhomGiongWeb()
+    {
+        BranchTestIdentity identity = null!;
+        await factory.ResetDatabaseAsync(async (services, authDbContext) =>
+        {
+            identity = await BranchTestSupport.SeedOrderStatisticsIdentityAsync(
+                services,
+                authDbContext,
+                SystemRoleCodes.Company,
+                1,
+                null,
+                ActiveKeyPermission.DSach);
+            await SeedCompanyAndBranchAsync(services);
+        });
+        var materials = new[]
+        {
+            CreateMaterial(701, 1, "Cát", "Cát", OrderStatisticsMaterialCategories.Sand, 1, 10.55),
+            CreateMaterial(702, 2, "Xi măng", "Xi măng", OrderStatisticsMaterialCategories.Cement, 1, 10.55),
+            CreateMaterial(703, 3, "Phụ gia", "Phụ gia", OrderStatisticsMaterialCategories.Additive, 1, 10.555)
+        };
+        factory.OrderStatisticsDataSource.SetPage(CreatePage(
+            [CreateRow(701, materials)],
+            materials,
+            materials.Select(CreateColumn).ToArray()));
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        var response = await client.GetFromJsonAsync<OrderStatisticsResponse>(
+            "/api/order-statistics?branchId=10&" + SearchTimeQuery,
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(response);
+        var values = response.Items.Single().Materials;
+        Assert.Equal(11m, values.Single(item => item.CategoryCode == "CAT").ActualQuantity);
+        Assert.Equal(10.6m, values.Single(item => item.CategoryCode == "XIMANG").ActualQuantity);
+        Assert.Equal(10.56m, values.Single(item => item.CategoryCode == "PHUGIA").ActualQuantity);
+        Assert.Equal(31.66m, response.TotalMaterialQuantity);
     }
 
     [Fact]

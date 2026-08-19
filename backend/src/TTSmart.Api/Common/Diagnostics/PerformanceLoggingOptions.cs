@@ -10,6 +10,8 @@ public sealed class PerformanceLoggingOptions
 
     public bool LogOrderStatisticsStages { get; init; }
 
+    public bool LogWeighStationStages { get; init; }
+
     public int SlowRequestThresholdMilliseconds { get; init; } = 2000;
 
     public int SlowDatabaseCommandThresholdMilliseconds { get; init; } = 500;

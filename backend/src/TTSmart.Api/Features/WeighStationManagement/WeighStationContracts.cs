@@ -108,7 +108,8 @@ public sealed record WeighStationItemResponse(
     string? FirstOperatorName,
     string? SecondOperatorName,
     DateTimeOffset? WeighedInAt,
-    DateTimeOffset? WeighedOutAt);
+    DateTimeOffset? WeighedOutAt,
+    byte? VehicleExitStatus = null);
 
 public sealed record WeighStationResponse(
     IReadOnlyList<WeighStationItemResponse> Items,
@@ -128,7 +129,8 @@ public sealed record WeighStationSummaryItemResponse(
     decimal GoodsWeightKg,
     IReadOnlyList<WeighStationConvertedQuantityResponse> ConvertedQuantities,
     string? ConversionMessage,
-    decimal? MaterialValueVnd);
+    decimal? MaterialValueVnd,
+    int TicketCount = 0);
 
 public sealed record WeighStationTopGoodsResponse(
     string? GoodsName,

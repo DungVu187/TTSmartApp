@@ -46,13 +46,18 @@ class ApiClient {
     Map<String, Object?> query = const <String, Object?>{},
     String accept = 'image/*',
     ApiRequestCancellation? cancellation,
+    Duration? requestTimeout,
   }) async {
     final request = _request(
       'GET',
       _buildUri(path, query),
       cancellation: cancellation,
     )..headers['Accept'] = accept;
-    final response = await _execute(request, authenticated: true);
+    final response = await _execute(
+      request,
+      authenticated: true,
+      requestTimeout: requestTimeout,
+    );
     return response.bodyBytes;
   }
 

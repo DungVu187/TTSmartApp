@@ -101,4 +101,46 @@ void main() {
     expect(find.widgetWithText(TextFormField, '51A-12345'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('closes options when tapping outside the field', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              SizedBox(
+                width: 320,
+                child: SearchableAutocompleteField<String>(
+                  options: const ['Công ty A', 'Công ty B'],
+                  selectedOption: null,
+                  displayStringForOption: (option) => option,
+                  onSelected: (_) {},
+                  hintText: 'Gõ tên công ty',
+                  labelText: 'Công ty',
+                  prefixIcon: Icons.apartment_outlined,
+                  compact: true,
+                ),
+              ),
+              const Expanded(
+                child: SizedBox(
+                  key: ValueKey<String>('autocomplete-outside-area'),
+                  width: double.infinity,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    expect(find.text('Công ty B'), findsOneWidget);
+
+    await tester.tapAt(const Offset(400, 500));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Công ty B'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

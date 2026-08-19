@@ -53,9 +53,11 @@ public sealed record AuthorizedBranch(
     int Id,
     int? CompanyId,
     string? CompanyName,
+    string? Code,
     string? Name,
     int? TypeTram,
-    string? DatabaseName);
+    string? DatabaseName,
+    string? VehicleManagementConnection = null);
 
 public interface IBranchAccessResolver
 {
@@ -108,6 +110,11 @@ public interface IBranchAccessResolver
         int currentUserId,
         int? companyId,
         int? branchId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AuthorizedBranch>> GetRelatedMixingBranchesForWeighStationAsync(
+        int currentUserId,
+        int weighStationBranchId,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<AuthorizedBranch>> GetOrderReportBranchesAsync(
@@ -344,6 +351,38 @@ public sealed class BranchAccessResolver(
         return branch ?? throw new ForbiddenException("Không được truy cập trạm cân đã chọn.");
     }
 
+    public async Task<IReadOnlyList<AuthorizedBranch>> GetRelatedMixingBranchesForWeighStationAsync(
+        int currentUserId,
+        int weighStationBranchId,
+        CancellationToken cancellationToken)
+    {
+        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var scaleBranch = await ApplyAuthorizedWeighStationScope(scope, null, weighStationBranchId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (scaleBranch is null)
+        {
+            throw new ForbiddenException("Không được truy cập trạm cân đã chọn.");
+        }
+
+        return await companyDbContext.Branches.AsNoTracking()
+            .Where(branch =>
+                branch.Status == WebDataStatus.Active &&
+                branch.TypeTram == MixingStationType &&
+                branch.CompanyId == scaleBranch.CompanyId)
+            .OrderBy(branch => branch.Name)
+            .ThenBy(branch => branch.BranchId)
+            .Select(branch => new AuthorizedBranch(
+                branch.BranchId,
+                branch.CompanyId,
+                scaleBranch.CompanyName,
+                branch.Code,
+                branch.Name,
+                branch.TypeTram,
+                branch.Dataname,
+                branch.PMQLXe))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AuthorizedBranch>> GetRequiredOrderReportBranchesAsync(
         int currentUserId,
         int? companyId,
@@ -399,9 +438,11 @@ public sealed class BranchAccessResolver(
                    branch.BranchId,
                    branch.CompanyId,
                    company == null ? null : company.Name,
+                   branch.Code,
                    branch.Name,
                    branch.TypeTram,
-                   branch.Dataname);
+                   branch.Dataname,
+                   branch.PMQLXe);
     }
 
     private IQueryable<AuthorizedBranch> ApplyAuthorizedWeighStationScope(
@@ -431,9 +472,11 @@ public sealed class BranchAccessResolver(
                    branch.BranchId,
                    branch.CompanyId,
                    company == null ? null : company.Name,
+                   branch.Code,
                    branch.Name,
                    branch.TypeTram,
-                   branch.Dataname);
+                   branch.Dataname,
+                   branch.PMQLXe);
     }
 
     private async Task<BranchAccessScope> BuildScopeAsync(

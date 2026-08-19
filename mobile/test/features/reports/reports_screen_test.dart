@@ -81,15 +81,22 @@ class _AuthorizedAppController extends AppController {
 class _FakeReportsRepository implements ReportsRepository {
   final searchQueries = <OrderStatisticsQuery>[];
   final requestedCompanyIds = <int?>[];
+  Completer<List<OrderStatisticsStation>>? pendingStations;
   Completer<OrderStatisticsPage>? pendingSearch;
   Completer<OrderStatisticsExportFile>? pendingExport;
   final exportQueries = <OrderStatisticsExportQuery>[];
   Object? nextSearchError;
   Object? nextExportError;
+  Object? nextStationError;
 
   @override
   Future<List<OrderStatisticsStation>> getStations({int? companyId}) async {
     requestedCompanyIds.add(companyId);
+    final pending = pendingStations;
+    if (pending != null) return pending.future;
+    final error = nextStationError;
+    nextStationError = null;
+    if (error != null) throw error;
     return const [
       OrderStatisticsStation(
         id: 10,
@@ -97,6 +104,7 @@ class _FakeReportsRepository implements ReportsRepository {
         name: 'Trạm 10',
         typeTram: 1,
         companyName: 'Công ty 3',
+        code: 'TRAM_10',
       ),
     ];
   }
@@ -192,6 +200,55 @@ CompanyResponse _company(int id, String name) => CompanyResponse(
 );
 
 void main() {
+  testWidgets('shows initial loading and retries a station API error', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(411, 914));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final appController = _appController();
+    final repository = _FakeReportsRepository();
+    final pendingStations = Completer<List<OrderStatisticsStation>>();
+    repository.pendingStations = pendingStations;
+    addTearDown(appController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: AppScope(
+            controller: appController,
+            child: ReportsScreen(
+              repository: repository,
+              companyRepository: _FakeCompanyRepository(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+    pendingStations.completeError(
+      const ApiException(
+        type: ApiFailureType.network,
+        message: 'Không thể kết nối để tải danh sách trạm.',
+      ),
+    );
+    repository.pendingStations = null;
+    await tester.pumpAndSettle();
+
+    expect(find.text('Không thể kết nối để tải danh sách trạm.'), findsWidgets);
+    final retry = find.widgetWithText(TextButton, 'Thử lại');
+    expect(retry, findsOneWidget);
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextButton, 'Thử lại'), findsNothing);
+    expect(repository.requestedCompanyIds, [3, 3]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('does not auto search and uses the calendar time picker', (
     tester,
   ) async {
@@ -337,6 +394,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(repository.requestedCompanyIds, isEmpty);
+    expect(find.text('Chưa chọn công ty.'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey<String>('statistics-search')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chưa chọn công ty.'), findsOneWidget);
+    expect(repository.searchQueries, isEmpty);
+
     final companyAutocomplete = find.byKey(
       const ValueKey<String>('statistics-company-null-2'),
     );
@@ -393,6 +459,8 @@ void main() {
     await tester.tap(stationInput);
     await tester.enterText(stationInput, '10');
     await tester.pump();
+    expect(find.text('Trạm 10'), findsWidgets);
+    expect(find.textContaining('TRAM_10'), findsNothing);
     await tester.tap(find.text('Trạm 10').last);
     await tester.pumpAndSettle();
 
@@ -422,6 +490,8 @@ void main() {
       find.byKey(const ValueKey<String>('statistics-results-table')),
       findsOneWidget,
     );
+    expect(repository.searchQueries.last.branchId, 10);
+    expect(find.textContaining('TRAM_10'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('statistics-pagination')),
       findsOneWidget,
@@ -444,7 +514,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byKey(const ValueKey<String>('statistics-view-mode')),
-        matching: find.text('Tổng'),
+        matching: find.text('Tổng hợp'),
       ),
     );
     await tester.pumpAndSettle();
@@ -685,6 +755,7 @@ OrderStatisticsPage _page(int pageNumber) => OrderStatisticsPage(
     OrderStatisticsItem(
       rowNumber: pageNumber == 1 ? 1 : 11,
       stationId: 10,
+      stationCode: 'TRAM_10',
       stationName: 'Trạm 10',
       mixingDate: DateTime(2026, 8, 3),
       startedAt: DateTime.utc(2026, 8, 3, 1),

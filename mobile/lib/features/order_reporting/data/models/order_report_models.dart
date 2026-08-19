@@ -8,6 +8,7 @@ class OrderReportStation {
     required this.name,
     required this.typeTram,
     this.companyName,
+    this.code,
   });
 
   factory OrderReportStation.fromJson(Object? value) {
@@ -18,6 +19,7 @@ class OrderReportStation {
       name: optionalString(json, 'name'),
       typeTram: optionalInt(json, 'typeTram'),
       companyName: optionalString(json, 'companyName'),
+      code: optionalString(json, 'code'),
     );
   }
 
@@ -26,11 +28,9 @@ class OrderReportStation {
   final String? name;
   final int? typeTram;
   final String? companyName;
+  final String? code;
 
-  String get displayName {
-    final normalized = name?.trim();
-    return normalized == null || normalized.isEmpty ? 'Trạm #$id' : normalized;
-  }
+  String get displayName => _stationDisplayName(code, name, id);
 
   String get scopedDisplayName {
     final company = companyName?.trim();
@@ -69,6 +69,7 @@ class OrderReportItem {
     required this.employeeName,
     this.companyId,
     this.companyName,
+    this.stationCode,
   });
 
   factory OrderReportItem.fromJson(Object? value) {
@@ -86,6 +87,7 @@ class OrderReportItem {
       employeeName: optionalString(json, 'employeeName'),
       companyId: optionalInt(json, 'companyId'),
       companyName: optionalString(json, 'companyName'),
+      stationCode: optionalString(json, 'stationCode'),
     );
   }
 
@@ -101,6 +103,10 @@ class OrderReportItem {
   final String? employeeName;
   final int? companyId;
   final String? companyName;
+  final String? stationCode;
+
+  String get stationDisplayName =>
+      _stationDisplayName(stationCode, stationName, branchId);
 }
 
 class OrderReportStationSummary {
@@ -112,6 +118,7 @@ class OrderReportStationSummary {
     required this.orderCount,
     required this.orderedVolume,
     required this.producedVolume,
+    this.stationCode,
   });
 
   factory OrderReportStationSummary.fromJson(Object? value) {
@@ -124,6 +131,7 @@ class OrderReportStationSummary {
       orderCount: requireInt(json, 'orderCount'),
       orderedVolume: _requireDouble(json, 'orderedVolume'),
       producedVolume: _requireDouble(json, 'producedVolume'),
+      stationCode: optionalString(json, 'stationCode'),
     );
   }
 
@@ -134,11 +142,10 @@ class OrderReportStationSummary {
   final int orderCount;
   final double orderedVolume;
   final double producedVolume;
+  final String? stationCode;
 
-  String get displayName {
-    final station = stationName?.trim();
-    return station == null || station.isEmpty ? 'Trạm #$branchId' : station;
-  }
+  String get displayName =>
+      _stationDisplayName(stationCode, stationName, branchId);
 }
 
 class OrderReportUnavailableStation {
@@ -147,6 +154,7 @@ class OrderReportUnavailableStation {
     required this.companyId,
     required this.companyName,
     required this.stationName,
+    this.stationCode,
   });
 
   factory OrderReportUnavailableStation.fromJson(Object? value) {
@@ -156,6 +164,7 @@ class OrderReportUnavailableStation {
       companyId: optionalInt(json, 'companyId'),
       companyName: optionalString(json, 'companyName'),
       stationName: optionalString(json, 'stationName'),
+      stationCode: optionalString(json, 'stationCode'),
     );
   }
 
@@ -163,11 +172,10 @@ class OrderReportUnavailableStation {
   final int? companyId;
   final String? companyName;
   final String? stationName;
+  final String? stationCode;
 
-  String get displayName {
-    final station = stationName?.trim();
-    return station == null || station.isEmpty ? 'Trạm #$branchId' : station;
-  }
+  String get displayName =>
+      _stationDisplayName(stationCode, stationName, branchId);
 
   String get scopedDisplayName {
     final company = companyName?.trim();
@@ -294,4 +302,17 @@ double? _optionalDouble(Map<String, dynamic> json, String key) {
   if (value == null) return null;
   if (value is num && value.isFinite) return value.toDouble();
   throw FormatException('$key phải là số hoặc null.');
+}
+
+String _stationDisplayName(String? code, String? name, int branchId) {
+  final normalizedCode = code?.trim();
+  final normalizedName = name?.trim();
+  final hasCode = normalizedCode != null && normalizedCode.isNotEmpty;
+  final hasName = normalizedName != null && normalizedName.isNotEmpty;
+  if (hasCode && hasName) {
+    return '$normalizedCode • $normalizedName';
+  }
+  if (hasCode) return normalizedCode;
+  if (hasName) return normalizedName;
+  return 'Trạm #$branchId';
 }

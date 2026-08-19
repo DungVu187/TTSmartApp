@@ -59,6 +59,7 @@ class ReportsController extends ChangeNotifier {
   bool isSearching = false;
   bool isExporting = false;
   bool usesDefaultTimeRange = true;
+  String? scopeErrorMessage;
   String? resultErrorMessage;
   String? feedbackMessage;
   int feedbackVersion = 0;
@@ -98,6 +99,8 @@ class ReportsController extends ChangeNotifier {
   }
 
   Future<void> retryScope() async {
+    scopeErrorMessage = null;
+    _notify();
     if (isAdmin && companies.isEmpty) await _loadCompanies();
     await _loadStations();
   }
@@ -105,6 +108,7 @@ class ReportsController extends ChangeNotifier {
   Future<void> selectCompany(int? companyId) async {
     if (!isAdmin || selectedCompanyId == companyId) return;
     selectedCompanyId = companyId;
+    scopeErrorMessage = null;
     selectedStationId = null;
     _clearFilterOptions();
     _clearDependentFilters();
@@ -322,7 +326,11 @@ class ReportsController extends ChangeNotifier {
         ..addAll(loadedCompanies);
     } catch (error) {
       if (requestVersion != _scopeRequestVersion) return;
-      _feedback(_messageFor(error, 'Không thể tải danh sách công ty.'));
+      scopeErrorMessage = _messageFor(
+        error,
+        'Không thể tải danh sách công ty.',
+      );
+      _feedback(scopeErrorMessage!);
     } finally {
       if (requestVersion == _scopeRequestVersion) {
         isLoadingScope = false;
@@ -332,6 +340,13 @@ class ReportsController extends ChangeNotifier {
   }
 
   Future<void> _loadStations() async {
+    if (isAdmin && selectedCompanyId == null) {
+      stations.clear();
+      scopeErrorMessage = null;
+      isLoadingScope = false;
+      _notify();
+      return;
+    }
     final requestVersion = ++_scopeRequestVersion;
     isLoadingScope = true;
     _notify();
@@ -346,7 +361,8 @@ class ReportsController extends ChangeNotifier {
     } catch (error) {
       if (requestVersion != _scopeRequestVersion) return;
       stations.clear();
-      _feedback(_messageFor(error, 'Không thể tải danh sách trạm.'));
+      scopeErrorMessage = _messageFor(error, 'Không thể tải danh sách trạm.');
+      _feedback(scopeErrorMessage!);
     } finally {
       if (requestVersion == _scopeRequestVersion) {
         isLoadingScope = false;

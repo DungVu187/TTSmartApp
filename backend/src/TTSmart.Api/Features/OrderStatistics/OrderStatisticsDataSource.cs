@@ -42,7 +42,8 @@ public sealed record OrderStatisticsFilter(
     string? VehiclePlate = null,
     string? CustomerName = null,
     string? ConcreteGradeName = null,
-    string? EmployeeName = null);
+    string? EmployeeName = null,
+    bool UseFinishedAtInclusive = false);
 
 public sealed record OrderStatisticsMaterialValue(
     long MaterialSlotId,
@@ -177,16 +178,15 @@ public sealed class SqlOrderStatisticsDataSource(
         OrderStatisticsFilter filter,
         CancellationToken cancellationToken)
     {
-        var totalRows = CreateTotalQuery(
-            ApplyFilters(CreateCompletedBatchQuery(dbContext, filter), filter));
-        var concreteGradeNames = await totalRows
-            .Where(row => row.ConcreteGradeName != null && row.ConcreteGradeName != string.Empty)
-            .Select(row => row.ConcreteGradeName!)
+        var histories = CreateWebDashboardHistoryQuery(dbContext, filter);
+        var concreteGradeNames = await histories
+            .Where(history =>
+                history.ConcreteGradeName != null && history.ConcreteGradeName != string.Empty)
+            .Select(history => history.ConcreteGradeName!)
             .Distinct()
             .ToListAsync(cancellationToken);
-        var vehiclePlates = await totalRows
-            .Where(row => row.VehiclePlate != null && row.VehiclePlate != string.Empty)
-            .Select(row => row.VehiclePlate!)
+        var vehiclePlates = await histories
+            .Select(history => history.VehiclePlate ?? string.Empty)
             .Distinct()
             .ToListAsync(cancellationToken);
         return new OrderStatisticsDashboardMetrics(concreteGradeNames, vehiclePlates);
@@ -241,7 +241,7 @@ public sealed class SqlOrderStatisticsDataSource(
             "LoadCurrentMaterialLayout",
             () => LoadCurrentMaterialLayoutAsync(dbContext, cancellationToken));
         var filteredBatches = ApplyFilters(
-            CreateCompletedBatchQuery(dbContext),
+            CreateBatchQuery(dbContext),
             filter);
         var metrics = await MeasureStageAsync(
             "LoadFilteredBatchMetrics",
@@ -331,62 +331,45 @@ public sealed class SqlOrderStatisticsDataSource(
         DashboardAggregationInterval interval,
         CancellationToken cancellationToken)
     {
-        var filteredBatches = ApplyFilters(
-            CreateCompletedBatchQuery(dbContext, filter),
-            filter);
-        var totalRows = CreateTotalQuery(filteredBatches);
-        var summary = await totalRows
-            .GroupBy(_ => 1)
-            .Select(group => new
+        var histories = CreateWebDashboardHistoryQuery(dbContext, filter);
+        var mixedRows =
+            from history in histories
+            join detail in dbContext.MixingDetails.AsNoTracking()
+                on history.MixingHistoryId equals detail.MixingHistoryId
+            select new
             {
-                OrderCount = group.Count(),
-                TotalMixedVolume = group.Sum(row => row.MixedVolume ?? 0d)
-            })
+                history.MixingHistoryId,
+                history.FinishedAt,
+                detail.MixedVolume
+            };
+        var historyCount = await histories.CountAsync(cancellationToken);
+        var totalMixedVolume = await mixedRows
+            .GroupBy(_ => 1)
+            .Select(group => group.Sum(row => (double)(row.MixedVolume ?? 0f)))
             .SingleOrDefaultAsync(cancellationToken);
 
-        var concreteGradeNames = await totalRows
-            .Where(row => row.ConcreteGradeName != null && row.ConcreteGradeName != string.Empty)
-            .Select(row => row.ConcreteGradeName!)
+        var concreteGradeNames = await histories
+            .Where(history =>
+                history.ConcreteGradeName != null && history.ConcreteGradeName != string.Empty)
+            .Select(history => history.ConcreteGradeName!)
             .Distinct()
             .ToListAsync(cancellationToken);
-        var vehiclePlates = await totalRows
-            .Where(row => row.VehiclePlate != null && row.VehiclePlate != string.Empty)
-            .Select(row => row.VehiclePlate!)
+        var vehiclePlates = await histories
+            .Select(history => history.VehiclePlate ?? string.Empty)
             .Distinct()
             .ToListAsync(cancellationToken);
-        var salesEmployeeRows = await totalRows
-            .Where(row =>
-                row.SalesEmployeeId.HasValue ||
-                (row.SalesEmployeeName != null && row.SalesEmployeeName != string.Empty))
-            .Select(row => new
-            {
-                row.SalesEmployeeId,
-                row.SalesEmployeeName
-            })
-            .Distinct()
-            .ToListAsync(cancellationToken);
-        var salesEmployeeKeys = salesEmployeeRows
-            .Select(row => row.SalesEmployeeId.HasValue
-                ? $"id:{row.SalesEmployeeId.Value}"
-                : TrimOrNull(row.SalesEmployeeName) is { } name
-                    ? $"name:{name}"
-                    : null)
-            .Where(key => key is not null)
-            .Select(key => key!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
 
         IReadOnlyList<OrderStatisticsDashboardBucket> buckets;
         if (interval == DashboardAggregationInterval.Hour)
         {
-            var hourlyRows = await filteredBatches
-                .Where(row => row.StartedAt.HasValue)
+            var hourlyRows = await mixedRows
+                .Where(row => row.FinishedAt.HasValue)
                 .GroupBy(row => new
                 {
-                    Year = row.StartedAt!.Value.Year,
-                    Month = row.StartedAt.Value.Month,
-                    Day = row.StartedAt.Value.Day,
-                    Hour = row.StartedAt.Value.Hour
+                    Year = row.FinishedAt!.Value.Year,
+                    Month = row.FinishedAt.Value.Month,
+                    Day = row.FinishedAt.Value.Day,
+                    Hour = row.FinishedAt.Value.Hour
                 })
                 .Select(group => new
                 {
@@ -409,13 +392,13 @@ public sealed class SqlOrderStatisticsDataSource(
         }
         else
         {
-            var dailyRows = await filteredBatches
-                .Where(row => row.StartedAt.HasValue)
+            var dailyRows = await mixedRows
+                .Where(row => row.FinishedAt.HasValue)
                 .GroupBy(row => new
                 {
-                    Year = row.StartedAt!.Value.Year,
-                    Month = row.StartedAt.Value.Month,
-                    Day = row.StartedAt.Value.Day
+                    Year = row.FinishedAt!.Value.Year,
+                    Month = row.FinishedAt.Value.Month,
+                    Day = row.FinishedAt.Value.Day
                 })
                 .Select(group => new
                 {
@@ -436,17 +419,29 @@ public sealed class SqlOrderStatisticsDataSource(
         }
 
         return new OrderStatisticsDashboardData(
-            summary?.OrderCount ?? 0,
+            historyCount,
             concreteGradeNames,
             vehiclePlates,
-            salesEmployeeKeys,
-            summary?.TotalMixedVolume ?? 0,
+            [],
+            totalMixedVolume,
             buckets);
     }
 
+    private static IQueryable<StationMixingHistory> CreateWebDashboardHistoryQuery(
+        StationOperationsDbContext dbContext,
+        OrderStatisticsFilter filter) =>
+        from history in dbContext.MixingHistories.AsNoTracking()
+        join order in dbContext.OrderHistories.AsNoTracking()
+            on history.OrderHistoryId equals (long?)order.OrderHistoryId
+        where history.FinishedAt >= filter.FromInclusive &&
+            history.FinishedAt <= filter.ToExclusive
+        select history;
+
     private static void ValidateSearch(OrderStatisticsFilter filter, int pageNumber)
     {
-        if (filter.FromInclusive >= filter.ToExclusive)
+        if (filter.UseFinishedAtInclusive
+            ? filter.FromInclusive > filter.ToExclusive
+            : filter.FromInclusive >= filter.ToExclusive)
         {
             throw new ArgumentException(
                 "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.",
@@ -471,8 +466,11 @@ public sealed class SqlOrderStatisticsDataSource(
                 join orderHistory in dbContext.OrderHistories.AsNoTracking()
                     on history.OrderHistoryId equals (long?)orderHistory.OrderHistoryId into orderHistoryGroup
                 from orderHistory in orderHistoryGroup.DefaultIfEmpty()
-                where history.StartedAt >= filter.FromInclusive &&
-                    history.StartedAt < filter.ToExclusive
+                where filter.UseFinishedAtInclusive
+                    ? history.FinishedAt >= filter.FromInclusive &&
+                      history.FinishedAt <= filter.ToExclusive
+                    : history.StartedAt >= filter.FromInclusive &&
+                      history.StartedAt < filter.ToExclusive
                 select new
                 {
                     history.VehiclePlate,
@@ -497,16 +495,20 @@ public sealed class SqlOrderStatisticsDataSource(
             .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private static IQueryable<BatchQueryRow> CreateCompletedBatchQuery(
+    private static IQueryable<BatchQueryRow> CreateBatchQuery(
         StationOperationsDbContext dbContext,
         OrderStatisticsFilter? dashboardFilter = null)
     {
         var histories = dbContext.MixingHistories.AsNoTracking();
         if (dashboardFilter is not null)
         {
-            histories = histories.Where(history =>
-                history.StartedAt >= dashboardFilter.FromInclusive &&
-                history.StartedAt < dashboardFilter.ToExclusive);
+            histories = dashboardFilter.UseFinishedAtInclusive
+                ? histories.Where(history =>
+                    history.FinishedAt >= dashboardFilter.FromInclusive &&
+                    history.FinishedAt <= dashboardFilter.ToExclusive)
+                : histories.Where(history =>
+                    history.StartedAt >= dashboardFilter.FromInclusive &&
+                    history.StartedAt < dashboardFilter.ToExclusive);
         }
 
         var query =
@@ -516,52 +518,41 @@ public sealed class SqlOrderStatisticsDataSource(
             join orderHistory in dbContext.OrderHistories.AsNoTracking()
                 on history.OrderHistoryId equals (long?)orderHistory.OrderHistoryId into orderHistoryGroup
             from orderHistory in orderHistoryGroup.DefaultIfEmpty()
-            join account in dbContext.Accounts.AsNoTracking()
-                on history.Username equals account.Username into accountGroup
-            from account in accountGroup.DefaultIfEmpty()
-            join observation in dbContext.MixingObservations.AsNoTracking()
-                on detail.MixingObservationExternalId equals observation.ExternalId into observationGroup
-            from observation in observationGroup.DefaultIfEmpty()
-            where (observation != null &&
-                    observation.IsFinished == true &&
-                    observation.IsSaved == true) ||
-                (observation == null && history.IsFinished == true)
+            join vehicle in dbContext.Vehicles.AsNoTracking()
+                on history.VehiclePlate equals vehicle.VehiclePlate into vehicleGroup
+            from vehicle in vehicleGroup.DefaultIfEmpty()
+            where dbContext.MixingMaterials.AsNoTracking().Any(material =>
+                material.MixingDetailId == detail.MixingDetailId)
             select new BatchQueryRow
             {
                 MixingDetailId = detail.MixingDetailId,
                 MixingHistoryId = history.MixingHistoryId,
-                BatchNumber = observation == null
-                    ? detail.BatchNumber
-                    : detail.BatchNumber ?? observation.BatchNumber,
+                BatchNumber = detail.BatchNumber,
                 MixingDate = history.MixingDate,
-                StartedAt = dashboardFilter != null
-                    ? history.StartedAt
-                    : observation == null
-                        ? history.StartedAt
-                        : observation.StartedAt ?? history.StartedAt,
-                FinishedAt = observation == null
-                    ? history.FinishedAt
-                    : observation.FinishedAt ?? history.FinishedAt,
+                StartedAt = history.StartedAt,
+                FinishedAt = history.FinishedAt,
                 CustomerName = orderHistory == null ? null : orderHistory.CustomerName,
                 ProjectName = orderHistory == null ? null : orderHistory.ProjectName,
                 WorkItemName = orderHistory == null ? null : orderHistory.WorkItemName,
                 LocationName = orderHistory == null ? null : orderHistory.LocationName,
                 VehiclePlate = history.VehiclePlate,
-                DriverName = history.DriverName,
+                DriverName = vehicle != null &&
+                    vehicle.DriverName != null &&
+                    vehicle.DriverName.Trim() != string.Empty
+                        ? vehicle.DriverName
+                        : history.Username,
                 ConcreteGradeName = history.ConcreteGradeName,
                 Slump = history.Slump,
-                RequestedVolume = observation == null
-                    ? detail.MixedVolume
-                    : observation.RequestedVolume ?? detail.MixedVolume,
+                RequestedVolume = orderHistory != null &&
+                    orderHistory.RequestedVolumeText != null &&
+                    EF.Functions.IsNumeric(orderHistory.RequestedVolumeText)
+                        ? Convert.ToDouble(orderHistory.RequestedVolumeText)
+                        : 0d,
                 MixedVolume = detail.MixedVolume,
                 SalesEmployeeId = orderHistory == null ? null : orderHistory.SalesEmployeeId,
-                SalesEmployeeCode = orderHistory == null ? null : orderHistory.SalesEmployeeCode,
+                SalesEmployeeCode = null,
                 SalesEmployeeName = orderHistory == null ? null : orderHistory.EmployeeName,
-                EmployeeName = account != null &&
-                    account.FullName != null &&
-                    account.FullName.Trim() != string.Empty
-                        ? account.FullName
-                        : history.Username
+                EmployeeName = null
             };
 
         return query;
@@ -599,9 +590,13 @@ public sealed class SqlOrderStatisticsDataSource(
                 row.SalesEmployeeName != null && row.SalesEmployeeName.Trim() == employeeName);
         }
 
-        query = query.Where(row =>
-            row.StartedAt >= filter.FromInclusive &&
-            row.StartedAt < filter.ToExclusive);
+        query = filter.UseFinishedAtInclusive
+            ? query.Where(row =>
+                row.FinishedAt >= filter.FromInclusive &&
+                row.FinishedAt <= filter.ToExclusive)
+            : query.Where(row =>
+                row.StartedAt >= filter.FromInclusive &&
+                row.StartedAt < filter.ToExclusive);
 
         return query;
     }
@@ -702,7 +697,7 @@ public sealed class SqlOrderStatisticsDataSource(
             DriverName = grouped.Max(row => row.DriverName),
             ConcreteGradeName = grouped.Max(row => row.ConcreteGradeName),
             Slump = grouped.Max(row => row.Slump),
-            RequestedVolume = grouped.Sum(row => (double)(row.RequestedVolume ?? 0f)),
+            RequestedVolume = grouped.Sum(row => row.RequestedVolume ?? 0d),
             MixedVolume = grouped.Sum(row => (double)(row.MixedVolume ?? 0f)),
             SalesEmployeeId = grouped.Max(row => row.SalesEmployeeId),
             SalesEmployeeCode = grouped.Max(row => row.SalesEmployeeCode),
@@ -719,10 +714,7 @@ public sealed class SqlOrderStatisticsDataSource(
         CancellationToken cancellationToken) =>
         await ApplyPagination(
                 filteredBatches
-                    .OrderByDescending(row => row.StartedAt)
-                    .ThenByDescending(row => row.MixingHistoryId)
-                    .ThenByDescending(row => row.BatchNumber)
-                    .ThenByDescending(row => row.MixingDetailId),
+                    .OrderBy(row => row.MixingDetailId),
                 pageOffset,
                 loadAllRows)
             .ToListAsync(cancellationToken);
@@ -734,8 +726,10 @@ public sealed class SqlOrderStatisticsDataSource(
         CancellationToken cancellationToken) =>
         await ApplyPagination(
                 CreateTotalQuery(filteredBatches)
-                    .OrderByDescending(row => row.StartedAt)
-                    .ThenByDescending(row => row.MixingHistoryId),
+                    .OrderBy(row => row.MixingDate)
+                    .ThenBy(row => row.StartedAt)
+                    .ThenBy(row => row.FinishedAt)
+                    .ThenBy(row => row.MixingHistoryId),
                 pageOffset,
                 loadAllRows)
             .ToListAsync(cancellationToken);
@@ -891,7 +885,7 @@ public sealed class SqlOrderStatisticsDataSource(
                 row.DriverName,
                 row.ConcreteGradeName,
                 row.Slump,
-                ToDouble(row.RequestedVolume),
+                row.RequestedVolume,
                 ToDouble(row.MixedVolume),
                 row.SalesEmployeeCode,
                 row.EmployeeName,
@@ -1589,7 +1583,7 @@ public sealed class SqlOrderStatisticsDataSource(
         public string? DriverName { get; set; }
         public string? ConcreteGradeName { get; set; }
         public string? Slump { get; set; }
-        public float? RequestedVolume { get; set; }
+        public double? RequestedVolume { get; set; }
         public float? MixedVolume { get; set; }
         public int? SalesEmployeeId { get; set; }
         public string? SalesEmployeeCode { get; set; }

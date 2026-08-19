@@ -203,7 +203,8 @@ class WeighStationController extends ChangeNotifier {
     _failedDetailPage = null;
     _failedSummaryPage = null;
     _notify();
-    await Future.wait(<Future<void>>[_loadDetailPage(1), _loadSummaryPage(1)]);
+    await _loadDetailPage(1);
+    await _loadSummaryPage(1);
   }
 
   Future<void> goToDetailPage(int pageNumber) => _loadDetailPage(pageNumber);

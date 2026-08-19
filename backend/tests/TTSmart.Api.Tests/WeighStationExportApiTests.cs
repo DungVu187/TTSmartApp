@@ -48,14 +48,14 @@ public sealed class WeighStationExportApiTests(TTSmartApiFactory factory)
                 GoodsWeight = 280010,
                 ConversionFactor = 0,
                 ConversionUnit = null,
-                GoodsName = "Xi Măng Rời PCB40"
+                GoodsName = "Không xác định"
             }
         ]);
         factory.WeighStationDataSource.SetSummary(
         [
             new("Cát vàng", "Nhập hàng", 1000, 2, "M3"),
             new("Bê tông thương phẩm", "Bán hàng", 400, 1, "KG"),
-            new("Xi Măng Rời PCB40", "Nhập hàng", 280010, 0, null)
+            new("Không xác định", "Nhập hàng", 280010, 0, null)
         ]);
         using var client = factory.CreateClient();
         await BranchTestSupport.LoginAsync(client, identity);
@@ -78,7 +78,7 @@ public sealed class WeighStationExportApiTests(TTSmartApiFactory factory)
             "Tổng khối lượng quy đổi",
             WeighStationConversionMessages.Undefined,
             "0.4 tấn");
-        Assert.Equal(1, factory.WeighStationDataSource.SearchAllCallCount);
+        Assert.Equal(2, factory.WeighStationDataSource.SearchAllCallCount);
         Assert.Equal(1, factory.WeighStationDataSource.SummaryCallCount);
         Assert.Equal(0, factory.WeighStationDataSource.SearchCallCount);
     }

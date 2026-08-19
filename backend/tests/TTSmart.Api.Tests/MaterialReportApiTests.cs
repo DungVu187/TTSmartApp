@@ -156,6 +156,50 @@ public sealed class MaterialReportApiTests(TTSmartApiFactory factory) : IClassFi
     }
 
     [Fact]
+    public async Task BaoCao_DieuChinhXuatAm_SuaKhoiLuongNhungGiuNguyenGiaTriFifo()
+    {
+        var identity = await ResetAndSeedAsync(
+            SystemRoleCodes.Company,
+            1,
+            null,
+            ActiveKeyPermission.View);
+        var start = new DateTime(2026, 8, 1);
+        factory.MaterialReportDataSource.SetSnapshot(new MaterialReportSnapshot(
+            [new MaterialDefinition(101, 1, 1, "Cát 1")],
+            [new MaterialImportLot("i1", 1, 101, "Cát 1", start, 100, 4_000)],
+            [
+                new MaterialIssueEvent("e1", 2, 101, 1, "Cát 1", start.AddDays(1), 50),
+                new MaterialIssueEvent(
+                    "e-adjust",
+                    3,
+                    101,
+                    1,
+                    "Cát 1",
+                    start.AddDays(2),
+                    -10,
+                    "manual:2",
+                    IsQuantityOnlyAdjustment: true)
+            ],
+            [],
+            []));
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        var response = await client.GetFromJsonAsync<MaterialReportResponse>(
+            "/api/material-reports?branchId=10&from=2026-08-01T00:00:00%2B07:00&to=2026-08-31T23:59:59%2B07:00",
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(response);
+        Assert.Equal(40m, response.Totals.ExportQuantityKg);
+        Assert.Equal(60m, response.Totals.InventoryQuantityKg);
+        Assert.Equal(200_000m, response.Totals.ExportValueVnd);
+        Assert.Equal(200_000m, response.Totals.InventoryValueVnd);
+        var summary = Assert.Single(response.Transactions);
+        Assert.Equal(40m, summary.ExportQuantityKg);
+        Assert.Equal(200_000m, summary.ValueVnd);
+    }
+
+    [Fact]
     public async Task RoleCapDuoi_ChiDuocDocTramTrongBranchIds()
     {
         var identity = await ResetAndSeedAsync(

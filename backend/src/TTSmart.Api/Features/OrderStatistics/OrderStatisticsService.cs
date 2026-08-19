@@ -32,6 +32,7 @@ public sealed class OrderStatisticsService(
             .Select(branch => new OrderStatisticsStationResponse(
                 branch.Id,
                 branch.CompanyId,
+                branch.Code,
                 branch.Name,
                 branch.TypeTram,
                 branch.CompanyName))
@@ -152,7 +153,7 @@ public sealed class OrderStatisticsService(
             ? 0
             : checked((int)(((long)page.TotalCount + page.PageSize - 1) / page.PageSize));
         var materialSummaryRows = BuildMaterialSummaryRows(page.Summary.Materials);
-        var totalMaterialQuantity = NormalizeNumber(page.Summary.TotalMaterialQuantity);
+        var totalMaterialQuantity = NormalizeNumber(page.Summary.TotalMaterialQuantity, 2);
         var totalConcreteVolume = NormalizeNumber(page.Summary.TotalMixedVolume);
 
         return new OrderStatisticsResponse(
@@ -194,10 +195,10 @@ public sealed class OrderStatisticsService(
                     column.Response.SlotNumber,
                     TrimOrNull(value?.MaterialName) ?? column.Response.MaterialName,
                     TrimOrNull(value?.Category) ?? column.Response.Category,
-                    NormalizeNumber(value?.DesignQuantity),
-                    NormalizeNumber(value?.TQuantity),
-                    NormalizeNumber(value?.ActualQuantity),
-                    NormalizeNumber(value?.Variance))
+                    NormalizeMaterialNumber(value?.DesignQuantity, column.Response.CategoryCode),
+                    NormalizeMaterialNumber(value?.TQuantity, column.Response.CategoryCode),
+                    NormalizeMaterialNumber(value?.ActualQuantity, column.Response.CategoryCode),
+                    NormalizeMaterialNumber(value?.Variance, column.Response.CategoryCode))
                 {
                     CategoryCode = column.Response.CategoryCode,
                     TypePosition = column.Response.TypePosition,
@@ -209,6 +210,7 @@ public sealed class OrderStatisticsService(
         return new OrderStatisticsItemResponse(
             rowNumber,
             branch.Id,
+            branch.Code,
             branch.Name,
             row.MixingDate.HasValue ? DateOnly.FromDateTime(row.MixingDate.Value) : null,
             ToUtc(row.StartedAt),
@@ -221,9 +223,9 @@ public sealed class OrderStatisticsService(
             TrimOrNull(row.DriverName),
             TrimOrNull(row.ConcreteGradeName),
             TrimOrNull(row.Slump),
-            TrimOrNull(row.SalesEmployeeName) ?? TrimOrNull(row.SalesEmployeeCode),
+            TrimOrNull(row.SalesEmployeeName),
             TrimOrNull(row.EmployeeName),
-            NormalizeNumber(row.RequestedVolume),
+            NormalizeNumber(row.RequestedVolume, 2),
             NormalizeNumber(row.MixedVolume),
             materials)
         {
@@ -485,7 +487,7 @@ public sealed class OrderStatisticsService(
             TrimOrNull(value.MaterialName),
             TrimOrNull(value.Category) ?? OrderStatisticsMaterialCategories.DisplayName(categoryCode),
             $"summary:{categoryCode.ToLowerInvariant()}:{typePosition}",
-            NormalizeNumber(value.ActualQuantity),
+            NormalizeNumber(value.ActualQuantity, 2),
             OrderStatisticsMaterialCategories.Unit(categoryCode));
     }
 
@@ -607,19 +609,20 @@ public sealed class OrderStatisticsService(
         }
 
         var fromLocal = ToVietnamLocal(from.Value);
-        var toExclusive = ToVietnamLocal(to.Value);
-        if (fromLocal >= toExclusive)
+        var toInclusive = ToVietnamLocal(to.Value);
+        if (fromLocal > toInclusive)
         {
-            throw new ValidationException("Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
+            throw new ValidationException("Thời gian bắt đầu phải nhỏ hơn hoặc bằng thời gian kết thúc.");
         }
 
         return new OrderStatisticsFilter(
             fromLocal,
-            toExclusive,
+            toInclusive,
             TrimOrNull(vehiclePlate),
             TrimOrNull(customerName),
             TrimOrNull(concreteGradeName),
-            TrimOrNull(employeeName));
+            TrimOrNull(employeeName),
+            UseFinishedAtInclusive: true);
     }
 
     private static OrderStatisticsViewMode ParseViewMode(string? value) =>
@@ -674,7 +677,7 @@ public sealed class OrderStatisticsService(
         return new DateTimeOffset(local, VietnamOffset).ToUniversalTime();
     }
 
-    private static decimal NormalizeNumber(double? value)
+    private static decimal NormalizeNumber(double? value, int digits = 3)
     {
         if (!value.HasValue || !double.IsFinite(value.Value))
         {
@@ -683,13 +686,23 @@ public sealed class OrderStatisticsService(
 
         try
         {
-            return Math.Round((decimal)value.Value, 3, MidpointRounding.AwayFromZero);
+            return Math.Round((decimal)value.Value, digits, MidpointRounding.AwayFromZero);
         }
         catch (OverflowException)
         {
             return 0m;
         }
     }
+
+    private static decimal NormalizeMaterialNumber(double? value, string categoryCode) =>
+        NormalizeNumber(value, categoryCode switch
+        {
+            OrderStatisticsMaterialCategories.Sand or
+            OrderStatisticsMaterialCategories.Stone => 0,
+            OrderStatisticsMaterialCategories.Cement or
+            OrderStatisticsMaterialCategories.Water => 1,
+            _ => 2
+        });
 
     private static string CreateLayoutKey(
         IReadOnlyList<MaterialColumnDefinition> columns)

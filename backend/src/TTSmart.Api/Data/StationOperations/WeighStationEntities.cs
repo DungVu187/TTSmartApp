@@ -15,12 +15,24 @@ public sealed class StationCompletedWeighTicket
     public string? ConversionUnit { get; set; }
     public string? UnitName { get; set; }
     public string? GoodsName { get; set; }
+    public string? MaterialCode { get; set; }
     public string? WeighingType { get; set; }
+    public string? MixingStationConnection { get; set; }
+    public bool? VehicleExitStatus { get; set; }
     public string? FirstOperatorName { get; set; }
     public string? SecondOperatorName { get; set; }
     public DateTime? FirstWeighedAt { get; set; }
     public DateTime? SecondWeighedAt { get; set; }
     public DateTime? LastUpdatedAt { get; set; }
+}
+
+public sealed class StationScaleMaterial
+{
+    public int MaterialCode { get; set; }
+    public string? Name { get; set; }
+    public string? Category { get; set; }
+    public string? ConversionUnit { get; set; }
+    public float? ConversionFactor { get; set; }
 }
 
 public sealed class StationPendingWeighTicket

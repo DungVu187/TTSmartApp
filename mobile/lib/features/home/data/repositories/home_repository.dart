@@ -81,7 +81,6 @@ class ApiHomeRepository implements HomeRepository {
         })
         .toList(growable: false);
     final unavailableStationCount = requireInt(json, 'unavailableStationCount');
-
     return DashboardSnapshot(
       scope: scope,
       timeRange: timeRange,

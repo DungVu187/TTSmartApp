@@ -31,6 +31,7 @@ public sealed class OrderReportService(
             .Select(branch => new OrderReportStationResponse(
                 branch.Id,
                 branch.CompanyId,
+                branch.Code,
                 branch.Name,
                 branch.TypeTram,
                 branch.CompanyName))
@@ -42,7 +43,7 @@ public sealed class OrderReportService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var (fromLocal, toExclusive) = CreateTimeRange(query.From, query.To);
+        var (fromLocal, toInclusive) = CreateTimeRange(query.From, query.To);
         var branches = await branchAccessResolver.GetRequiredOrderReportBranchesAsync(
             currentUserId,
             query.CompanyId,
@@ -57,7 +58,7 @@ public sealed class OrderReportService(
             branch => dataSource.GetEmployeeNamesAsync(
                 CreateTarget(branch),
                 fromLocal,
-                toExclusive,
+                toInclusive,
                 cancellationToken),
             tolerateUnavailableBranches: !query.BranchId.HasValue,
             cancellationToken);
@@ -78,7 +79,7 @@ public sealed class OrderReportService(
         int currentUserId,
         CancellationToken cancellationToken)
     {
-        var (from, toExclusive) = CreateTimeRange(query.From, query.To);
+        var (from, toInclusive) = CreateTimeRange(query.From, query.To);
 
         var pageOffset = CalculatePageOffset(query.PageNumber, query.PageSize);
         var branches = await branchAccessResolver.GetRequiredOrderReportBranchesAsync(
@@ -91,13 +92,15 @@ public sealed class OrderReportService(
             tolerateUnavailableBranches: !query.BranchId.HasValue,
             cancellationToken);
         var aggregateScope = !query.BranchId.HasValue || branches.Count > 1;
-        var stationQueryPageSize = aggregateScope ? int.MaxValue : query.PageSize;
+        var stationQueryPageSize = aggregateScope
+            ? CalculateStationPageSize(pageOffset, query.PageSize)
+            : query.PageSize;
         var branchPageBatch = await QueryBranchesAsync(
             availability.AvailableBranches,
             branch => SearchBranchAsync(
                 branch,
                 from,
-                toExclusive,
+                toInclusive,
                 TrimOrNull(query.EmployeeName),
                 aggregateScope ? 0 : pageOffset,
                 stationQueryPageSize,
@@ -111,6 +114,7 @@ public sealed class OrderReportService(
                 result.Branch.Id,
                 result.Branch.CompanyId,
                 result.Branch.CompanyName,
+                result.Branch.Code,
                 result.Branch.Name,
                 result.Page.TotalCount,
                 NormalizeVolume(result.Page.TotalOrderedVolume) ?? 0,
@@ -141,6 +145,7 @@ public sealed class OrderReportService(
             .Select(item => new OrderReportItemResponse(
                 item.Row.OrderId,
                 item.Branch.Id,
+                item.Branch.Code,
                 item.Branch.Name,
                 item.Row.CustomerName,
                 item.Row.ProjectName,
@@ -163,6 +168,7 @@ public sealed class OrderReportService(
                 branch.Id,
                 branch.CompanyId,
                 branch.CompanyName,
+                branch.Code,
                 branch.Name))
             .ToArray();
 
@@ -184,7 +190,7 @@ public sealed class OrderReportService(
     private async Task<BranchReportResult> SearchBranchAsync(
         AuthorizedBranch branch,
         DateTime from,
-        DateTime toExclusive,
+        DateTime toInclusive,
         string? employeeName,
         int pageOffset,
         int pageSize,
@@ -194,7 +200,7 @@ public sealed class OrderReportService(
             await dataSource.SearchAsync(
                 CreateTarget(branch),
                 from,
-                toExclusive,
+                toInclusive,
                 employeeName,
                 pageOffset,
                 pageSize,
@@ -283,7 +289,7 @@ public sealed class OrderReportService(
     private static DateTime ToVietnamLocal(DateTimeOffset value) =>
         DateTime.SpecifyKind(value.ToOffset(VietnamOffset).DateTime, DateTimeKind.Unspecified);
 
-    private static (DateTime FromLocal, DateTime ToExclusive) CreateTimeRange(
+    private static (DateTime FromLocal, DateTime ToInclusive) CreateTimeRange(
         DateTimeOffset? from,
         DateTimeOffset? to)
     {
@@ -293,13 +299,13 @@ public sealed class OrderReportService(
         }
 
         var fromLocal = ToVietnamLocal(from.Value);
-        var toExclusive = ToVietnamLocal(to.Value);
-        if (fromLocal >= toExclusive)
+        var toInclusive = ToVietnamLocal(to.Value);
+        if (fromLocal > toInclusive)
         {
             throw new ValidationException("Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
         }
 
-        return (fromLocal, toExclusive);
+        return (fromLocal, toInclusive);
     }
 
     private static string? TrimOrNull(string? value)
@@ -320,14 +326,26 @@ public sealed class OrderReportService(
         }
     }
 
+    private static int CalculateStationPageSize(int pageOffset, int pageSize)
+    {
+        try
+        {
+            return checked(pageOffset + pageSize);
+        }
+        catch (OverflowException exception)
+        {
+            throw new ValidationException("Số trang vượt quá giới hạn cho phép.", exception);
+        }
+    }
+
     private static decimal? NormalizeVolume(float? value) =>
         value.HasValue && float.IsFinite(value.Value)
-            ? Math.Round((decimal)value.Value, 3, MidpointRounding.AwayFromZero)
+            ? Math.Round((decimal)value.Value, 1, MidpointRounding.AwayFromZero)
             : null;
 
     private static decimal? NormalizeVolume(double value) =>
         double.IsFinite(value)
-            ? Math.Round((decimal)value, 3, MidpointRounding.AwayFromZero)
+            ? Math.Round((decimal)value, 1, MidpointRounding.AwayFromZero)
             : null;
 
     private sealed record BranchReportResult(

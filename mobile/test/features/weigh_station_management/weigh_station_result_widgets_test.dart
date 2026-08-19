@@ -287,7 +287,7 @@ void main() {
       size: const Size(320, 720),
     );
 
-    expect(find.text('Tổng'), findsOneWidget);
+    expect(find.text('Tổng quan'), findsOneWidget);
     expect(find.text('1.590.590 kg'), findsOneWidget);
     expect(find.text('1.587,45 tấn'), findsOneWidget);
     expect(find.text('3.140 L'), findsOneWidget);
@@ -319,9 +319,217 @@ void main() {
       size: const Size(320, 480),
     );
 
-    expect(find.text('Tổng'), findsOneWidget);
+    expect(find.text('Tổng quan'), findsOneWidget);
     expect(find.text('500 kg'), findsOneWidget);
     expect(find.text('-'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile hiển thị phiếu cân dạng bảng và kéo ngang', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      WeighStationDetailTable(
+        page: WeighStationPage(
+          items: const [
+            WeighStationItem(
+              stt: 1,
+              id: 'mobile-ticket',
+              ticketNumber: 154613,
+              ticketCode: 'PC-154613',
+              vehiclePlate: '89 H 02319',
+              driverName: 'Lái xe A',
+              goodsName: 'Đá 1x2',
+              weighingType: 'Nhập hàng',
+              inboundWeightKg: 67140,
+              outboundWeightKg: 20150,
+              goodsWeightKg: 46990,
+              convertedQuantity: 46.99,
+              convertedUnit: 'tấn',
+              materialValueVnd: 12500000,
+              hasConversionConfiguration: true,
+            ),
+          ],
+          pageNumber: 1,
+          pageSize: 10,
+          totalCount: 1,
+          totalPages: 1,
+          canViewMaterialValue: true,
+        ),
+      ),
+      size: const Size(390, 844),
+    );
+
+    expect(find.byType(DataTable), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey<String>('weigh-station-detail-card-mobile-ticket'),
+      ),
+      findsNothing,
+    );
+    final horizontalScroll = find.byKey(
+      const ValueKey<String>('weigh-station-detail-horizontal-scroll'),
+    );
+    expect(horizontalScroll, findsOneWidget);
+    expect(
+      tester.widget<SingleChildScrollView>(horizontalScroll).scrollDirection,
+      Axis.horizontal,
+    );
+    final pinnedIndex = find.byKey(
+      const ValueKey<String>('weigh-station-detail-pinned-index'),
+    );
+    final pinnedTicketNumber = find.byKey(
+      const ValueKey<String>('weigh-station-detail-pinned-ticket-number'),
+    );
+    expect(pinnedIndex, findsOneWidget);
+    expect(pinnedTicketNumber, findsOneWidget);
+    expect(find.text('Mã phiếu'), findsNothing);
+    expect(find.text('PC-154613'), findsNothing);
+    expect(find.text('154613'), findsOneWidget);
+    final pinnedIndexLeftBeforeDrag = tester.getTopLeft(pinnedIndex).dx;
+    final pinnedTicketLeftBeforeDrag = tester.getTopLeft(pinnedTicketNumber).dx;
+    expect(find.text('89 H 02319'), findsOneWidget);
+
+    final scrollable = find.descendant(
+      of: horizontalScroll,
+      matching: find.byType(Scrollable),
+    );
+    final position = tester.state<ScrollableState>(scrollable).position;
+    expect(position.pixels, 0);
+    await tester.drag(horizontalScroll, const Offset(-1200, 0));
+    await tester.pumpAndSettle();
+
+    expect(position.pixels, greaterThan(0));
+    expect(tester.getTopLeft(pinnedIndex).dx, pinnedIndexLeftBeforeDrag);
+    expect(
+      tester.getTopLeft(pinnedTicketNumber).dx,
+      pinnedTicketLeftBeforeDrag,
+    );
+    expect(find.text('154613'), findsOneWidget);
+    expect(find.text('46.990'), findsOneWidget);
+    expect(find.text('46,99 tấn'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'mobile card không đọc nhầm offset cuộn thành trạng thái mở rộng',
+    (tester) async {
+      tester.view.physicalSize = const Size(240, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final bucket = PageStorageBucket();
+      const sharedScrollKey = PageStorageKey<String>(
+        'weigh-station-screen-scroll',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PageStorage(
+            bucket: bucket,
+            child: const SingleChildScrollView(
+              key: sharedScrollKey,
+              child: SizedBox(height: 2000),
+            ),
+          ),
+        ),
+      );
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PageStorage(
+            bucket: bucket,
+            child: SingleChildScrollView(
+              key: sharedScrollKey,
+              child: WeighStationDetailTable(
+                page: WeighStationPage(
+                  items: const [
+                    WeighStationItem(
+                      stt: 1,
+                      id: 'page-storage-ticket',
+                      ticketNumber: 1,
+                      hasConversionConfiguration: false,
+                    ),
+                  ],
+                  pageNumber: 1,
+                  pageSize: 10,
+                  totalCount: 1,
+                  totalPages: 1,
+                  canViewMaterialValue: false,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(ExpansionTile), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('mobile tổng hợp dùng KPI và bảng kéo ngang', (tester) async {
+    const summary = WeighStationSummary(
+      items: [
+        WeighStationSummaryItem(
+          stt: 1,
+          goodsName: 'Đá 1x2',
+          goodsWeightKg: 299980,
+          convertedQuantities: [
+            WeighStationConvertedQuantity(quantity: 299.98, unit: 'tấn'),
+          ],
+          ticketCount: 5,
+          materialValueVnd: 48000000,
+        ),
+      ],
+      pageNumber: 1,
+      pageSize: 10,
+      totalCount: 3,
+      totalPages: 1,
+      totalGoodsWeightKg: 480620,
+      totalConvertedQuantities: [
+        WeighStationConvertedQuantity(quantity: 422.91, unit: 'tấn'),
+      ],
+      topGoods: WeighStationTopGoods(
+        goodsName: 'Đá 1x2',
+        goodsWeightKg: 299980,
+      ),
+      groups: [],
+      totalMaterialValueVnd: 48000000,
+      canViewMaterialValue: true,
+    );
+
+    await _pump(
+      tester,
+      Column(
+        children: [
+          WeighStationSummaryOverview(summary: summary),
+          WeighStationSummaryTable(summary: summary),
+        ],
+      ),
+      size: const Size(390, 1200),
+    );
+
+    expect(find.byType(DataTable), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey<String>('weigh-station-summary-horizontal-scroll'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Tổng quan'), findsOneWidget);
+    expect(find.text('Tổng số loại hàng'), findsOneWidget);
+    expect(find.text('3 loại'), findsOneWidget);
+    expect(find.text('Loại hàng nhiều nhất'), findsOneWidget);
+    expect(find.text('299,98 tấn'), findsOneWidget);
+    expect(find.text('48.000.000 ₫'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 }

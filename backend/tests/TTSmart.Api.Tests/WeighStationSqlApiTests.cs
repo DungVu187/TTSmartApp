@@ -14,7 +14,7 @@ public sealed class WeighStationSqlApiTests
 
     [WeighStationSqlE2EFact]
     [Trait("Category", "SqlE2E")]
-    public async Task FullHttpE2E_DocFiltersVaHaiGiaiDoanCanTuDatabaseTram()
+    public async Task FullHttpE2E_DocFiltersVaTrangThaiXeTuBangChinh()
     {
         var stationConnection = Environment.GetEnvironmentVariable(
             WeighStationSqlE2EFactAttribute.StationConnectionEnvironmentVariable)!;
@@ -48,12 +48,15 @@ public sealed class WeighStationSqlApiTests
         Assert.Equal(Enumerable.Range(1, completed.Items.Count), completed.Items.Select(item => item.Stt));
         Assert.All(completed.Items, item =>
         {
-            Assert.Equal(new DateOnly(2026, 8, 5),
-                DateOnly.FromDateTime(item.WeighingAt!.Value.ToOffset(TimeSpan.FromHours(7)).DateTime));
+            Assert.Equal<byte?>(1, item.VehicleExitStatus);
             Assert.True(item.TicketNumber > 0);
             Assert.NotNull(item.TicketCode);
             Assert.NotNull(item.WeighedInAt);
             Assert.NotNull(item.WeighedOutAt);
+            Assert.Equal(
+                Math.Abs(item.InboundWeightKg.GetValueOrDefault() -
+                    item.OutboundWeightKg.GetValueOrDefault()),
+                item.GoodsWeightKg);
         });
         var convertedKgItems = completed.Items
             .Where(item => item.HasConversionConfiguration)
@@ -62,13 +65,8 @@ public sealed class WeighStationSqlApiTests
         Assert.All(convertedKgItems, item =>
         {
             Assert.NotNull(item.GoodsWeightKg);
-            Assert.Equal("tấn", item.ConvertedUnit);
-            Assert.Equal(
-                Math.Round(
-                    item.GoodsWeightKg.Value / 1000m,
-                    3,
-                    MidpointRounding.AwayFromZero),
-                item.ConvertedQuantity);
+            Assert.NotNull(item.ConvertedUnit);
+            Assert.NotNull(item.ConvertedQuantity);
         });
 
         var summary = await client.GetFromJsonAsync<WeighStationSummaryResponse>(
@@ -77,20 +75,17 @@ public sealed class WeighStationSqlApiTests
         Assert.NotNull(summary);
         Assert.True(summary.TotalCount > 0);
         Assert.True(summary.TotalGoodsWeightKg > 0);
-        Assert.Empty(summary.Groups);
+        Assert.NotEmpty(summary.Groups);
         Assert.NotNull(summary.TopGoods);
 
         var pending = await client.GetFromJsonAsync<WeighStationResponse>(
             "/api/weigh-station-management?branchId=10&stage=First&" + TimeQuery,
             BranchTestSupport.JsonOptions);
         Assert.NotNull(pending);
-        Assert.Equal(2, pending.TotalCount);
         Assert.All(pending.Items, item =>
         {
-            Assert.Equal(new DateOnly(2026, 8, 5),
-                DateOnly.FromDateTime(item.WeighingAt!.Value.ToOffset(TimeSpan.FromHours(7)).DateTime));
+            Assert.True(item.VehicleExitStatus is null or 0);
             Assert.NotNull(item.WeighedInAt);
-            Assert.Null(item.WeighedOutAt);
         });
 
         var allStages = await client.GetFromJsonAsync<WeighStationResponse>(
@@ -104,11 +99,11 @@ public sealed class WeighStationSqlApiTests
             "from=2026-08-01T00:00:00%2B07:00&to=2026-08-04T00:00:00%2B07:00",
             BranchTestSupport.JsonOptions);
         Assert.NotNull(conversionWarnings);
-        var undefined = Assert.Single(conversionWarnings.Items,
+        var inferredCement = Assert.Single(conversionWarnings.Items,
             item => item.GoodsName == "Xi Măng Rời PCB40");
-        Assert.Equal(280010m, undefined.GoodsWeightKg);
-        Assert.Empty(undefined.ConvertedQuantities);
-        Assert.Equal(WeighStationConversionMessages.Undefined, undefined.ConversionMessage);
+        var inferredConversion = Assert.Single(inferredCement.ConvertedQuantities);
+        Assert.Equal("tấn", inferredConversion.Unit);
+        Assert.Null(inferredCement.ConversionMessage);
 
         var configured = Assert.Single(conversionWarnings.Items,
             item => item.GoodsName == "Xi Măng Rời PCB  40");

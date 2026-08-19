@@ -12,6 +12,7 @@ void main() {
             'companyId': 3,
             'companyName': 'Company 3',
             'branchId': 10,
+            'stationCode': 'TRAM_10',
             'stationName': 'Trạm 10',
             'customerName': 'Khách hàng A',
             'projectName': null,
@@ -33,6 +34,7 @@ void main() {
             'branchId': 10,
             'companyId': 3,
             'companyName': 'Company 3',
+            'stationCode': 'TRAM_10',
             'stationName': 'Station 10',
             'orderCount': 1,
             'orderedVolume': 24.5,
@@ -47,6 +49,7 @@ void main() {
             'branchId': 20,
             'companyId': 3,
             'companyName': 'Company 3',
+            'stationCode': 'TRAM_20',
             'stationName': 'Station 20',
           },
         ],
@@ -58,16 +61,62 @@ void main() {
       expect(page.totalOrderedVolume, 24.5);
       expect(page.totalProducedVolume, 20.333);
       expect(page.items.single.companyName, 'Company 3');
+      expect(page.items.single.stationDisplayName, 'TRAM_10 • Trạm 10');
       expect(page.stationSummaries.single.orderCount, 1);
+      expect(page.stationSummaries.single.displayName, 'TRAM_10 • Station 10');
       expect(page.isPartial, isTrue);
       expect(page.successfulStationCount, 1);
       expect(page.unavailableStationCount, 1);
       expect(
         page.unavailableStations.single.scopedDisplayName,
-        'Company 3 • Station 20',
+        'Company 3 • TRAM_20 • Station 20',
       );
     },
   );
+
+  test('parses and displays station code from station lookup', () {
+    final station = OrderReportStation.fromJson({
+      'id': 10,
+      'companyId': 3,
+      'code': 'TRAM_10',
+      'name': 'Trạm 10',
+      'typeTram': 1,
+      'companyName': 'Company 3',
+    });
+
+    expect(station.displayName, 'TRAM_10 • Trạm 10');
+    expect(station.scopedDisplayName, 'Company 3 • TRAM_10 • Trạm 10');
+  });
+
+  test('keeps station display compatible with legacy responses', () {
+    final legacyItem = OrderReportItem.fromJson({
+      'orderId': 101,
+      'branchId': 10,
+      'stationName': 'Trạm cũ',
+    });
+
+    expect(legacyItem.stationCode, isNull);
+    expect(legacyItem.stationDisplayName, 'Trạm cũ');
+    expect(
+      const OrderReportStation(
+        id: 11,
+        companyId: null,
+        name: null,
+        typeTram: null,
+        code: 'TRAM_11',
+      ).displayName,
+      'TRAM_11',
+    );
+    expect(
+      const OrderReportStation(
+        id: 12,
+        companyId: null,
+        name: null,
+        typeTram: null,
+      ).displayName,
+      'Trạm #12',
+    );
+  });
 
   test('formats report boundaries with Vietnam offset', () {
     final query = OrderReportQuery(

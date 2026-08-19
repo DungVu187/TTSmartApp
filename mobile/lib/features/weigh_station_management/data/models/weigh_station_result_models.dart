@@ -137,6 +137,7 @@ class WeighStationSummaryItem {
     required this.stt,
     required this.goodsWeightKg,
     required this.convertedQuantities,
+    this.ticketCount = 0,
     this.goodsName,
     this.conversionMessage,
     this.materialValueVnd,
@@ -153,6 +154,7 @@ class WeighStationSummaryItem {
         'convertedQuantities',
         WeighStationConvertedQuantity.fromJson,
       ),
+      ticketCount: optionalInt(json, 'ticketCount') ?? 0,
       conversionMessage: _optionalTrimmedString(json, 'conversionMessage'),
       materialValueVnd: _optionalNumber(json, 'materialValueVnd'),
     );
@@ -162,6 +164,7 @@ class WeighStationSummaryItem {
   final String? goodsName;
   final double goodsWeightKg;
   final List<WeighStationConvertedQuantity> convertedQuantities;
+  final int ticketCount;
   final String? conversionMessage;
   final double? materialValueVnd;
 }

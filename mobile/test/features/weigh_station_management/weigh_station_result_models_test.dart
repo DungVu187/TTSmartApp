@@ -56,6 +56,7 @@ void main() {
           'stt': 1,
           'goodsName': 'Đá 1x2',
           'goodsWeightKg': 4132780,
+          'ticketCount': 3,
           'convertedQuantities': [
             {'quantity': 4070.75, 'unit': 'tấn'},
             {'quantity': 62030, 'unit': 'L'},
@@ -97,6 +98,7 @@ void main() {
     expect(summary.totalConvertedQuantities[0].quantity, 4070.75);
     expect(summary.totalConvertedQuantities[1].quantity, 62030);
     expect(summary.totalConvertedQuantities[2].quantity, 1.35);
+    expect(summary.items.single.ticketCount, 3);
     expect(summary.groups.single.keyName, 'NHAP_CAT_DA');
     expect(summary.groups.single.label, 'Nhãn backend cho Đá 1x2');
     expect(summary.totalMaterialValueVnd, isNull);

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/time_range_preset.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/simple_line_chart.dart';
 import '../../data/models/dashboard_models.dart';
 
@@ -212,110 +211,6 @@ class ProductionChartCard extends StatelessWidget {
                   fillColor: const Color(0xFFFFB8C7),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StationOverviewCard extends StatelessWidget {
-  const StationOverviewCard({super.key, required this.station});
-
-  final StationOverview station;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tone = _stationTone(station.isAvailable);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: tone.background,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.factory_outlined, color: tone.foreground),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        station.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _StationStatusBadge(isAvailable: station.isAvailable),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '${station.orderCount} đơn · '
-                  '${_formatVolume(station.mixedVolume)} m³ · '
-                  '${station.mixerTruckCount} xe trộn có đơn',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  ({Color background, Color foreground}) _stationTone(bool isAvailable) =>
-      isAvailable
-      ? (background: const Color(0xFFDDF4EC), foreground: AppColors.success)
-      : (background: const Color(0xFFFBE0E3), foreground: AppColors.danger);
-}
-
-class _StationStatusBadge extends StatelessWidget {
-  const _StationStatusBadge({required this.isAvailable});
-
-  final bool isAvailable;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color, background) = isAvailable
-        ? ('Có dữ liệu', AppColors.success, const Color(0xFFDDF4EC))
-        : ('Chưa tải được', AppColors.danger, const Color(0xFFFBE0E3));
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],

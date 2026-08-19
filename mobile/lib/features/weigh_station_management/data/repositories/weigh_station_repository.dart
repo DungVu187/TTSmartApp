@@ -35,6 +35,7 @@ abstract interface class WeighStationRepository {
 class ApiWeighStationRepository implements WeighStationRepository {
   ApiWeighStationRepository(this._apiClient);
 
+  static const _reportRequestTimeout = Duration(seconds: 90);
   static const _excelContentType =
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -69,6 +70,7 @@ class ApiWeighStationRepository implements WeighStationRepository {
       '/api/weigh-station-management/filters',
       query: query.toQueryParameters(),
       cancellation: cancellation,
+      requestTimeout: _reportRequestTimeout,
     );
     return _parse(() => WeighStationFilterOptions.fromJson(response));
   }
@@ -83,6 +85,7 @@ class ApiWeighStationRepository implements WeighStationRepository {
       '/api/weigh-station-management',
       query: query.toQueryParameters(),
       cancellation: cancellation,
+      requestTimeout: _reportRequestTimeout,
     );
     return _parse(() => WeighStationPage.fromJson(response));
   }
@@ -97,6 +100,7 @@ class ApiWeighStationRepository implements WeighStationRepository {
       '/api/weigh-station-management/summary',
       query: query.toQueryParameters(),
       cancellation: cancellation,
+      requestTimeout: _reportRequestTimeout,
     );
     return _parse(() => WeighStationSummary.fromJson(response));
   }
@@ -108,6 +112,7 @@ class ApiWeighStationRepository implements WeighStationRepository {
       '/api/weigh-station-management/export',
       query: query.toQueryParameters(includePageNumber: false),
       accept: _excelContentType,
+      requestTimeout: _reportRequestTimeout,
     );
     return ExportFile(
       bytes: bytes,
@@ -123,6 +128,7 @@ class ApiWeighStationRepository implements WeighStationRepository {
       '/api/weigh-station-management/summary/export',
       query: query.toQueryParameters(includePageNumber: false),
       accept: _excelContentType,
+      requestTimeout: _reportRequestTimeout,
     );
     return ExportFile(
       bytes: bytes,

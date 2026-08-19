@@ -34,6 +34,7 @@ void main() {
     expect(controller.hasSearched, isTrue);
     expect(repository.detailQueries.single.stage, isNull);
     expect(repository.summaryQueries.single.stage, isNull);
+    expect(repository.searchCallOrder, <String>['detail', 'summary']);
     expect(controller.feedbackMessage, isNot('Chưa chọn giai đoạn cân.'));
   });
 }
@@ -42,6 +43,7 @@ class _FakeWeighStationRepository implements WeighStationRepository {
   final filterQueries = <WeighStationFilterQuery>[];
   final detailQueries = <WeighStationSearchQuery>[];
   final summaryQueries = <WeighStationSearchQuery>[];
+  final searchCallOrder = <String>[];
 
   @override
   Future<List<WeighStationStation>> getStations({
@@ -63,6 +65,7 @@ class _FakeWeighStationRepository implements WeighStationRepository {
     WeighStationSearchQuery query, {
     ApiRequestCancellation? cancellation,
   }) async {
+    searchCallOrder.add('detail');
     detailQueries.add(query);
     return const WeighStationPage(
       items: [],
@@ -79,6 +82,7 @@ class _FakeWeighStationRepository implements WeighStationRepository {
     WeighStationSearchQuery query, {
     ApiRequestCancellation? cancellation,
   }) async {
+    searchCallOrder.add('summary');
     summaryQueries.add(query);
     return const WeighStationSummary(
       items: [],

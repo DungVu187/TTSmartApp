@@ -278,7 +278,7 @@ class _StatisticsLayoutTableState extends State<_StatisticsLayoutTable> {
     List<OrderStatisticsMaterialColumn> materialColumns,
   ) {
     final columns = <_StatisticsColumn>[
-      _StatisticsColumn('Trạm', 140, (row) => _text(row.item.stationName)),
+      _StatisticsColumn('Trạm', 180, (row) => row.item.stationDisplayName),
       _StatisticsColumn('Ngày', 96, (row) => _date(row.item.mixingDate)),
       _StatisticsColumn('Bắt đầu', 84, (row) => _time(row.item.startedAt)),
       _StatisticsColumn('Kết thúc', 84, (row) => _time(row.item.finishedAt)),
@@ -319,13 +319,13 @@ class _StatisticsLayoutTableState extends State<_StatisticsLayoutTable> {
       _StatisticsColumn(
         'Thể tích đặt',
         100,
-        (row) => _number(row.item.requestedVolume),
+        (row) => _requestedNumber(row.item.requestedVolume),
         center: true,
       ),
       _StatisticsColumn(
         'Thể tích trộn',
         100,
-        (row) => _number(row.item.mixedVolume),
+        (row) => _concreteNumber(row.item.mixedVolume),
         center: true,
       ),
     ];
@@ -334,27 +334,37 @@ class _StatisticsLayoutTableState extends State<_StatisticsLayoutTable> {
         _StatisticsColumn(
           materialColumn.designLabel,
           112,
-          (row) =>
-              _number(row.materialFor(materialColumn)?.designQuantity ?? 0),
+          (row) => _materialNumber(
+            row.materialFor(materialColumn)?.designQuantity ?? 0,
+            materialColumn.categoryCode,
+          ),
           center: true,
         ),
         _StatisticsColumn(
           materialColumn.tLabel,
           112,
-          (row) => _number(row.materialFor(materialColumn)?.tQuantity ?? 0),
+          (row) => _materialNumber(
+            row.materialFor(materialColumn)?.tQuantity ?? 0,
+            materialColumn.categoryCode,
+          ),
           center: true,
         ),
         _StatisticsColumn(
           materialColumn.actualLabel,
           112,
-          (row) =>
-              _number(row.materialFor(materialColumn)?.actualQuantity ?? 0),
+          (row) => _materialNumber(
+            row.materialFor(materialColumn)?.actualQuantity ?? 0,
+            materialColumn.categoryCode,
+          ),
           center: true,
         ),
         _StatisticsColumn(
           materialColumn.varianceLabel,
           112,
-          (row) => _number(row.materialFor(materialColumn)?.variance ?? 0),
+          (row) => _materialNumber(
+            row.materialFor(materialColumn)?.variance ?? 0,
+            materialColumn.categoryCode,
+          ),
           center: true,
         ),
       ]);
@@ -543,12 +553,12 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _summaryTotalValue(
-                  '${_summaryNumber(page.totalMaterialQuantity)} kg',
+                  '${_groupedRoundedNumber(page.totalMaterialQuantity, 2)} kg',
                   const ValueKey<String>('statistics-summary-total-material'),
                 ),
                 const SizedBox(height: 6),
                 _summaryTotalValue(
-                  '${_summaryNumber(page.totalConcreteVolume)} m³',
+                  '${_groupedRoundedNumber(page.totalConcreteVolume, 3)} m³',
                   const ValueKey<String>('statistics-summary-total-concrete'),
                 ),
               ],
@@ -594,10 +604,11 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
       children: [
         for (final category in categories)
           _summaryCell(
-            _summaryNumber(
+            _summaryMaterialNumber(
               cellsByKey[_summaryCellKey(category.code, row.rowNumber)]
                       ?.actualQuantity ??
                   0,
+              category.code,
             ),
             _quantityWidth,
             key: ValueKey<String>(
@@ -772,20 +783,43 @@ String _time(DateTime? value) {
       '${vietnam.minute.toString().padLeft(2, '0')}';
 }
 
-String _number(double value) =>
-    value.toStringAsFixed(3).replaceFirst(RegExp(r'\.0+$'), '');
+String _concreteNumber(double value) => _roundedNumber(value, 3);
 
-String _summaryNumber(double value) {
-  final parts = value.toStringAsFixed(2).split('.');
+String _requestedNumber(double value) => _roundedNumber(value, 3);
+
+String _materialNumber(double value, String categoryCode) =>
+    _roundedNumber(value, _materialFractionDigits(categoryCode));
+
+String _summaryMaterialNumber(double value, String categoryCode) =>
+    _groupedRoundedNumber(value, _materialFractionDigits(categoryCode));
+
+int _materialFractionDigits(String categoryCode) =>
+    switch (categoryCode.trim().toUpperCase()) {
+      'CAT' || 'DA' => 0,
+      'XIMANG' || 'NUOC' => 1,
+      _ => 2,
+    };
+
+String _roundedNumber(double value, int digits) {
+  final formatted = value.toStringAsFixed(digits);
+  return digits == 0
+      ? formatted
+      : formatted.replaceFirst(RegExp(r'\.?0+$'), '');
+}
+
+String _groupedRoundedNumber(double value, int digits) {
+  final rounded = _roundedNumber(value, digits);
+  final parts = rounded.split('.');
   final integerPart = parts.first;
   final isNegative = integerPart.startsWith('-');
-  final digits = isNegative ? integerPart.substring(1) : integerPart;
+  final integerDigits = isNegative ? integerPart.substring(1) : integerPart;
   final grouped = StringBuffer();
-  for (var index = 0; index < digits.length; index++) {
-    if (index > 0 && (digits.length - index) % 3 == 0) {
+  for (var index = 0; index < integerDigits.length; index++) {
+    if (index > 0 && (integerDigits.length - index) % 3 == 0) {
       grouped.write(',');
     }
-    grouped.write(digits[index]);
+    grouped.write(integerDigits[index]);
   }
-  return '${isNegative ? '-' : ''}$grouped.${parts.last}';
+  final fraction = parts.length == 1 ? '' : '.${parts.last}';
+  return '${isNegative ? '-' : ''}$grouped$fraction';
 }

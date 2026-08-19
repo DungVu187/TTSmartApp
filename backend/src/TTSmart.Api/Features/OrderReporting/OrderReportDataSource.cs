@@ -36,7 +36,7 @@ public interface IOrderReportDataSource
     Task<IReadOnlyList<string>> GetEmployeeNamesAsync(
         StationDatabaseTarget target,
         DateTime fromLocal,
-        DateTime toExclusive,
+        DateTime toInclusive,
         CancellationToken cancellationToken);
 
     Task<StationOrderReportPage> SearchAsync(
@@ -73,13 +73,7 @@ public sealed class SqlOrderReportDataSource(
                 .ToListAsync(cancellationToken);
 
             var employeeKeys = rows
-                .Select(row => row.EmployeeId.HasValue
-                    ? $"id:{row.EmployeeId.Value}"
-                    : TrimOrNull(row.EmployeeName) is { } name
-                        ? $"name:{name}"
-                        : null)
-                .Where(key => key is not null)
-                .Select(key => key!)
+                .Select(row => TrimOrNull(row.EmployeeName) ?? string.Empty)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
@@ -89,7 +83,7 @@ public sealed class SqlOrderReportDataSource(
     public Task<IReadOnlyList<string>> GetEmployeeNamesAsync(
         StationDatabaseTarget target,
         DateTime fromLocal,
-        DateTime toExclusive,
+        DateTime toInclusive,
         CancellationToken cancellationToken) =>
         ExecuteAsync(target, async dbContext =>
         {
@@ -98,7 +92,7 @@ public sealed class SqlOrderReportDataSource(
                 join employee in dbContext.Employees.AsNoTracking()
                     on order.EmployeeId equals (int?)employee.EmployeeId
                 where order.OrderedAt >= fromLocal &&
-                    order.OrderedAt < toExclusive &&
+                    order.OrderedAt <= toInclusive &&
                     employee.Name != null &&
                     employee.Name.Trim() != string.Empty
                 select employee.Name!.Trim())
@@ -123,7 +117,7 @@ public sealed class SqlOrderReportDataSource(
                 join employee in dbContext.Employees.AsNoTracking()
                     on order.EmployeeId equals (int?)employee.EmployeeId into employeeGroup
                 from employee in employeeGroup.DefaultIfEmpty()
-                where order.OrderedAt >= fromLocal && order.OrderedAt < to
+                where order.OrderedAt >= fromLocal && order.OrderedAt <= to
                 select new { Order = order, Employee = employee };
 
             if (!string.IsNullOrWhiteSpace(employeeName))
@@ -134,13 +128,17 @@ public sealed class SqlOrderReportDataSource(
                     row.Employee.Name.Trim() == employeeName);
             }
 
-            var totalCount = await filteredQuery.CountAsync(cancellationToken);
-            var totalOrderedVolume = await filteredQuery
-                .Select(row => (double?)(row.Order.OrderedVolume ?? 0))
-                .SumAsync(cancellationToken) ?? 0;
-            var totalProducedVolume = await filteredQuery
-                .Select(row => (double?)(row.Order.ProducedVolume ?? 0))
-                .SumAsync(cancellationToken) ?? 0;
+            var metrics = await filteredQuery
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    TotalCount = group.Count(),
+                    TotalOrderedVolume = group.Sum(row =>
+                        (double?)(row.Order.OrderedVolume ?? 0)) ?? 0,
+                    TotalProducedVolume = group.Sum(row =>
+                        (double?)(row.Order.ProducedVolume ?? 0)) ?? 0
+                })
+                .SingleOrDefaultAsync(cancellationToken);
 
             var rows = await (
                 from row in filteredQuery
@@ -179,9 +177,9 @@ public sealed class SqlOrderReportDataSource(
                     row.ProducedVolume,
                     row.OrderedAt,
                     row.EmployeeName)).ToArray(),
-                totalCount,
-                totalOrderedVolume,
-                totalProducedVolume);
+                metrics?.TotalCount ?? 0,
+                metrics?.TotalOrderedVolume ?? 0,
+                metrics?.TotalProducedVolume ?? 0);
         });
 
     private async Task<TResult> ExecuteAsync<TResult>(

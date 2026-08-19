@@ -4,7 +4,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_date_picker.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/error_panel.dart';
+import '../../../../core/widgets/searchable_autocomplete_field.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
+import '../../../company_management/presentation/widgets/company_autocomplete_field.dart';
 import '../../data/models/material_report_models.dart';
 import '../../data/repositories/material_report_repository.dart';
 import '../controllers/material_report_controller.dart';
@@ -195,59 +197,41 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
           ),
           const SizedBox(height: 14),
           if (widget.isAdmin) ...[
-            DropdownButtonFormField<int>(
+            CompanyAutocompleteField(
               key: ValueKey<String>(
                 'material-company-${_controller.selectedCompanyId}',
               ),
-              initialValue: _controller.selectedCompanyId,
-              decoration: const InputDecoration(
-                labelText: 'Công ty',
-                prefixIcon: Icon(Icons.apartment_outlined),
-              ),
-              isExpanded: true,
-              items: _controller.companies
-                  .map(
-                    (company) => DropdownMenuItem(
-                      value: company.id,
-                      child: Text(
-                        company.displayName,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: _controller.isLoadingScope
-                  ? null
-                  : _controller.selectCompany,
+              companies: _controller.companies,
+              selectedCompanyId: _controller.selectedCompanyId,
+              onSelected: (company) => _controller.selectCompany(company.id),
+              onCleared: () => _controller.selectCompany(null),
+              enabled: !_controller.isLoadingScope,
+              hintText: 'Tìm theo tên hoặc mã công ty',
             ),
             const SizedBox(height: 12),
           ],
-          DropdownButtonFormField<int>(
+          SearchableAutocompleteField<MaterialReportStation>(
             key: ValueKey<String>(
               'material-station-${_controller.selectedCompanyId}-${_controller.selectedStationId}',
             ),
-            initialValue: _controller.selectedStationId,
-            decoration: const InputDecoration(
-              labelText: 'Trạm trộn',
-              prefixIcon: Icon(Icons.factory_outlined),
-            ),
-            isExpanded: true,
-            items: _controller.stations
-                .map(
-                  (station) => DropdownMenuItem(
-                    value: station.id,
-                    child: Text(
-                      station.displayName,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged:
-                _controller.isLoadingScope ||
-                    (widget.isAdmin && _controller.selectedCompanyId == null)
-                ? null
-                : _controller.selectStation,
+            options: _controller.stations,
+            selectedOption: _controller.selectedStation,
+            displayStringForOption: (station) => station.displayName,
+            searchStringForOption: (station) {
+              final company = station.companyName?.trim();
+              return company == null || company.isEmpty
+                  ? '${station.displayName} ${station.id}'
+                  : '${station.displayName} ${station.id} $company';
+            },
+            optionSubtitle: (station) => station.companyName?.trim(),
+            onSelected: (station) => _controller.selectStation(station.id),
+            onCleared: () => _controller.selectStation(null),
+            enabled:
+                !_controller.isLoadingScope &&
+                (!widget.isAdmin || _controller.selectedCompanyId != null),
+            hintText: 'Tìm trạm trộn',
+            labelText: 'Trạm trộn',
+            prefixIcon: Icons.factory_outlined,
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -298,7 +282,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 ? null
                 : _controller.loadReport,
             icon: const Icon(Icons.analytics_outlined),
-            label: const Text('Xem báo cáo'),
+            label: const Text('Tìm kiếm'),
           ),
         ],
       ),

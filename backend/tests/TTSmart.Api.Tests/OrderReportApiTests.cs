@@ -80,23 +80,26 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
             BranchTestSupport.JsonOptions);
         Assert.NotNull(stations);
         Assert.Equal([10], stations.Select(item => item.Id).ToArray());
+        Assert.Equal("TRAM_10", stations[0].Code);
 
         var employees = await client.GetFromJsonAsync<OrderReportEmployeeResponse[]>(
             "/api/order-reports/employees?branchId=10&from=2026-07-30T00%3A00%3A00%2B07%3A00&to=2026-07-31T00%3A00%3A00%2B07%3A00",
             BranchTestSupport.JsonOptions);
         Assert.NotNull(employees);
-        Assert.Equal(["KD A"], employees.Select(item => item.Name).ToArray());
+        Assert.Equal(["KD A", "KD B"], employees.Select(item => item.Name).ToArray());
 
         var report = await client.GetFromJsonAsync<OrderReportResponse>(
             "/api/order-reports?branchId=10&from=2026-07-30T00%3A00%3A00%2B07%3A00&to=2026-07-31T00%3A00%3A00%2B07%3A00&pageNumber=1&pageSize=2",
             BranchTestSupport.JsonOptions);
         Assert.NotNull(report);
         Assert.Equal(2, report.PageSize);
-        Assert.Equal(1, report.TotalCount);
-        Assert.Equal(1, report.TotalPages);
-        Assert.Equal(100m, report.TotalOrderedVolume);
-        Assert.Equal(10m, report.TotalProducedVolume);
-        Assert.Equal([1], report.Items.Select(item => item.OrderId).ToArray());
+        Assert.Equal(3, report.TotalCount);
+        Assert.Equal(2, report.TotalPages);
+        Assert.Equal(145m, report.TotalOrderedVolume);
+        Assert.Equal(21.3m, report.TotalProducedVolume);
+        Assert.Equal([3, 2], report.Items.Select(item => item.OrderId).ToArray());
+        Assert.All(report.Items, item => Assert.Equal("TRAM_10", item.StationCode));
+        Assert.Equal(10.3m, report.Items.Single(item => item.OrderId == 2).ProducedVolume);
         Assert.Equal(DateTimeKind.Utc, report.Items[0].OrderedAtUtc!.Value.Kind);
         Assert.Equal(10, factory.OrderReportDataSource.SeenTargets.Last().BranchId);
         Assert.Equal("TRAM_10_online", factory.OrderReportDataSource.SeenTargets.Last().DatabaseName);
@@ -105,8 +108,8 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
             "/api/order-reports?branchId=10&from=2026-07-30T00%3A00%3A00%2B07%3A00&to=2026-07-31T00%3A00%3A00%2B07%3A00&employeeName=KD%20A&pageSize=10",
             BranchTestSupport.JsonOptions);
         Assert.NotNull(employeeReport);
-        Assert.Equal(1, employeeReport.TotalCount);
-        Assert.Equal([1], employeeReport.Items.Select(item => item.OrderId).ToArray());
+        Assert.Equal(2, employeeReport.TotalCount);
+        Assert.Equal([3, 1], employeeReport.Items.Select(item => item.OrderId).ToArray());
     }
 
     [Fact]
@@ -164,6 +167,8 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
         Assert.Equal([10], report.Items.Select(item => item.OrderId).ToArray());
         Assert.Equal([10, 20], report.StationSummaries.Select(item => item.BranchId).ToArray());
         Assert.Equal([10m, 20m], report.StationSummaries.Select(item => item.OrderedVolume).ToArray());
+        Assert.Equal("TRAM_10", report.StationSummaries[0].StationCode);
+        Assert.Equal("TRAM_20", report.StationSummaries[1].StationCode);
 
         var secondPage = await client.GetFromJsonAsync<OrderReportResponse>(
             "/api/order-reports?from=2026-08-01T00%3A00%3A00%2B07%3A00&to=2026-08-02T00%3A00%3A00%2B07%3A00&pageNumber=2&pageSize=1",
@@ -173,6 +178,14 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
         Assert.Equal(report.TotalCount, secondPage.TotalCount);
         Assert.Equal(report.TotalOrderedVolume, secondPage.TotalOrderedVolume);
         Assert.Equal(report.TotalProducedVolume, secondPage.TotalProducedVolume);
+        Assert.Equal(
+            [(10, 0, 1), (20, 0, 1), (10, 0, 2), (20, 0, 2)],
+            factory.OrderReportDataSource.SeenSearchPages
+                .Select(request => (request.BranchId, request.PageOffset, request.PageSize))
+                .ToArray());
+        Assert.DoesNotContain(
+            factory.OrderReportDataSource.SeenSearchPages,
+            request => request.PageSize == int.MaxValue);
         Assert.Equal([10, 20], factory.OrderReportDataSource.SeenTargets
             .Where(target => target.BranchId is 10 or 20)
             .Select(target => target.BranchId)

@@ -93,7 +93,14 @@ class _FakeOrderReportRepository implements OrderReportRepository {
   Future<List<OrderReportStation>> getStations({int? companyId}) async {
     requestedCompanyIds.add(companyId);
     return const [
-      OrderReportStation(id: 10, companyId: 3, name: 'Trạm 10', typeTram: 1),
+      OrderReportStation(
+        id: 10,
+        companyId: 3,
+        name: 'Trạm Hà Nội',
+        typeTram: 1,
+        companyName: 'Công ty Alpha',
+        code: 'TRAM_10',
+      ),
     ];
   }
 
@@ -121,7 +128,8 @@ class _FakeOrderReportRepository implements OrderReportRepository {
         OrderReportItem(
           orderId: 101,
           branchId: 10,
-          stationName: 'Trạm 10',
+          stationCode: 'TRAM_10',
+          stationName: 'Trạm Hà Nội',
           customerName: 'Khách hàng A',
           projectName: 'Dự án A',
           concreteGradeName: 'M250',
@@ -137,6 +145,18 @@ class _FakeOrderReportRepository implements OrderReportRepository {
       totalPages: 1,
       totalOrderedVolume: 24.5,
       totalProducedVolume: 20.333,
+      stationSummaries: const [
+        OrderReportStationSummary(
+          branchId: 10,
+          companyId: 3,
+          companyName: 'Công ty Alpha',
+          stationCode: 'TRAM_10',
+          stationName: 'Trạm Hà Nội',
+          orderCount: 1,
+          orderedVolume: 24.5,
+          producedVolume: 20.333,
+        ),
+      ],
       isPartial: isPartial,
       successfulStationCount: 1,
       unavailableStationCount: isPartial ? 1 : 0,
@@ -146,6 +166,7 @@ class _FakeOrderReportRepository implements OrderReportRepository {
                 branchId: 20,
                 companyId: 3,
                 companyName: 'Công ty Alpha',
+                stationCode: 'TRAM_20',
                 stationName: 'Trạm 20',
               ),
             ]
@@ -201,7 +222,7 @@ CompanyResponse _company(int id, String name) => CompanyResponse(
 
 void main() {
   testWidgets('renders authorized order report data on mobile', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(411, 914));
+    await tester.binding.setSurfaceSize(const Size(320, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final appController = _AuthorizedAppController();
     final orderRepository = _FakeOrderReportRepository();
@@ -282,9 +303,13 @@ void main() {
       matching: find.byType(TextFormField),
     );
     await tester.tap(stationInput);
-    await tester.enterText(stationInput, '10');
+    await tester.enterText(stationInput, 'TRAM_10');
     await tester.pump();
-    await tester.tap(find.text('Trạm 10').last);
+    expect(find.text('TRAM_10 • Trạm Hà Nội'), findsOneWidget);
+    await tester.enterText(stationInput, 'Hà Nội');
+    await tester.pump();
+    expect(find.text('TRAM_10 • Trạm Hà Nội'), findsOneWidget);
+    await tester.tap(find.text('TRAM_10 • Trạm Hà Nội').last);
     await tester.pumpAndSettle();
 
     expect(orderRepository.employeeRequests.single.branchId, 10);
@@ -322,6 +347,8 @@ void main() {
     );
     expect(find.text('Đơn #101'), findsOneWidget);
     expect(find.text('24,5 m³'), findsWidgets);
+    expect(find.text('20,3 m³'), findsWidgets);
+    expect(find.text('Tổng hợp theo trạm'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -424,7 +451,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows unavailable stations for partial aggregate results', (
+  testWidgets('shows compact partial warning without station list', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(411, 914));
@@ -454,9 +481,8 @@ void main() {
       find.byKey(const ValueKey('order-report-partial-warning')),
       findsOneWidget,
     );
-    expect(find.text('Kết quả chưa đầy đủ'), findsOneWidget);
-    expect(find.textContaining('1 trạm chưa thể truy cập'), findsOneWidget);
-    expect(find.textContaining('Trạm 20'), findsNothing);
+    expect(find.text('Không thể tải dữ liệu từ 1 trạm'), findsOneWidget);
+    expect(find.text('TRAM_20 • Trạm 20'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

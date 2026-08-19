@@ -15,14 +15,15 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
     public DbSet<StationEmployee> Employees => Set<StationEmployee>();
     public DbSet<StationOrderHistory> OrderHistories => Set<StationOrderHistory>();
     public DbSet<StationMixingHistory> MixingHistories => Set<StationMixingHistory>();
-    public DbSet<StationMixingObservation> MixingObservations => Set<StationMixingObservation>();
     public DbSet<StationMixingDetail> MixingDetails => Set<StationMixingDetail>();
+    public DbSet<StationVehicle> Vehicles => Set<StationVehicle>();
     public DbSet<StationMixingMaterial> MixingMaterials => Set<StationMixingMaterial>();
     public DbSet<StationMaterialSlot> MaterialSlots => Set<StationMaterialSlot>();
     public DbSet<StationMaterialType> MaterialTypes => Set<StationMaterialType>();
     public DbSet<StationAccount> Accounts => Set<StationAccount>();
     public DbSet<StationCompletedWeighTicket> CompletedWeighTickets => Set<StationCompletedWeighTicket>();
     public DbSet<StationPendingWeighTicket> PendingWeighTickets => Set<StationPendingWeighTicket>();
+    public DbSet<StationScaleMaterial> ScaleMaterials => Set<StationScaleMaterial>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess) =>
         throw new InvalidOperationException("Database vận hành chỉ được truy vấn read-only.");
@@ -107,7 +108,7 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         orderHistory.Property(item => item.ProjectName).HasColumnName("TENDUAN").HasColumnType("nvarchar(max)");
         orderHistory.Property(item => item.LocationName).HasColumnName("DIADIEMXD").HasColumnType("nvarchar(max)");
         orderHistory.Property(item => item.WorkItemName).HasColumnName("TENHANGMUC").HasColumnType("nvarchar(max)");
-        orderHistory.Property(item => item.SalesEmployeeCode).HasColumnName("MATHENV").HasColumnType("nvarchar(max)");
+        orderHistory.Property(item => item.RequestedVolumeText).HasColumnName("MATHENV").HasColumnType("nvarchar(max)");
         orderHistory.Property(item => item.EmployeeName).HasColumnName("TENNV").HasColumnType("nvarchar(max)");
 
         var mixingHistory = modelBuilder.Entity<StationMixingHistory>();
@@ -127,19 +128,6 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         mixingHistory.Property(item => item.IsFinished).HasColumnName("FINISHOK");
         mixingHistory.Property(item => item.Username).HasColumnName("USERNAME").HasColumnType("nvarchar(50)");
 
-        var mixingObservation = modelBuilder.Entity<StationMixingObservation>();
-        mixingObservation.ToTable("GIAMSATTRON", "dbo");
-        mixingObservation.HasKey(item => item.MixingObservationId);
-        mixingObservation.Property(item => item.MixingObservationId).HasColumnName("STT");
-        mixingObservation.Property(item => item.BatchNumber).HasColumnName("SOMETRON");
-        mixingObservation.Property(item => item.ReceiptNumber).HasColumnName("SOPHIEU");
-        mixingObservation.Property(item => item.StartedAt).HasColumnName("GIOBD").HasColumnType("datetime");
-        mixingObservation.Property(item => item.FinishedAt).HasColumnName("GIOKT").HasColumnType("datetime");
-        mixingObservation.Property(item => item.RequestedVolume).HasColumnName("SOM3METRON").HasColumnType("real");
-        mixingObservation.Property(item => item.IsFinished).HasColumnName("FINISH_OK");
-        mixingObservation.Property(item => item.IsSaved).HasColumnName("DALUU");
-        mixingObservation.Property(item => item.ExternalId).HasColumnName("ID").HasColumnType("uniqueidentifier");
-
         var mixingDetail = modelBuilder.Entity<StationMixingDetail>();
         mixingDetail.ToTable("LSCHITIETMETRON", "dbo");
         mixingDetail.HasKey(item => item.MixingDetailId);
@@ -147,9 +135,16 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         mixingDetail.Property(item => item.MixingHistoryId).HasColumnName("MALSTRON");
         mixingDetail.Property(item => item.MixedVolume).HasColumnName("M3METRON").HasColumnType("real");
         mixingDetail.Property(item => item.BatchNumber).HasColumnName("SOTTMETRON");
-        mixingDetail.Property(item => item.MixingObservationExternalId)
-            .HasColumnName("GIAMSATTRONID")
-            .HasColumnType("uniqueidentifier");
+
+        var vehicle = modelBuilder.Entity<StationVehicle>();
+        vehicle.ToTable("XE", "dbo");
+        vehicle.HasKey(item => item.VehiclePlate);
+        vehicle.Property(item => item.VehiclePlate)
+            .HasColumnName("BIENSO")
+            .HasColumnType("nvarchar(50)");
+        vehicle.Property(item => item.DriverName)
+            .HasColumnName("TENLAIXE")
+            .HasColumnType("nvarchar(max)");
 
         var mixingMaterial = modelBuilder.Entity<StationMixingMaterial>();
         mixingMaterial.ToTable("LSCHITIETMETRONLSCUAVL", "dbo");
@@ -197,7 +192,10 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         completedWeighTicket.Property(item => item.ConversionUnit).HasColumnName("DONVITINH").HasColumnType("nvarchar(max)");
         completedWeighTicket.Property(item => item.UnitName).HasColumnName("DONVI").HasColumnType("nvarchar(max)");
         completedWeighTicket.Property(item => item.GoodsName).HasColumnName("TENVATLIEU").HasColumnType("nvarchar(max)");
+        completedWeighTicket.Property(item => item.MaterialCode).HasColumnName("MAVATLIEU").HasColumnType("nvarchar(max)");
         completedWeighTicket.Property(item => item.WeighingType).HasColumnName("LOAICAN").HasColumnType("nvarchar(max)");
+        completedWeighTicket.Property(item => item.MixingStationConnection).HasColumnName("TRAMTRONCONNECTION").HasColumnType("nvarchar(max)");
+        completedWeighTicket.Property(item => item.VehicleExitStatus).HasColumnName("XERACHUA").HasColumnType("bit");
         completedWeighTicket.Property(item => item.FirstOperatorName).HasColumnName("USERNAME").HasColumnType("nvarchar(max)");
         completedWeighTicket.Property(item => item.SecondOperatorName).HasColumnName("USERNAME2").HasColumnType("nvarchar(max)");
         completedWeighTicket.Property(item => item.FirstWeighedAt).HasColumnName("THOIGIANCANLAN1").HasColumnType("datetime");
@@ -226,5 +224,14 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         pendingWeighTicket.Property(item => item.FirstWeighedAt).HasColumnName("THOIGIANCANLAN1").HasColumnType("datetime");
         pendingWeighTicket.Property(item => item.SecondWeighedAt).HasColumnName("THOIGIANCANLAN2").HasColumnType("datetime");
         pendingWeighTicket.Property(item => item.LastUpdatedAt).HasColumnName("Lastupdated").HasColumnType("datetime");
+
+        var scaleMaterial = modelBuilder.Entity<StationScaleMaterial>();
+        scaleMaterial.ToTable("TC_VATLIEU", "dbo");
+        scaleMaterial.HasKey(item => item.MaterialCode);
+        scaleMaterial.Property(item => item.MaterialCode).HasColumnName("MAVATLIEU");
+        scaleMaterial.Property(item => item.Name).HasColumnName("TENVATLIEU").HasColumnType("nvarchar(max)");
+        scaleMaterial.Property(item => item.Category).HasColumnName("LOAIVL").HasColumnType("nvarchar(max)");
+        scaleMaterial.Property(item => item.ConversionUnit).HasColumnName("DONVITINH").HasColumnType("nvarchar(max)");
+        scaleMaterial.Property(item => item.ConversionFactor).HasColumnName("HESOQUYDOI").HasColumnType("real");
     }
 }

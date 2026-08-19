@@ -39,6 +39,13 @@ builder.Services
         options => options.SlowDatabaseCommandThresholdMilliseconds is >= 0 and <= 600000,
         "PerformanceLogging:SlowDatabaseCommandThresholdMilliseconds phải từ 0 đến 600000.")
     .ValidateOnStart();
+builder.Services
+    .AddOptions<WeighStationMaterialValueOptions>()
+    .Bind(builder.Configuration.GetSection(WeighStationMaterialValueOptions.SectionName))
+    .Validate(
+        options => options.MaterialValueTimeoutMilliseconds is >= 100 and <= 30000,
+        "WeighStationManagement:MaterialValueTimeoutMilliseconds phải từ 100 đến 30000.")
+    .ValidateOnStart();
 builder.Services.AddSingleton<DatabaseCommandPerformanceInterceptor>();
 builder.Services.AddProblemDetails(options =>
 {
@@ -133,6 +140,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IMixDesignDataSource, SqlMixDesignDataSource>();
 builder.Services.AddScoped<IMixDesignService, MixDesignService>();
 builder.Services.AddScoped<IWeighStationDataSource, SqlWeighStationDataSource>();
+builder.Services.AddScoped<IWeighStationMaterialValueDataSource, SqlWeighStationMaterialValueDataSource>();
 builder.Services.AddScoped<IWeighStationService, WeighStationService>();
 builder.Services.AddScoped<IWeighStationExportService, WeighStationExportService>();
 builder.Services.AddScoped<IMaterialReportDataSource, SqlMaterialReportDataSource>();

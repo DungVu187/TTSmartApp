@@ -57,6 +57,21 @@ internal static class MaterialFifoCalculator
             UpdateConversion(state, import);
         }
 
+        foreach (var adjustment in snapshot.Imports
+                     .Where(item => item.IsQuantityOnlyAdjustment &&
+                                    item.QuantityKg < 0 &&
+                                    item.OccurredAt <= toLocal))
+        {
+            var material = resolver.Resolve(
+                adjustment.MaterialCode,
+                null,
+                adjustment.MaterialName);
+            if (material is not null)
+            {
+                states[material.Code].ImportQuantityKg += RoundKg(adjustment.QuantityKg);
+            }
+        }
+
         var issueValueByTransactionId = new Dictionary<string, decimal>(StringComparer.Ordinal);
         var issueValueBySourceId = new Dictionary<string, decimal>(StringComparer.Ordinal);
         foreach (var issue in snapshot.Issues
@@ -104,6 +119,21 @@ internal static class MaterialFifoCalculator
             {
                 issueValueByTransactionId[issue.TransactionId] =
                     issueValueByTransactionId.GetValueOrDefault(issue.TransactionId) + issueValue;
+            }
+        }
+
+        foreach (var adjustment in snapshot.Issues
+                     .Where(item => item.IsQuantityOnlyAdjustment &&
+                                    item.QuantityKg < 0 &&
+                                    item.OccurredAt <= toLocal))
+        {
+            var material = resolver.Resolve(
+                adjustment.MaterialCode,
+                adjustment.SlotNumber,
+                adjustment.MaterialName);
+            if (material is not null)
+            {
+                states[material.Code].ExportQuantityKg += RoundKg(adjustment.QuantityKg);
             }
         }
 

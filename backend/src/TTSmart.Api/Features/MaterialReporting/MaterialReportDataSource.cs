@@ -26,7 +26,8 @@ public sealed record MaterialImportLot(
     decimal UnitPriceVndPerKg,
     decimal? ConversionVolume = null,
     string? ConversionUnit = null,
-    decimal? ConversionCoefficientKgPerUnit = null);
+    decimal? ConversionCoefficientKgPerUnit = null,
+    bool IsQuantityOnlyAdjustment = false);
 
 public sealed record MaterialIssueEvent(
     string SourceId,
@@ -36,7 +37,8 @@ public sealed record MaterialIssueEvent(
     string? MaterialName,
     DateTime OccurredAt,
     decimal QuantityKg,
-    string? TransactionId = null);
+    string? TransactionId = null,
+    bool IsQuantityOnlyAdjustment = false);
 
 public sealed record MaterialTransactionData(
     string Id,
@@ -355,6 +357,7 @@ public sealed class SqlMaterialReportDataSource(
                 CAST(O.[OrderTramId] AS int) AS OrderId,
                 CAST(I.[OrderItemTramId] AS bigint) AS ItemId,
                 CAST(ISNULL(O.[TypePhieu],1) AS int) AS VoucherType,
+                CAST(O.[TypePhieu] AS int) AS RawVoucherType,
                 CAST(O.[CreatedAt] AS datetime2(3)) AS OccurredAt,
                 ISNULL(CAST(O.[Name] AS nvarchar(1000)),N'') AS VoucherName,
                 CAST(I.[CodeCuaVL] AS int) AS MaterialCode,
@@ -380,15 +383,16 @@ public sealed class SqlMaterialReportDataSource(
             var orderId = reader.GetInt32(0);
             var itemId = reader.GetInt64(1);
             var voucherType = reader.GetInt32(2);
-            var occurredAt = reader.GetDateTime(3);
-            var voucherName = GetNullableString(reader, 4);
-            var code = GetNullableInt32(reader, 5);
-            var name = GetNullableString(reader, 6);
-            var quantity = GetDecimal(reader, 7);
-            var itemPrice = GetDecimal(reader, 8);
-            var volume = GetNullableDecimal(reader, 9);
-            var unit = GetNullableString(reader, 10);
-            var coefficient = GetNullableDecimal(reader, 11);
+            var rawVoucherType = GetNullableInt32(reader, 3);
+            var occurredAt = reader.GetDateTime(4);
+            var voucherName = GetNullableString(reader, 5);
+            var code = GetNullableInt32(reader, 6);
+            var name = GetNullableString(reader, 7);
+            var quantity = GetDecimal(reader, 8);
+            var itemPrice = GetDecimal(reader, 9);
+            var volume = GetNullableDecimal(reader, 10);
+            var unit = GetNullableString(reader, 11);
+            var coefficient = GetNullableDecimal(reader, 12);
             var transactionId = $"manual:{orderId.ToString(CultureInfo.InvariantCulture)}";
             var sourceId = $"manual-item:{itemId.ToString(CultureInfo.InvariantCulture)}";
 
@@ -404,7 +408,8 @@ public sealed class SqlMaterialReportDataSource(
                     itemPrice,
                     volume,
                     unit,
-                    coefficient));
+                    coefficient,
+                    quantity < 0 && rawVoucherType == 1));
             }
             else
             {
@@ -416,7 +421,8 @@ public sealed class SqlMaterialReportDataSource(
                     name,
                     occurredAt,
                     quantity,
-                    transactionId));
+                    transactionId,
+                    quantity < 0 && rawVoucherType is 2 or 3));
             }
 
             if (occurredAt < fromLocal)

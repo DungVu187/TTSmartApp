@@ -80,6 +80,48 @@ public sealed class MaterialFifoCalculatorTests
         Assert.Equal(80_000m, Assert.Single(result.Materials).ExportValueVnd);
     }
 
+    [Fact]
+    public void DieuChinhAm_ChiSuaKhoiLuongKhongTaoLoHoacDaoGiaTriFifo()
+    {
+        var result = Calculate(
+            [
+                Import("i1", 1, 100, 4_000),
+                Import("i-adjust", 2, -20, 9_000) with
+                {
+                    IsQuantityOnlyAdjustment = true
+                }
+            ],
+            [
+                Issue("e1", 3, 50),
+                Issue("e-adjust", 4, -10) with
+                {
+                    IsQuantityOnlyAdjustment = true
+                }
+            ]);
+
+        var material = Assert.Single(result.Materials);
+        Assert.Equal(80m, material.ImportQuantityKg);
+        Assert.Equal(40m, material.ExportQuantityKg);
+        Assert.Equal(40m, material.InventoryQuantityKg);
+        Assert.Equal(400_000m, material.ImportValueVnd);
+        Assert.Equal(200_000m, material.ExportValueVnd);
+        Assert.Equal(200_000m, material.InventoryValueVnd);
+        Assert.DoesNotContain("e-adjust", result.IssueValueBySourceId.Keys);
+    }
+
+    [Fact]
+    public void SoLuongAmKhongDanhDauDieuChinh_KhongAnhHuongTongKho()
+    {
+        var result = Calculate(
+            [Import("i1", 1, 100, 4_000), Import("legacy-negative", 2, -20, 4_000)],
+            [Issue("e1", 3, 50), Issue("legacy-negative-issue", 4, -10)]);
+
+        var material = Assert.Single(result.Materials);
+        Assert.Equal(100m, material.ImportQuantityKg);
+        Assert.Equal(50m, material.ExportQuantityKg);
+        Assert.Equal(50m, material.InventoryQuantityKg);
+    }
+
     private static MaterialFifoCalculation Calculate(
         IReadOnlyList<MaterialImportLot> imports,
         IReadOnlyList<MaterialIssueEvent> issues) =>

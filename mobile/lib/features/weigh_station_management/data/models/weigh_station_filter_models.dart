@@ -11,8 +11,8 @@ enum WeighStationStage {
   };
 
   String get label => switch (this) {
-    WeighStationStage.first => 'Cân lần 1 / Chưa hoàn thành',
-    WeighStationStage.second => 'Cân lần 2 / Đã hoàn thành',
+    WeighStationStage.first => 'Xe chưa ra',
+    WeighStationStage.second => 'Xe đã ra',
   };
 }
 

@@ -50,6 +50,7 @@ public sealed class OrderReportQuery
 public sealed record OrderReportStationResponse(
     int Id,
     int? CompanyId,
+    string? Code,
     string? Name,
     int? TypeTram,
     string? CompanyName);
@@ -59,6 +60,7 @@ public sealed record OrderReportEmployeeResponse(string Name);
 public sealed record OrderReportItemResponse(
     int OrderId,
     int BranchId,
+    string? StationCode,
     string? StationName,
     string? CustomerName,
     string? ProjectName,
@@ -74,6 +76,7 @@ public sealed record OrderReportStationSummaryResponse(
     int BranchId,
     int? CompanyId,
     string? CompanyName,
+    string? StationCode,
     string? StationName,
     int OrderCount,
     decimal OrderedVolume,
@@ -83,6 +86,7 @@ public sealed record OrderReportUnavailableStationResponse(
     int BranchId,
     int? CompanyId,
     string? CompanyName,
+    string? StationCode,
     string? StationName);
 
 public sealed record OrderReportResponse(

@@ -11,7 +11,7 @@ public sealed class StationOrderHistory
     public string? ProjectName { get; set; }
     public string? LocationName { get; set; }
     public string? WorkItemName { get; set; }
-    public string? SalesEmployeeCode { get; set; }
+    public string? RequestedVolumeText { get; set; }
     public string? EmployeeName { get; set; }
 }
 
@@ -32,26 +32,18 @@ public sealed class StationMixingHistory
     public string? Username { get; set; }
 }
 
-public sealed class StationMixingObservation
-{
-    public int MixingObservationId { get; set; }
-    public int? BatchNumber { get; set; }
-    public int? ReceiptNumber { get; set; }
-    public DateTime? StartedAt { get; set; }
-    public DateTime? FinishedAt { get; set; }
-    public float? RequestedVolume { get; set; }
-    public bool? IsFinished { get; set; }
-    public bool? IsSaved { get; set; }
-    public Guid? ExternalId { get; set; }
-}
-
 public sealed class StationMixingDetail
 {
     public long MixingDetailId { get; set; }
     public long MixingHistoryId { get; set; }
     public float? MixedVolume { get; set; }
     public int? BatchNumber { get; set; }
-    public Guid? MixingObservationExternalId { get; set; }
+}
+
+public sealed class StationVehicle
+{
+    public string VehiclePlate { get; set; } = string.Empty;
+    public string? DriverName { get; set; }
 }
 
 public sealed class StationMixingMaterial

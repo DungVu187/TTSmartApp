@@ -10,6 +10,7 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
 
     public List<StationDatabaseTarget> SeenTargets { get; } = [];
     public List<(int BranchId, DateTime From, DateTime To)> SeenDashboardMetricRanges { get; } = [];
+    public List<(int BranchId, int PageOffset, int PageSize)> SeenSearchPages { get; } = [];
 
     public void Reset()
     {
@@ -17,6 +18,7 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
         unavailableBranches.Clear();
         SeenTargets.Clear();
         SeenDashboardMetricRanges.Clear();
+        SeenSearchPages.Clear();
     }
 
     public void Seed(int branchId, params TestOrder[] orders) =>
@@ -36,11 +38,7 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
             .Where(order => order.OrderedAt >= from && order.OrderedAt < toExclusive)
             .ToArray();
         var employeeKeys = filtered
-            .Select(order => order.EmployeeName?.Trim() is { Length: > 0 } name
-                ? $"name:{name}"
-                : null)
-            .Where(key => key is not null)
-            .Select(key => key!)
+            .Select(order => order.EmployeeName?.Trim() ?? string.Empty)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         return Task.FromResult(new OrderReportDashboardMetrics(filtered.Length, employeeKeys));
@@ -49,12 +47,12 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
     public Task<IReadOnlyList<string>> GetEmployeeNamesAsync(
         StationDatabaseTarget target,
         DateTime from,
-        DateTime toExclusive,
+        DateTime toInclusive,
         CancellationToken cancellationToken)
     {
         EnsureAvailable(target);
         var names = GetOrders(target.BranchId)
-            .Where(order => order.OrderedAt >= from && order.OrderedAt < toExclusive)
+            .Where(order => order.OrderedAt >= from && order.OrderedAt <= toInclusive)
             .Select(order => order.EmployeeName?.Trim())
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -74,8 +72,9 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
         CancellationToken cancellationToken)
     {
         EnsureAvailable(target);
+        SeenSearchPages.Add((target.BranchId, pageOffset, pageSize));
         var filtered = GetOrders(target.BranchId)
-            .Where(order => order.OrderedAt >= from && order.OrderedAt < to)
+            .Where(order => order.OrderedAt >= from && order.OrderedAt <= to)
             .Where(order => string.IsNullOrWhiteSpace(employeeName) ||
                 string.Equals(order.EmployeeName?.Trim(), employeeName, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(order => order.OrderedAt)

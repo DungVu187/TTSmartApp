@@ -44,6 +44,7 @@ class WeighStationScreen extends StatefulWidget {
 class _WeighStationScreenState extends State<WeighStationScreen> {
   WeighStationController? _controller;
   bool _canExport = false;
+  bool _showAdvancedFilters = false;
   int _lastFeedbackVersion = 0;
 
   @override
@@ -162,6 +163,13 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
+            const SizedBox(height: 3),
+            Text(
+              'Chọn trạm, thời gian và trạng thái xe trước khi tra cứu.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: const Color(0xFF475569)),
+            ),
             const SizedBox(height: 12),
             if (controller.companyError != null) ...[
               ErrorPanel(
@@ -228,6 +236,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                       key: ValueKey<WeighStationStage?>(
                         controller.selectedStage,
                       ),
+                      isExpanded: true,
                       initialValue: controller.selectedStage,
                       decoration: _fieldDecoration(
                         label: 'Giai đoạn cân (tùy chọn)',
@@ -328,7 +337,83 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     onChanged: controller.setWeighingType,
                   ),
                 ];
-                return _ResponsiveFieldGrid(fields: fields, wide: wide);
+                final grid = _ResponsiveFieldGrid(fields: fields, wide: wide);
+                if (wide) return grid;
+                final selectedCount = [
+                  controller.selectedVehiclePlate,
+                  controller.selectedGoodsName,
+                  controller.selectedOperatorName,
+                  controller.selectedUnitName,
+                  controller.selectedWeighingType,
+                ].where((value) => value != null).length;
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    children: [
+                      InkWell(
+                        key: const ValueKey<String>(
+                          'weigh-station-advanced-filters',
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => setState(
+                          () => _showAdvancedFilters = !_showAdvancedFilters,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.tune_rounded,
+                                color: Color(0xFF2563EB),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Bộ lọc nâng cao',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      selectedCount == 0
+                                          ? 'Biển số, hàng hóa, người cân, đơn vị, kiểu cân'
+                                          : 'Đang áp dụng $selectedCount bộ lọc',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                _showAdvancedFilters
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                color: const Color(0xFF2563EB),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_showAdvancedFilters)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          child: grid,
+                        ),
+                    ],
+                  ),
+                );
               },
             ),
             const SizedBox(height: 14),
@@ -653,33 +738,49 @@ class _ResultSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final heading = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle!,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                );
+                if (constraints.maxWidth < 560) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      heading,
+                      if (exportButton != null) ...[
+                        const SizedBox(height: 10),
+                        exportButton!,
                       ],
                     ],
-                  ),
-                ),
-                if (exportButton != null) ...[
-                  const SizedBox(width: 10),
-                  exportButton!,
-                ],
-              ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: heading),
+                    if (exportButton != null) ...[
+                      const SizedBox(width: 10),
+                      exportButton!,
+                    ],
+                  ],
+                );
+              },
             ),
             if (loading) ...[
               const SizedBox(height: 10),

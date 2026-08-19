@@ -268,13 +268,101 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'formats detail values by business category without exposing station code',
+    (tester) async {
+      await _setSurface(tester);
+      final columns = <OrderStatisticsMaterialColumn>[
+        _column(1, 'Cát', 'cat', categoryCode: 'CAT'),
+        _column(2, 'Đá', 'da', categoryCode: 'DA'),
+        _column(3, 'Xi măng', 'ximang', categoryCode: 'XIMANG'),
+        _column(4, 'Nước', 'nuoc', categoryCode: 'NUOC'),
+        _column(5, 'Phụ gia', 'phugia', categoryCode: 'PHUGIA'),
+        _column(6, 'Tro bay', 'khac', categoryCode: 'KHAC'),
+      ];
+      final page = _page(
+        items: [
+          _item(
+            layoutKey: 'layout-format',
+            stationCode: 'SECRET_STATION_CODE',
+            stationName: 'Trạm Lam Sơn',
+            employeeName: null,
+            requestedVolume: 10.5,
+            mixedVolume: 12.345,
+            materials: [
+              _material(1, 'Cát', 'cat', actual: 10.4, categoryCode: 'CAT'),
+              _material(2, 'Đá', 'da', actual: 12.6, categoryCode: 'DA'),
+              _material(
+                3,
+                'Xi măng',
+                'ximang',
+                actual: 10.56,
+                categoryCode: 'XIMANG',
+              ),
+              _material(4, 'Nước', 'nuoc', actual: 11.04, categoryCode: 'NUOC'),
+              _material(
+                5,
+                'Phụ gia',
+                'phugia',
+                actual: 10.567,
+                categoryCode: 'PHUGIA',
+              ),
+              _material(
+                6,
+                'Tro bay',
+                'khac',
+                actual: 20.567,
+                categoryCode: 'KHAC',
+              ),
+            ],
+          ),
+        ],
+        layouts: [
+          OrderStatisticsMaterialLayout(
+            layoutKey: 'layout-format',
+            columns: columns,
+          ),
+        ],
+      );
+
+      await _pump(tester, StatisticsResultsTable(page: page));
+
+      expect(find.text('Trạm Lam Sơn'), findsOneWidget);
+      expect(find.textContaining('SECRET_STATION_CODE'), findsNothing);
+      expect(find.text('10.5'), findsWidgets);
+      expect(find.text('10.500'), findsNothing);
+      expect(find.text('12.345'), findsOneWidget);
+      expect(find.text('10'), findsWidgets);
+      expect(find.text('13'), findsWidgets);
+      expect(find.text('10.6'), findsWidgets);
+      expect(find.text('11'), findsWidgets);
+      expect(find.text('10.57'), findsWidgets);
+      expect(find.text('20.57'), findsWidgets);
+      expect(find.text('Tài xế A'), findsOneWidget);
+      final employeeHeaderX = tester.getTopLeft(find.text('TÊN NHÂN VIÊN')).dx;
+      final hasEmptyEmployeeCell = find
+          .text('—')
+          .evaluate()
+          .map(
+            (element) =>
+                find.byElementPredicate((candidate) => candidate == element),
+          )
+          .any(
+            (finder) =>
+                (tester.getTopLeft(finder).dx - employeeHeaderX).abs() < 0.01,
+          );
+      expect(hasEmptyEmployeeCell, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('renders actual summary rows, units and totals like web', (
     tester,
   ) async {
     await _setSurface(tester);
     final page = _page(
       totalMaterialQuantity: 147825.078,
-      totalConcreteVolume: 62.5,
+      totalConcreteVolume: 62.567,
       summaryRows: [
         for (var position = 1; position <= 3; position++) _summaryRow(position),
       ],
@@ -301,7 +389,7 @@ void main() {
       const ValueKey<String>('statistics-summary-1-DA-actual'),
     );
     expect(
-      find.descendant(of: missingStoneCell, matching: find.text('0.00')),
+      find.descendant(of: missingStoneCell, matching: find.text('0')),
       findsOneWidget,
     );
     expect(
@@ -340,7 +428,7 @@ void main() {
             ),
           )
           .data,
-      '62.50 m³',
+      '62.567 m³',
     );
     expect(tester.takeException(), isNull);
   });
@@ -364,9 +452,48 @@ void main() {
       const ValueKey<String>('statistics-summary-12-CAT-actual'),
     );
     expect(
-      find.descendant(of: actualCell, matching: find.text('1,012.00')),
+      find.descendant(of: actualCell, matching: find.text('1,012')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('formats summary materials with category-specific precision', (
+    tester,
+  ) async {
+    await _setSurface(tester);
+    final cells = <OrderStatisticsMaterialSummaryCell>[
+      _summaryCell('CAT', 10.4),
+      _summaryCell('DA', 12.6),
+      _summaryCell('XIMANG', 10.56),
+      _summaryCell('NUOC', 11.04),
+      _summaryCell('PHUGIA', 10.567),
+      _summaryCell('KHAC', 20.567),
+    ];
+    final page = _page(
+      summaryRows: [
+        OrderStatisticsMaterialSummaryRow(rowNumber: 1, cells: cells),
+      ],
+    );
+
+    await _pump(tester, StatisticsMaterialSummaryTable(page: page));
+
+    for (final expectation in <String, String>{
+      'CAT': '10',
+      'DA': '13',
+      'XIMANG': '10.6',
+      'NUOC': '11',
+      'PHUGIA': '10.57',
+      'KHAC': '20.57',
+    }.entries) {
+      final cell = find.byKey(
+        ValueKey<String>('statistics-summary-1-${expectation.key}-actual'),
+      );
+      expect(
+        find.descendant(of: cell, matching: find.text(expectation.value)),
+        findsOneWidget,
+      );
+    }
     expect(tester.takeException(), isNull);
   });
 }
@@ -393,13 +520,14 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
 OrderStatisticsMaterialColumn _column(
   int slotNumber,
   String materialName,
-  String columnKey,
-) => OrderStatisticsMaterialColumn(
+  String columnKey, {
+  String categoryCode = 'CAT',
+}) => OrderStatisticsMaterialColumn(
   materialSlotId: slotNumber,
   slotNumber: slotNumber,
   materialName: materialName,
-  category: 'Cát',
-  categoryCode: 'CAT',
+  category: materialName,
+  categoryCode: categoryCode,
   typePosition: slotNumber,
   columnKey: columnKey,
   designLabel: 'ĐM.$materialName',
@@ -414,12 +542,13 @@ OrderStatisticsMaterial _material(
   String materialName,
   String columnKey, {
   double actual = 0,
+  String categoryCode = 'CAT',
 }) => OrderStatisticsMaterial(
   materialSlotId: slotNumber,
   slotNumber: slotNumber,
   materialName: materialName,
-  category: 'Cát',
-  categoryCode: 'CAT',
+  category: materialName,
+  categoryCode: categoryCode,
   typePosition: slotNumber,
   columnKey: columnKey,
   designQuantity: 0,
@@ -433,11 +562,16 @@ OrderStatisticsItem _item({
   int rowNumber = 1,
   String? salesEmployeeName,
   String? employeeName,
+  String? stationCode,
+  String? stationName = 'Trạm 10',
+  double requestedVolume = 10,
+  double mixedVolume = 9,
   List<OrderStatisticsMaterial> materials = const [],
 }) => OrderStatisticsItem(
   rowNumber: rowNumber,
   stationId: 10,
-  stationName: 'Trạm 10',
+  stationCode: stationCode,
+  stationName: stationName,
   mixingDate: DateTime(2026, 8, 3),
   startedAt: DateTime.utc(2026, 8, 3, 1),
   finishedAt: DateTime.utc(2026, 8, 3, 1, 10),
@@ -452,8 +586,8 @@ OrderStatisticsItem _item({
   salesEmployeeName: salesEmployeeName,
   employeeName: employeeName,
   layoutKey: layoutKey,
-  requestedVolume: 10,
-  mixedVolume: 9,
+  requestedVolume: requestedVolume,
+  mixedVolume: mixedVolume,
   materials: materials,
 );
 
@@ -473,6 +607,20 @@ OrderStatisticsMaterialSummaryRow _summaryRow(int position) =>
         ),
       ],
     );
+
+OrderStatisticsMaterialSummaryCell _summaryCell(
+  String categoryCode,
+  double actualQuantity,
+) => OrderStatisticsMaterialSummaryCell(
+  categoryCode: categoryCode,
+  typePosition: 1,
+  materialSlotId: 1,
+  slotNumber: 1,
+  materialName: categoryCode,
+  category: categoryCode,
+  columnKey: categoryCode.toLowerCase(),
+  actualQuantity: actualQuantity,
+);
 
 OrderStatisticsPage _page({
   List<OrderStatisticsItem> items = const [],

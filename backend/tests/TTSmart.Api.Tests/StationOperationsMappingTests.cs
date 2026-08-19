@@ -5,6 +5,9 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using TTSmart.Api.Data.StationOperations;
+using TTSmart.Api.Features.OrderStatistics;
+using TTSmart.Api.Features.WeighStationManagement;
+using System.Reflection;
 
 namespace TTSmart.Api.Tests;
 
@@ -52,22 +55,20 @@ public sealed class StationOperationsMappingTests
             .Options;
         using var dbContext = new StationOperationsDbContext(options);
 
+        Assert.DoesNotContain(
+            dbContext.Model.GetEntityTypes(),
+            entity => entity.GetTableName() == "GIAMSATTRON");
         AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "OrderHistoryId", "STT");
         AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "SalesEmployeeId", "MANV");
-        AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "SalesEmployeeCode", "MATHENV");
+        AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "RequestedVolumeText", "MATHENV");
         AssertColumn<StationOrderHistory>(dbContext, "LSDATHANG", "EmployeeName", "TENNV");
         AssertColumn<StationMixingHistory>(dbContext, "LSTRON", "MixingHistoryId", "MALSTRON");
         AssertColumn<StationMixingHistory>(dbContext, "LSTRON", "OrderHistoryId", "STTLSDATHANG");
-        AssertColumn<StationMixingObservation>(dbContext, "GIAMSATTRON", "ExternalId", "ID");
-        AssertColumn<StationMixingObservation>(dbContext, "GIAMSATTRON", "StartedAt", "GIOBD");
-        AssertColumn<StationMixingObservation>(dbContext, "GIAMSATTRON", "FinishedAt", "GIOKT");
-        AssertColumn<StationMixingObservation>(dbContext, "GIAMSATTRON", "RequestedVolume", "SOM3METRON");
-        AssertColumn<StationMixingObservation>(dbContext, "GIAMSATTRON", "IsFinished", "FINISH_OK");
-        AssertColumn<StationMixingObservation>(dbContext, "GIAMSATTRON", "IsSaved", "DALUU");
         AssertColumn<StationMixingDetail>(dbContext, "LSCHITIETMETRON", "MixingDetailId", "MACHITIETMETRON");
         AssertColumn<StationMixingDetail>(dbContext, "LSCHITIETMETRON", "MixingHistoryId", "MALSTRON");
         AssertColumn<StationMixingDetail>(dbContext, "LSCHITIETMETRON", "MixedVolume", "M3METRON");
-        AssertColumn<StationMixingDetail>(dbContext, "LSCHITIETMETRON", "MixingObservationExternalId", "GIAMSATTRONID");
+        AssertColumn<StationVehicle>(dbContext, "XE", "VehiclePlate", "BIENSO");
+        AssertColumn<StationVehicle>(dbContext, "XE", "DriverName", "TENLAIXE");
         AssertColumn<StationMixingMaterial>(dbContext, "LSCHITIETMETRONLSCUAVL", "ActualQuantity", "SOLUONG");
         AssertColumn<StationMixingMaterial>(dbContext, "LSCHITIETMETRONLSCUAVL", "TQuantity", "SOLUONGT");
         AssertColumn<StationMixingMaterial>(dbContext, "LSCHITIETMETRONLSCUAVL", "DesignQuantity", "SOLUONGCP");
@@ -77,7 +78,39 @@ public sealed class StationOperationsMappingTests
     }
 
     [Fact]
-    public void Mapping_TKTC_GiuDungHaiBangCanVa17CotHienThi()
+    public void Query_TKDH_DungGioXongInclusive_XeVaMathenvGiongWeb()
+    {
+        var options = new DbContextOptionsBuilder<StationOperationsDbContext>()
+            .UseSqlServer("Server=(local);Database=unused;Trusted_Connection=True;")
+            .Options;
+        using var dbContext = new StationOperationsDbContext(options);
+        var dataSourceType = typeof(SqlOrderStatisticsDataSource);
+        var createQuery = dataSourceType.GetMethod(
+            "CreateBatchQuery",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var applyFilters = dataSourceType.GetMethod(
+            "ApplyFilters",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var baseQuery = createQuery.Invoke(null, [dbContext, null]);
+        var filter = new OrderStatisticsFilter(
+            new DateTime(2026, 8, 3, 8, 0, 0),
+            new DateTime(2026, 8, 3, 9, 0, 0),
+            UseFinishedAtInclusive: true);
+        var filteredQuery = Assert.IsAssignableFrom<IQueryable>(
+            applyFilters.Invoke(null, [baseQuery, filter]));
+
+        var sql = filteredQuery.ToQueryString();
+
+        Assert.Contains("[dbo].[XE]", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ISNUMERIC", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("EXISTS", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[GIOXONG] >=", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[GIOXONG] <=", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("GIAMSATTRON", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Mapping_TKTC_GiuDungBangCanChinhTrangThaiVaDanhMucVatLieu()
     {
         var options = new DbContextOptionsBuilder<StationOperationsDbContext>()
             .UseSqlServer("Server=(local);Database=unused;Trusted_Connection=True;")
@@ -92,6 +125,74 @@ public sealed class StationOperationsMappingTests
             dbContext,
             "TC_XEVAORA_BANGTAM",
             "nvarchar(40)");
+        AssertColumn<StationCompletedWeighTicket>(dbContext, "TC_XEVAORA", "MaterialCode", "MAVATLIEU");
+        AssertColumn<StationCompletedWeighTicket>(dbContext, "TC_XEVAORA", "MixingStationConnection", "TRAMTRONCONNECTION");
+        AssertColumn<StationCompletedWeighTicket>(dbContext, "TC_XEVAORA", "VehicleExitStatus", "XERACHUA");
+        var vehicleExitStatus = dbContext.Model
+            .FindEntityType(typeof(StationCompletedWeighTicket))!
+            .FindProperty(nameof(StationCompletedWeighTicket.VehicleExitStatus))!;
+        Assert.Equal(typeof(bool?), vehicleExitStatus.ClrType);
+        Assert.Equal("bit", vehicleExitStatus.GetColumnType());
+        AssertColumn<StationScaleMaterial>(dbContext, "TC_VATLIEU", "MaterialCode", "MAVATLIEU");
+        AssertColumn<StationScaleMaterial>(dbContext, "TC_VATLIEU", "Category", "LOAIVL");
+    }
+
+    [Fact]
+    public void Query_TKTC_DungBangChinh_ChenhLechHaiLanCan_VaBaMocThoiGianInclusive()
+    {
+        var options = new DbContextOptionsBuilder<StationOperationsDbContext>()
+            .UseSqlServer("Server=(local);Database=unused;Trusted_Connection=True;")
+            .Options;
+        using var dbContext = new StationOperationsDbContext(options);
+        var dataSourceType = typeof(SqlWeighStationDataSource);
+        var buildQuery = dataSourceType.GetMethod(
+            "BuildQuery",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var applyDateRange = dataSourceType.GetMethod(
+            "ApplyDateRange",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var baseQuery = buildQuery.Invoke(null, [dbContext, WeighStationStage.Second]);
+        var filtered = Assert.IsAssignableFrom<IQueryable>(applyDateRange.Invoke(null,
+        [
+            dbContext,
+            baseQuery,
+            new WeighStationFilter(
+                new DateTime(2026, 8, 19, 0, 0, 0),
+                new DateTime(2026, 8, 19, 9, 15, 0))
+        ]));
+
+        var sql = filtered.ToQueryString();
+
+        Assert.Contains("[dbo].[TC_XEVAORA]", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TC_XEVAORA_BANGTAM", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ABS", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[XERACHUA]", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[Lastupdated]", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[THOIGIANCANLAN1]", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[THOIGIANCANLAN2]", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("UNION", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<=", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void QueryGiaVatLieu_TKTC_ChiLayTrongKyVaGiaGanNhatTruocKy()
+    {
+        var method = typeof(SqlWeighStationMaterialValueDataSource).GetMethod(
+            "BuildUnitPriceQuery",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var sql = Assert.IsType<string>(method.Invoke(null,
+        [
+            new[]
+            {
+                "SELECT 1, N'Cat', CAST('2026-08-01' AS datetime), CAST(100 AS decimal(28,6))"
+            }
+        ]));
+
+        Assert.Contains("PriceDate >= @FromDate", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PriceDate <= @ToDate", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ROW_NUMBER()", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PARTITION BY MaterialCode", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("RowNumber = 1", sql, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

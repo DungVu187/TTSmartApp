@@ -28,6 +28,7 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
     internal TestOrderStatisticsDataSource OrderStatisticsDataSource { get; } = new();
     internal TestMixDesignDataSource MixDesignDataSource { get; } = new();
     internal TestWeighStationDataSource WeighStationDataSource { get; } = new();
+    internal TestWeighStationMaterialValueDataSource WeighStationMaterialValueDataSource { get; } = new();
     internal TestMaterialReportDataSource MaterialReportDataSource { get; } = new();
     internal TestStationDatabaseAvailabilityResolver StationDatabaseAvailabilityResolver { get; } = new();
 
@@ -71,6 +72,8 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IMixDesignDataSource>(MixDesignDataSource);
             services.RemoveAll<IWeighStationDataSource>();
             services.AddSingleton<IWeighStationDataSource>(WeighStationDataSource);
+            services.RemoveAll<IWeighStationMaterialValueDataSource>();
+            services.AddSingleton<IWeighStationMaterialValueDataSource>(WeighStationMaterialValueDataSource);
             services.RemoveAll<IMaterialReportDataSource>();
             services.AddSingleton<IMaterialReportDataSource>(MaterialReportDataSource);
             services.RemoveAll<IStationDatabaseAvailabilityResolver>();
@@ -95,6 +98,7 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
         OrderStatisticsDataSource.Reset();
         MixDesignDataSource.Reset();
         WeighStationDataSource.Reset();
+        WeighStationMaterialValueDataSource.Reset();
         MaterialReportDataSource.Reset();
         StationDatabaseAvailabilityResolver.Reset();
         if (seed is not null)

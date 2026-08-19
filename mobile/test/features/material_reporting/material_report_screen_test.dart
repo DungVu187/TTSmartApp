@@ -56,8 +56,13 @@ void main() {
     expect(find.text('Chọn trạm để xem báo cáo'), findsOneWidget);
     expect(find.text('Tổng quan'), findsNothing);
 
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
-    await tester.pumpAndSettle();
+    final stationField = find.descendant(
+      of: find.byKey(const ValueKey<String>('material-station-null-null')),
+      matching: find.byType(TextFormField),
+    );
+    await tester.tap(stationField);
+    await tester.enterText(stationField, 'Trạm A');
+    await tester.pump();
     await tester.tap(find.text('Trạm A').last);
     await tester.pumpAndSettle();
     await tester.tap(

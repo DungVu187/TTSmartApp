@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Options;
 using TTSmart.Api.Data.StationOperations;
 using TTSmart.Api.Features.BranchManagement;
 
@@ -8,9 +9,22 @@ namespace TTSmart.Api.Features.WeighStationManagement;
 
 public sealed class WeighStationService(
     IBranchAccessResolver branchAccessResolver,
-    IWeighStationDataSource dataSource) : IWeighStationService
+    IWeighStationDataSource dataSource,
+    IWeighStationMaterialValueDataSource materialValueDataSource,
+    IOptions<WeighStationMaterialValueOptions> materialValueOptions,
+    ILogger<WeighStationService> logger) : IWeighStationService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+    private static readonly string[] BusinessGroupOrder =
+    [
+        "NHAP_CAT_DA",
+        "NHAP_XI",
+        "NHAP_PHU_GIA",
+        "NHAP_KHAC",
+        "XUAT_HANG",
+        "DICH_VU",
+        "KHAC"
+    ];
     public async Task<IReadOnlyList<WeighStationStationResponse>> GetStationsAsync(
         WeighStationStationQuery query,
         int currentUserId,
@@ -70,12 +84,19 @@ public sealed class WeighStationService(
             filter,
             pageOffset,
             cancellationToken);
+        var materialValues = WeighStationMaterialValues.Empty;
+        if (canViewMaterialValue)
+        {
+            materialValues = await LoadMaterialValuesAsync(
+                branch, currentUserId, page.Items, cancellationToken);
+        }
         return CreateDetailResponse(
             page.Items,
             query.PageNumber,
             page.TotalCount,
             pageOffset,
-            canViewMaterialValue);
+            canViewMaterialValue,
+            materialValues);
     }
 
     public async Task<WeighStationResponse> SearchAllAsync(
@@ -96,8 +117,11 @@ public sealed class WeighStationService(
             stage,
             filter,
             cancellationToken);
+        var materialValues = canViewMaterialValue
+            ? await LoadMaterialValuesAsync(branch, currentUserId, rows, cancellationToken)
+            : WeighStationMaterialValues.Empty;
         var items = rows
-            .Select((row, index) => MapItem(row, index + 1))
+            .Select((row, index) => MapItem(row, index + 1, materialValues))
             .ToArray();
         return new WeighStationResponse(
             items,
@@ -122,17 +146,29 @@ public sealed class WeighStationService(
             query.CompanyId,
             query.BranchId,
             cancellationToken);
-        var aggregates = await dataSource.GetSummaryAsync(
-            CreateTarget(branch),
-            stage,
-            filter,
-            cancellationToken);
+        var target = CreateTarget(branch);
+        var aggregatesTask = dataSource.GetSummaryAsync(
+            target, stage, filter, cancellationToken);
+        IReadOnlyList<WeighStationRow> materialRows = [];
+        var materialValues = WeighStationMaterialValues.Empty;
+        if (canViewMaterialValue)
+        {
+            var materialRowsTask = dataSource.SearchAllAsync(
+                target, stage, filter, cancellationToken);
+            await Task.WhenAll(aggregatesTask, materialRowsTask);
+            materialRows = await materialRowsTask;
+            materialValues = await LoadMaterialValuesAsync(
+                branch, currentUserId, materialRows, cancellationToken);
+        }
+        var aggregates = await aggregatesTask;
         return CreateSummaryResponse(
             aggregates,
             query.PageNumber,
             pageOffset,
             WeighStationContractDefaults.PageSize,
-            canViewMaterialValue);
+            canViewMaterialValue,
+            materialRows,
+            materialValues);
     }
 
     public async Task<WeighStationSummaryResponse> GetSummaryAllAsync(
@@ -153,12 +189,23 @@ public sealed class WeighStationService(
             stage,
             filter,
             cancellationToken);
+        IReadOnlyList<WeighStationRow> materialRows = [];
+        var materialValues = WeighStationMaterialValues.Empty;
+        if (canViewMaterialValue)
+        {
+            materialRows = await dataSource.SearchAllAsync(
+                CreateTarget(branch), stage, filter, cancellationToken);
+            materialValues = await LoadMaterialValuesAsync(
+                branch, currentUserId, materialRows, cancellationToken);
+        }
         return CreateSummaryResponse(
             aggregates,
             1,
             0,
             int.MaxValue,
-            canViewMaterialValue);
+            canViewMaterialValue,
+            materialRows,
+            materialValues);
     }
 
     private static WeighStationResponse CreateDetailResponse(
@@ -166,10 +213,11 @@ public sealed class WeighStationService(
         int pageNumber,
         int totalCount,
         int pageOffset,
-        bool canViewMaterialValue)
+        bool canViewMaterialValue,
+        WeighStationMaterialValues materialValues)
     {
         var items = rows
-            .Select((row, index) => MapItem(row, pageOffset + index + 1))
+            .Select((row, index) => MapItem(row, pageOffset + index + 1, materialValues))
             .ToArray();
         return new WeighStationResponse(
             items,
@@ -180,14 +228,17 @@ public sealed class WeighStationService(
             canViewMaterialValue);
     }
 
-    private static WeighStationItemResponse MapItem(WeighStationRow row, int stt)
+    private static WeighStationItemResponse MapItem(
+        WeighStationRow row,
+        int stt,
+        WeighStationMaterialValues materialValues)
     {
-        var convertedUnit = NormalizeConversionUnit(row.ConversionUnit);
-        var convertedQuantity = CalculateConvertedQuantity(
+        var conversion = ConvertScaleWeight(
             row.GoodsWeight,
             row.ConversionFactor,
-            row.ConversionUnit);
-        var conversionMessage = GetConversionMessage(row.ConversionFactor);
+            row.ConversionUnit,
+            row.MaterialCategory,
+            row.GoodsName);
         return new WeighStationItemResponse(
             stt,
             row.Id,
@@ -200,18 +251,21 @@ public sealed class WeighStationService(
             NormalizeWeight(row.FirstWeight),
             NormalizeWeight(row.SecondWeight),
             row.GoodsWeight,
-            convertedQuantity.HasValue,
-            convertedQuantity,
-            convertedUnit,
-            conversionMessage,
-            null,
+            conversion.IsConfigured,
+            conversion.Quantity,
+            TrimOrNull(conversion.Unit),
+            conversion.IsConfigured ? null : WeighStationConversionMessages.Undefined,
+            materialValues.ByTicketNumber.TryGetValue(row.TicketNumber, out var materialValue)
+                ? materialValue
+                : null,
             TrimOrNull(row.UnitName),
             TrimOrNull(row.GoodsName),
             TrimOrNull(row.WeighingType),
             TrimOrNull(row.FirstOperatorName),
             TrimOrNull(row.SecondOperatorName),
             ToUtc(row.FirstWeighedAt),
-            ToUtc(row.SecondWeighedAt));
+            ToUtc(row.SecondWeighedAt),
+            row.VehicleExitStatus);
     }
 
     private static WeighStationSummaryResponse CreateSummaryResponse(
@@ -219,12 +273,39 @@ public sealed class WeighStationService(
         int pageNumber,
         int pageOffset,
         int pageSize,
-        bool canViewMaterialValue)
+        bool canViewMaterialValue,
+        IReadOnlyList<WeighStationRow> materialRows,
+        WeighStationMaterialValues materialValues)
     {
         var materialTotals = new Dictionary<string, SummaryAccumulator>(
             StringComparer.OrdinalIgnoreCase);
-        var totalConversions = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var groupTotals = new Dictionary<string, GroupAccumulator>(StringComparer.OrdinalIgnoreCase);
         decimal totalGoodsWeight = 0;
+        var materialValueByName = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var materialValueByGroup = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in materialRows)
+        {
+            if (!materialValues.ByTicketNumber.TryGetValue(row.TicketNumber, out var value))
+            {
+                continue;
+            }
+            var nameKey = NormalizeForSearch(row.GoodsName);
+            materialValueByName.TryGetValue(nameKey, out var currentNameValue);
+            materialValueByName[nameKey] = currentNameValue + value;
+            var rowConversion = ConvertScaleWeight(
+                row.GoodsWeight,
+                row.ConversionFactor,
+                row.ConversionUnit,
+                row.MaterialCategory,
+                row.GoodsName);
+            var groupKey = GetBusinessGroupKey(
+                row.WeighingType,
+                row.MaterialCategory,
+                row.GoodsName,
+                rowConversion.Unit);
+            materialValueByGroup.TryGetValue(groupKey, out var currentGroupValue);
+            materialValueByGroup[groupKey] = currentGroupValue + value;
+        }
 
         foreach (var aggregate in aggregates)
         {
@@ -237,25 +318,32 @@ public sealed class WeighStationService(
             }
 
             material.GoodsWeight += aggregate.GoodsWeight;
+            material.TicketCount += aggregate.TicketCount;
             totalGoodsWeight += aggregate.GoodsWeight;
 
-            var unit = NormalizeConversionUnit(aggregate.ConversionUnit);
-            var conversionMessage = GetConversionMessage(aggregate.ConversionFactor);
-            if (conversionMessage is not null)
-            {
-                material.ConversionMessage = conversionMessage;
-            }
-            var convertedQuantity = CalculateConvertedQuantity(
+            var conversion = ConvertScaleWeight(
                 aggregate.GoodsWeight,
                 aggregate.ConversionFactor,
-                aggregate.ConversionUnit);
-            if (!convertedQuantity.HasValue)
-            {
-                continue;
-            }
+                aggregate.ConversionUnit,
+                aggregate.MaterialCategory,
+                aggregate.GoodsName);
+            material.AddConversion(conversion);
 
-            AddQuantity(material.ConvertedQuantities, unit, convertedQuantity.Value);
-            AddQuantity(totalConversions, unit, convertedQuantity.Value);
+            var groupKey = GetBusinessGroupKey(
+                aggregate.WeighingType,
+                aggregate.MaterialCategory,
+                aggregate.GoodsName,
+                conversion.Unit);
+            if (!groupTotals.TryGetValue(groupKey, out var group))
+            {
+                group = new GroupAccumulator(groupKey, GetBusinessGroupLabel(groupKey));
+                groupTotals.Add(groupKey, group);
+            }
+            group.GoodsWeight += aggregate.GoodsWeight;
+            if (conversion.IsConfigured && conversion.Quantity.HasValue)
+            {
+                AddQuantity(group.ConvertedQuantities, conversion.Unit, conversion.Quantity.Value);
+            }
         }
 
         var orderedMaterials = materialTotals.Values
@@ -271,13 +359,37 @@ public sealed class WeighStationService(
                 RoundQuantity(item.GoodsWeight),
                 MapConvertedQuantities(item.ConvertedQuantities),
                 item.ConversionMessage,
-                null))
+                materialValueByName.TryGetValue(NormalizeForSearch(item.GoodsName), out var itemValue)
+                    ? RoundMoney(itemValue)
+                    : null,
+                item.TicketCount))
             .ToArray();
         var topGoods = orderedMaterials.Length == 0
             ? null
             : new WeighStationTopGoodsResponse(
                 orderedMaterials[0].GoodsName,
                 RoundQuantity(orderedMaterials[0].GoodsWeight));
+        var totalConversions = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var material in orderedMaterials)
+        {
+            foreach (var conversion in material.ConvertedQuantities)
+            {
+                AddQuantity(totalConversions, conversion.Key, conversion.Value);
+            }
+        }
+        var groups = BusinessGroupOrder
+            .Where(groupTotals.ContainsKey)
+            .Select(key => groupTotals[key])
+            .Where(group => group.GoodsWeight > 0)
+            .Select(group => new WeighStationSummaryGroupResponse(
+                group.Key,
+                group.Label,
+                RoundQuantity(group.GoodsWeight),
+                MapConvertedQuantities(group.ConvertedQuantities),
+                materialValueByGroup.TryGetValue(group.Key, out var groupValue)
+                    ? RoundMoney(groupValue)
+                    : null))
+            .ToArray();
 
         return new WeighStationSummaryResponse(
             items,
@@ -290,9 +402,89 @@ public sealed class WeighStationService(
             RoundQuantity(totalGoodsWeight),
             MapConvertedQuantities(totalConversions),
             topGoods,
-            Array.Empty<WeighStationSummaryGroupResponse>(),
-            null,
+            groups,
+            materialValues.ByTicketNumber.Count == 0
+                ? null
+                : RoundMoney(materialValues.ByTicketNumber.Values.Sum()),
             canViewMaterialValue);
+    }
+
+    private async Task<WeighStationMaterialValues> LoadMaterialValuesAsync(
+        AuthorizedBranch scaleBranch,
+        int currentUserId,
+        IReadOnlyList<WeighStationRow> rows,
+        CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+        {
+            return WeighStationMaterialValues.Empty;
+        }
+
+        using var priceTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        priceTimeout.CancelAfter(materialValueOptions.Value.MaterialValueTimeoutMilliseconds);
+        try
+        {
+            var mixingBranches = await branchAccessResolver
+                .GetRelatedMixingBranchesForWeighStationAsync(
+                    currentUserId,
+                    scaleBranch.Id,
+                    priceTimeout.Token);
+            return await materialValueDataSource.CalculateAsync(
+                CreateTarget(scaleBranch),
+                CreateMixingTargets(scaleBranch, mixingBranches),
+                rows,
+                priceTimeout.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                "Weigh-station material-value calculation exceeded its optional time budget. " +
+                "TimeoutMilliseconds={TimeoutMilliseconds}",
+                materialValueOptions.Value.MaterialValueTimeoutMilliseconds);
+            return WeighStationMaterialValues.Empty;
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                "Weigh-station material-value calculation failed; scale data will be returned without values. " +
+                "ErrorType={ErrorType}",
+                exception.GetType().Name);
+            return WeighStationMaterialValues.Empty;
+        }
+    }
+
+    private static IReadOnlyList<StationDatabaseTarget> CreateMixingTargets(
+        AuthorizedBranch scaleBranch,
+        IReadOnlyList<AuthorizedBranch> mixingBranches)
+    {
+        var result = mixingBranches.Select(CreateTarget).ToList();
+        var databaseName = ExtractInitialCatalog(scaleBranch.VehicleManagementConnection);
+        if (databaseName.Length is > 0 and <= 128 &&
+            databaseName.All(character => char.IsLetterOrDigit(character) || character == '_'))
+        {
+            result.Insert(0, new StationDatabaseTarget(-scaleBranch.Id, databaseName, null));
+        }
+        return result;
+    }
+
+    private static string ExtractInitialCatalog(string? connectionText)
+    {
+        var text = TrimOrNull(connectionText) ?? string.Empty;
+        if (!text.Contains(';') && !text.Contains('='))
+        {
+            return text;
+        }
+        foreach (var part in text.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var tokens = part.Split('=', 2);
+            if (tokens.Length == 2 &&
+                (tokens[0].Trim().Equals("INITIAL CATALOG", StringComparison.OrdinalIgnoreCase) ||
+                 tokens[0].Trim().Equals("DATABASE", StringComparison.OrdinalIgnoreCase)))
+            {
+                return tokens[1].Trim();
+            }
+        }
+        return string.Empty;
     }
 
     private static IReadOnlyList<WeighStationConvertedQuantityResponse> MapConvertedQuantities(
@@ -362,15 +554,15 @@ public sealed class WeighStationService(
         }
 
         var fromLocal = ToVietnamLocal(from.Value);
-        var toExclusive = ToVietnamLocal(to.Value);
-        if (fromLocal >= toExclusive)
+        var toInclusive = ToVietnamLocal(to.Value);
+        if (fromLocal > toInclusive)
         {
-            throw new ValidationException("Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
+            throw new ValidationException("Thời gian bắt đầu phải nhỏ hơn hoặc bằng thời gian kết thúc.");
         }
 
         return new WeighStationFilter(
             fromLocal,
-            toExclusive,
+            toInclusive,
             TrimOrNull(vehiclePlate),
             TrimOrNull(goodsName),
             TrimOrNull(operatorName),
@@ -441,65 +633,135 @@ public sealed class WeighStationService(
         }
     }
 
-    private static decimal? CalculateConvertedQuantity(
+    private static ConversionResult ConvertScaleWeight(
         decimal? goodsWeight,
         float? conversionFactor,
-        string? conversionUnit)
+        string? conversionUnit,
+        string? materialCategory,
+        string? goodsName)
     {
-        var unitCode = NormalizeConversionUnitCode(conversionUnit);
-        if (!goodsWeight.HasValue || HasUndefinedConversionFactor(conversionFactor))
+        if (!goodsWeight.HasValue)
         {
-            return null;
+            return ConversionResult.Undefined(string.Empty);
         }
+
+        var weight = goodsWeight.Value;
+        var unitCode = NormalizeConversionUnitCode(conversionUnit);
+        var categoryCode = NormalizeForSearch(materialCategory).Replace(" ", string.Empty, StringComparison.Ordinal);
+        var nameCode = NormalizeForSearch(goodsName).Replace(" ", string.Empty, StringComparison.Ordinal);
+        var factor = conversionFactor.HasValue && float.IsFinite(conversionFactor.Value)
+            ? (decimal)conversionFactor.Value
+            : 0m;
+
         try
         {
-            var factor = conversionFactor.GetValueOrDefault();
-            var divisor = unitCode == "KG"
-                ? 1000m
-                : (decimal)factor;
-            return RoundQuantity(goodsWeight.Value / divisor);
+            if (IsAdditive(categoryCode, nameCode))
+            {
+                var divisor = factor > 0 ? factor : 1m;
+                return ConversionResult.Configured(RoundQuantity(weight / divisor), "L");
+            }
+            if (unitCode is "M3" or "METKHOI")
+            {
+                return factor > 0
+                    ? ConversionResult.Configured(RoundQuantity(weight / factor), "m³")
+                    : ConversionResult.Undefined("m³");
+            }
+            if (unitCode is "KG" or "T" or "TAN" or "TON")
+            {
+                return ConversionResult.Configured(RoundQuantity(weight / 1000m), "tấn");
+            }
+            if (unitCode is "L" or "LIT" or "LITRE" or "LITER")
+            {
+                return factor > 0
+                    ? ConversionResult.Configured(RoundQuantity(weight / factor), "L")
+                    : ConversionResult.Undefined("L");
+            }
+            if (nameCode.Contains("XIMANG", StringComparison.Ordinal) ||
+                nameCode.Contains("XYMANG", StringComparison.Ordinal))
+            {
+                return ConversionResult.Configured(RoundQuantity(weight / 1000m), "tấn");
+            }
+            if (factor >= 100m)
+            {
+                return ConversionResult.Configured(RoundQuantity(weight / factor), "m³");
+            }
+            return ConversionResult.Undefined(string.Empty);
         }
-        catch (OverflowException)
+        catch (Exception exception) when (exception is OverflowException or DivideByZeroException)
         {
-            return null;
+            return ConversionResult.Undefined(string.Empty);
         }
-    }
-
-    private static string? GetConversionMessage(float? conversionFactor) =>
-        HasUndefinedConversionFactor(conversionFactor)
-            ? WeighStationConversionMessages.Undefined
-            : null;
-
-    private static bool HasUndefinedConversionFactor(float? conversionFactor) =>
-        !conversionFactor.HasValue ||
-        !float.IsFinite(conversionFactor.Value) ||
-        conversionFactor.Value <= 0;
-
-    private static string NormalizeConversionUnit(string? value)
-    {
-        var unit = TrimOrNull(value) ?? "KG";
-        var normalized = NormalizeForSearch(unit)
-            .Replace("^", string.Empty, StringComparison.Ordinal)
-            .Replace("³", "3", StringComparison.Ordinal)
-            .Replace(" ", string.Empty, StringComparison.Ordinal);
-        return normalized switch
-        {
-            "M3" => "m³",
-            "TAN" or "TON" => "tấn",
-            "L" or "LIT" or "LITER" => "L",
-            "KG" => "tấn",
-            _ => unit
-        };
     }
 
     private static string NormalizeConversionUnitCode(string? value)
     {
-        var unit = TrimOrNull(value) ?? "KG";
+        var unit = TrimOrNull(value) ?? string.Empty;
         return NormalizeForSearch(unit)
             .Replace("^", string.Empty, StringComparison.Ordinal)
             .Replace("³", "3", StringComparison.Ordinal)
             .Replace(" ", string.Empty, StringComparison.Ordinal);
     }
+
+    private static bool IsAdditive(string categoryCode, string nameCode) =>
+        categoryCode is "PHUGIA" or "ADDITIVE" ||
+        nameCode.Contains("PHUGIA", StringComparison.Ordinal) ||
+        nameCode.Contains("SIKA", StringComparison.Ordinal) ||
+        nameCode.Contains("SILKROAD", StringComparison.Ordinal) ||
+        nameCode.Contains("SP3000", StringComparison.Ordinal) ||
+        nameCode.Contains("BASF", StringComparison.Ordinal) ||
+        nameCode.Contains("TROBAY", StringComparison.Ordinal) ||
+        nameCode.Contains("FLYASH", StringComparison.Ordinal);
+
+    private static string GetBusinessGroupKey(
+        string? weighingType,
+        string? materialCategory,
+        string? goodsName,
+        string convertedUnit)
+    {
+        var type = NormalizeForSearch(weighingType).Replace(" ", string.Empty, StringComparison.Ordinal);
+        if (type is "NHAPHANG" or "NHAP")
+        {
+            var materialGroup = DetectMaterialGroup(materialCategory, goodsName);
+            var unit = NormalizeForSearch(convertedUnit)
+                .Replace("³", "3", StringComparison.Ordinal)
+                .Replace(" ", string.Empty, StringComparison.Ordinal);
+            if (materialGroup is "CAT" or "DA" || unit == "M3") return "NHAP_CAT_DA";
+            if (materialGroup == "XI" || unit is "TAN" or "T") return "NHAP_XI";
+            if (materialGroup == "PHUGIA" || unit is "L" or "LIT") return "NHAP_PHU_GIA";
+            return "NHAP_KHAC";
+        }
+        if (type is "BANHANG" or "BAN" or "XUATHANG" or "XUAT") return "XUAT_HANG";
+        if (type == "DICHVU") return "DICH_VU";
+        return "KHAC";
+    }
+
+    private static string DetectMaterialGroup(string? materialCategory, string? goodsName)
+    {
+        var category = NormalizeForSearch(materialCategory).Replace(" ", string.Empty, StringComparison.Ordinal);
+        var name = NormalizeForSearch(goodsName).Replace(" ", string.Empty, StringComparison.Ordinal);
+        if (category is "NUOC" or "WATER" || name.Contains("NUOC", StringComparison.Ordinal) || name.Contains("WATER", StringComparison.Ordinal)) return "NUOC";
+        if (name.Contains("TROBAY", StringComparison.Ordinal) || name.Contains("FLYASH", StringComparison.Ordinal)) return "PHUGIA";
+        if (category is "PHUGIA" or "ADDITIVE") return "PHUGIA";
+        if (category == "CAT") return "CAT";
+        if (category == "DA") return "DA";
+        if (category is "XI" or "XIMANG" or "CEMENT") return "XI";
+        if (name.Contains("PHUGIA", StringComparison.Ordinal) || name.Contains("ADDITIVE", StringComparison.Ordinal) || name.Contains("BIFI", StringComparison.Ordinal) || name.Contains("SILKROAD", StringComparison.Ordinal) || name.Contains("WPA", StringComparison.Ordinal)) return "PHUGIA";
+        if (name.Contains("XIMANG", StringComparison.Ordinal) || name.Contains("XYMANG", StringComparison.Ordinal) || name.Contains("CEMENT", StringComparison.Ordinal) || name.StartsWith("XI", StringComparison.Ordinal)) return "XI";
+        if (name.Contains("CAT", StringComparison.Ordinal)) return "CAT";
+        if (name == "DA" || name.StartsWith("DA", StringComparison.Ordinal) || name.Contains("DAMAT", StringComparison.Ordinal) || name.Contains("DA1X2", StringComparison.Ordinal)) return "DA";
+        return string.Empty;
+    }
+
+    private static string GetBusinessGroupLabel(string key) => key switch
+    {
+        "NHAP_CAT_DA" => "Nhập hàng - Cát, đá",
+        "NHAP_XI" => "Nhập hàng - Xi măng",
+        "NHAP_PHU_GIA" => "Nhập hàng - Phụ gia",
+        "NHAP_KHAC" => "Nhập hàng - Khác",
+        "XUAT_HANG" => "Xuất hàng",
+        "DICH_VU" => "Dịch vụ",
+        _ => "Khác"
+    };
 
     private static int GetUnitOrder(string unit) => unit switch
     {
@@ -512,6 +774,9 @@ public sealed class WeighStationService(
     private static decimal RoundQuantity(decimal value) =>
         Math.Round(value, 3, MidpointRounding.AwayFromZero);
 
+    private static decimal RoundMoney(decimal value) =>
+        Math.Round(value, 0, MidpointRounding.AwayFromZero);
+
     private static string? TrimOrNull(string? value)
     {
         var trimmed = value?.Trim();
@@ -522,8 +787,47 @@ public sealed class WeighStationService(
     {
         public string? GoodsName { get; } = goodsName;
         public decimal GoodsWeight { get; set; }
+        public int TicketCount { get; set; }
         public string? ConversionMessage { get; set; }
         public Dictionary<string, decimal> ConvertedQuantities { get; } =
             new(StringComparer.OrdinalIgnoreCase);
+
+        public void AddConversion(ConversionResult conversion)
+        {
+            if (!conversion.IsConfigured || !conversion.Quantity.HasValue)
+            {
+                ConversionMessage = WeighStationConversionMessages.Undefined;
+                ConvertedQuantities.Clear();
+                return;
+            }
+            if (ConversionMessage is not null)
+            {
+                return;
+            }
+            if (ConvertedQuantities.Count > 0 && !ConvertedQuantities.ContainsKey(conversion.Unit))
+            {
+                ConversionMessage = WeighStationConversionMessages.Undefined;
+                ConvertedQuantities.Clear();
+                return;
+            }
+            AddQuantity(ConvertedQuantities, conversion.Unit, conversion.Quantity.Value);
+        }
+    }
+
+    private sealed class GroupAccumulator(string key, string label)
+    {
+        public string Key { get; } = key;
+        public string Label { get; } = label;
+        public decimal GoodsWeight { get; set; }
+        public Dictionary<string, decimal> ConvertedQuantities { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed record ConversionResult(decimal? Quantity, string Unit, bool IsConfigured)
+    {
+        public static ConversionResult Configured(decimal quantity, string unit) =>
+            new(quantity, unit, true);
+
+        public static ConversionResult Undefined(string unit) => new(null, unit, false);
     }
 }

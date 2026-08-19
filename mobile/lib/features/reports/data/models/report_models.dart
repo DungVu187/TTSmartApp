@@ -12,7 +12,7 @@ enum ReportViewMode {
 
   String get label => switch (this) {
     ReportViewMode.detail => 'Chi tiết',
-    ReportViewMode.total => 'Tổng',
+    ReportViewMode.total => 'Tổng hợp',
   };
 
   static ReportViewMode fromApi(String value) => switch (value) {
@@ -29,6 +29,7 @@ class OrderStatisticsStation {
     required this.name,
     required this.typeTram,
     required this.companyName,
+    this.code,
   });
 
   factory OrderStatisticsStation.fromJson(Object? value) {
@@ -39,6 +40,7 @@ class OrderStatisticsStation {
       name: optionalString(json, 'name'),
       typeTram: optionalInt(json, 'typeTram'),
       companyName: optionalString(json, 'companyName'),
+      code: optionalString(json, 'code'),
     );
   }
 
@@ -47,6 +49,9 @@ class OrderStatisticsStation {
   final String? name;
   final int? typeTram;
   final String? companyName;
+  final String? code;
+
+  String get displayName => _stationDisplayName(name);
 }
 
 class OrderStatisticsFilterOptions {
@@ -341,6 +346,7 @@ class OrderStatisticsItem {
     required this.mixedVolume,
     required this.materials,
     this.layoutKey = '',
+    this.stationCode,
   });
 
   factory OrderStatisticsItem.fromJson(Object? value) {
@@ -348,6 +354,7 @@ class OrderStatisticsItem {
     return OrderStatisticsItem(
       rowNumber: requireInt(json, 'rowNumber'),
       stationId: requireInt(json, 'stationId'),
+      stationCode: optionalString(json, 'stationCode'),
       stationName: optionalString(json, 'stationName'),
       mixingDate: _dateOnly(json, 'mixingDate'),
       startedAt: optionalUtcDateTime(json, 'startedAt'),
@@ -375,6 +382,7 @@ class OrderStatisticsItem {
 
   final int rowNumber;
   final int stationId;
+  final String? stationCode;
   final String? stationName;
   final DateTime? mixingDate;
   final DateTime? startedAt;
@@ -393,6 +401,8 @@ class OrderStatisticsItem {
   final double requestedVolume;
   final double mixedVolume;
   final List<OrderStatisticsMaterial> materials;
+
+  String get stationDisplayName => _stationDisplayName(stationName);
 }
 
 class OrderStatisticsPage {
@@ -525,4 +535,11 @@ String? _normalized(String? value) {
 
 String formatOrderStatisticsDateTime(DateTime value) {
   return formatVietnamIsoOffset(value);
+}
+
+String _stationDisplayName(String? name) {
+  final normalizedName = name?.trim();
+  return normalizedName == null || normalizedName.isEmpty
+      ? 'Chưa xác định'
+      : normalizedName;
 }

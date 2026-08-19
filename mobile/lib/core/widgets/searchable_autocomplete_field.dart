@@ -118,6 +118,7 @@ class _SearchableAutocompleteFieldState<T extends Object>
                   : null,
               decoration: _decoration(),
               onTap: _selectCurrentText,
+              onTapOutside: (_) => focusNode.unfocus(),
               onFieldSubmitted: (_) => onFieldSubmitted(),
               validator: widget.validator == null
                   ? null

@@ -50,6 +50,7 @@ void main() {
         {
           'rowNumber': 11,
           'stationId': 10,
+          'stationCode': 'TRAM_10',
           'stationName': 'Trạm 10',
           'mixingDate': '2026-08-03',
           'startedAt': '2026-08-03T01:30:00Z',
@@ -146,6 +147,8 @@ void main() {
 
     expect(page.pageSize, 10);
     expect(page.items.single.rowNumber, 11);
+    expect(page.items.single.stationCode, 'TRAM_10');
+    expect(page.items.single.stationDisplayName, 'Trạm 10');
     expect(page.items.single.startedAt, DateTime.utc(2026, 8, 3, 1, 30));
     expect(page.items.single.layoutKey, 'layout-cat-da');
     expect(page.items.single.salesEmployeeName, 'Nhân viên kinh doanh A');
@@ -179,6 +182,43 @@ void main() {
     expect(summaryRow.cells.last.slotNumber, isNull);
     expect(summaryRow.cells.last.actualQuantity, 0);
     expect(summaryRow.cells.last.unit, 'KG');
+  });
+
+  test('station labels never expose code and use the required fallback', () {
+    expect(
+      const OrderStatisticsStation(
+        id: 10,
+        companyId: 3,
+        name: 'Trạm Lam Sơn',
+        typeTram: 1,
+        companyName: 'Công ty A',
+        code: 'LS01',
+      ).displayName,
+      'Trạm Lam Sơn',
+    );
+    expect(
+      const OrderStatisticsStation(
+        id: 11,
+        companyId: 3,
+        name: '   ',
+        typeTram: 1,
+        companyName: 'Công ty A',
+        code: 'SECRET_CODE',
+      ).displayName,
+      'Chưa xác định',
+    );
+    expect(
+      OrderStatisticsItem.fromJson({
+        'rowNumber': 1,
+        'stationId': 11,
+        'stationCode': 'SECRET_CODE',
+        'stationName': null,
+        'requestedVolume': 0,
+        'mixedVolume': 0,
+        'materials': <Object>[],
+      }).stationDisplayName,
+      'Chưa xác định',
+    );
   });
 
   test('parses response without optional dynamic contract fields', () {

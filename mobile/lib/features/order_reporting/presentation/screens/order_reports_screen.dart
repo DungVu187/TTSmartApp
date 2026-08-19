@@ -233,7 +233,6 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
         if (controller.isPartial) ...[
           const SizedBox(height: 12),
           OrderReportPartialWarning(
-            successfulStationCount: controller.successfulStationCount,
             unavailableStationCount: controller.unavailableStationCount,
           ),
         ],
@@ -282,17 +281,6 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               ? 'Không có dữ liệu trong kỳ đã chọn'
               : 'Đã hiển thị ${controller.items.length}/${controller.totalCount} đơn',
         ),
-        if (controller.stationSummaries.length > 1) ...[
-          const SizedBox(height: 18),
-          const AppSectionHeader(
-            title: 'Tổng hợp theo trạm',
-            subtitle: 'Tổng hợp trên toàn bộ phạm vi báo cáo đã chọn',
-          ),
-          const SizedBox(height: 10),
-          ...controller.stationSummaries.map(
-            (summary) => OrderReportStationSummaryCard(summary: summary),
-          ),
-        ],
         if (controller.items.isEmpty) ...[
           const SizedBox(height: 12),
           const Card(

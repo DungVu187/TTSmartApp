@@ -6,11 +6,9 @@ import '../../data/models/order_report_models.dart';
 class OrderReportPartialWarning extends StatelessWidget {
   const OrderReportPartialWarning({
     super.key,
-    required this.successfulStationCount,
     required this.unavailableStationCount,
   });
 
-  final int successfulStationCount;
   final int unavailableStationCount;
 
   @override
@@ -20,29 +18,17 @@ class OrderReportPartialWarning extends StatelessWidget {
       key: const ValueKey('order-report-partial-warning'),
       color: AppColors.warning.withValues(alpha: 0.08),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Kết quả chưa đầy đủ',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Đã tải dữ liệu từ $successfulStationCount trạm; '
-                    '$unavailableStationCount trạm chưa thể truy cập.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
+              child: Text(
+                'Không thể tải dữ liệu từ $unavailableStationCount trạm',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -212,7 +198,7 @@ class OrderReportItemCard extends StatelessWidget {
                 ),
                 _Metadata(
                   icon: Icons.location_on_outlined,
-                  label: _display(item.stationName, 'Chưa có trạm'),
+                  label: item.stationDisplayName,
                 ),
                 _Metadata(
                   icon: Icons.apartment_outlined,
@@ -244,17 +230,12 @@ class OrderReportItemCard extends StatelessWidget {
                   value: formatOrderReportVolume(item.producedVolume),
                   color: AppColors.success,
                 );
-                if (constraints.maxWidth >= 420) {
-                  return Row(
-                    children: [
-                      Expanded(child: ordered),
-                      const SizedBox(width: 10),
-                      Expanded(child: produced),
-                    ],
-                  );
-                }
-                return Column(
-                  children: [ordered, const SizedBox(height: 10), produced],
+                return Row(
+                  children: [
+                    Expanded(child: ordered),
+                    const SizedBox(width: 8),
+                    Expanded(child: produced),
+                  ],
                 );
               },
             ),
@@ -338,7 +319,7 @@ class _VolumeBox extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(13),
@@ -366,77 +347,9 @@ class _VolumeBox extends StatelessWidget {
   }
 }
 
-class OrderReportStationSummaryCard extends StatelessWidget {
-  const OrderReportStationSummaryCard({super.key, required this.summary});
-
-  final OrderReportStationSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final company = summary.companyName?.trim();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Icon(Icons.factory_outlined, color: theme.colorScheme.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    summary.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if (company != null && company.isNotEmpty)
-                    Text(
-                      company,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${summary.orderCount} đơn',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  '${formatOrderReportVolume(summary.orderedVolume)} m³ đặt',
-                  style: theme.textTheme.bodySmall,
-                ),
-                Text(
-                  '${formatOrderReportVolume(summary.producedVolume)} m³ sản xuất',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 String formatOrderReportVolume(num? value) {
   if (value == null) return '—';
-  var text = value.toStringAsFixed(3);
-  text = text.replaceFirst(RegExp(r'\.?0+$'), '');
+  final text = value.toStringAsFixed(1);
   final parts = text.split('.');
   final integer = parts.first;
   final buffer = StringBuffer();

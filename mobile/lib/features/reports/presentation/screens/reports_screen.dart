@@ -109,6 +109,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     _buildViewMode(context),
                     const SizedBox(height: 12),
                     _buildFilters(context),
+                    if (_controller.isLoadingScope ||
+                        _controller.isLoadingOptions) ...[
+                      const SizedBox(height: 12),
+                      const LinearProgressIndicator(minHeight: 2),
+                    ],
+                    if (_controller.scopeErrorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      ErrorPanel(
+                        message: _controller.scopeErrorMessage!,
+                        onRetry: _controller.retryScope,
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     if (_controller.isSearching) ...[
                       const LinearProgressIndicator(minHeight: 2),
@@ -169,7 +181,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
-        'Thống kê',
+        'Thống kê đơn hàng',
         style: TextStyle(
           color: _StatisticsDesign.textPrimary,
           fontSize: 19,
@@ -206,7 +218,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
           ButtonSegment<ReportViewMode>(
             value: ReportViewMode.total,
-            label: Text('Tổng'),
+            label: Text('Tổng hợp'),
             icon: Icon(Icons.description_outlined, size: 16),
           ),
         ],
@@ -377,14 +389,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
       options: _controller.stations,
       selectedOption: _controller.selectedStation,
-      displayStringForOption: _stationLabel,
-      searchStringForOption: (station) {
-        final company = station.companyName?.trim();
-        final stationLabel = _stationLabel(station);
-        return company == null || company.isEmpty
-            ? '$stationLabel ${station.id}'
-            : '$company $stationLabel ${station.id}';
-      },
+      displayStringForOption: (station) => station.displayName,
+      searchStringForOption: (station) => station.displayName,
       optionSubtitle: (station) => station.companyName?.trim(),
       onSelected: (station) => _controller.selectStation(station.id),
       onCleared: () => _controller.selectStation(null),
@@ -425,11 +431,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       borderWidth: _StatisticsDesign.fieldBorderWidth,
     ),
   );
-
-  String _stationLabel(OrderStatisticsStation station) {
-    final name = station.name?.trim();
-    return name == null || name.isEmpty ? 'Trạm ${station.id}' : name;
-  }
 
   InputDecoration _compactDecoration({
     required String label,

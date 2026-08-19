@@ -23,6 +23,7 @@ public sealed class OrderStatisticsStationQuery
 public sealed record OrderStatisticsStationResponse(
     int Id,
     int? CompanyId,
+    string? Code,
     string? Name,
     int? TypeTram,
     string? CompanyName);
@@ -80,6 +81,7 @@ public sealed class OrderStatisticsQuery
 public sealed record OrderStatisticsItemResponse(
     int RowNumber,
     int StationId,
+    string? StationCode,
     string? StationName,
     DateOnly? MixingDate,
     DateTimeOffset? StartedAt,

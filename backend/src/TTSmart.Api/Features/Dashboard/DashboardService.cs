@@ -66,6 +66,11 @@ public sealed class DashboardService(
         CancellationToken cancellationToken)
     {
         var filter = CreateFilter(query.From, query.To);
+        var productionFilter = filter with
+        {
+            ToExclusive = filter.ToExclusive.AddTicks(-1),
+            UseFinishedAtInclusive = true
+        };
         var interval = ParseInterval(query.Interval);
         var branches = await branchAccessResolver.GetDashboardBranchesAsync(
             currentUserId,
@@ -102,12 +107,13 @@ public sealed class DashboardService(
 
         var results = await QueryBranchesAsync(
             availableBranches,
-            filter,
+            productionFilter,
             interval,
             tolerateUnavailable: !query.BranchId.HasValue,
             cancellationToken);
         var kpiResults = await QueryKpiBranchesAsync(
             availableBranches,
+            productionFilter,
             filter,
             tolerateUnavailable: !query.BranchId.HasValue,
             cancellationToken);
@@ -164,8 +170,8 @@ public sealed class DashboardService(
             DateTimeOffset.UtcNow,
             successfulKpiResults.Sum(result => result.Data.Orders.OrderCount),
             DistinctCount(successfulKpiResults.SelectMany(result => result.Data.Statistics.ConcreteGradeNames)),
-            DistinctCount(successfulKpiResults.SelectMany(result => result.Data.Statistics.VehiclePlates)),
-            DistinctCount(successfulKpiResults.SelectMany(CreateScopedSalesEmployeeKeys)),
+            WebDistinctCount(successfulKpiResults.SelectMany(result => result.Data.Statistics.VehiclePlates)),
+            WebDistinctCount(successfulKpiResults.SelectMany(result => result.Data.Orders.SalesEmployeeKeys)),
             Normalize(successfulResults.Sum(result => result.Data.TotalMixedVolume)),
             points,
             stationSummaries,
@@ -215,7 +221,8 @@ public sealed class DashboardService(
 
     private async Task<DashboardKpiQueryBatch> QueryKpiBranchesAsync(
         IReadOnlyList<AuthorizedBranch> branches,
-        OrderStatisticsFilter filter,
+        OrderStatisticsFilter productionFilter,
+        OrderStatisticsFilter orderFilter,
         bool tolerateUnavailable,
         CancellationToken cancellationToken)
     {
@@ -228,12 +235,12 @@ public sealed class DashboardService(
                 var target = CreateTarget(branch);
                 var statistics = await dataSource.GetDashboardMetricsAsync(
                     target,
-                    filter,
+                    productionFilter,
                     cancellationToken);
                 var orders = await orderReportDataSource.GetDashboardMetricsAsync(
                     target,
-                    filter.FromInclusive,
-                    filter.ToExclusive,
+                    orderFilter.FromInclusive,
+                    orderFilter.ToExclusive,
                     cancellationToken);
                 return new DashboardKpiQueryAttempt(
                     branch,
@@ -335,23 +342,11 @@ public sealed class DashboardService(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
-    private static IEnumerable<string> CreateScopedSalesEmployeeKeys(
-        DashboardBranchResult result)
-    {
-        var scopeKey = result.Branch.CompanyId.HasValue
-            ? $"company:{result.Branch.CompanyId.Value}"
-            : $"branch:{result.Branch.Id}";
-        return result.Data.SalesEmployeeKeys.Select(key => $"{scopeKey}:{key}");
-    }
-
-    private static IEnumerable<string> CreateScopedSalesEmployeeKeys(
-        DashboardKpiBranchResult result)
-    {
-        var scopeKey = result.Branch.CompanyId.HasValue
-            ? $"company:{result.Branch.CompanyId.Value}"
-            : $"branch:{result.Branch.Id}";
-        return result.Data.Orders.SalesEmployeeKeys.Select(key => $"{scopeKey}:{key}");
-    }
+    private static int WebDistinctCount(IEnumerable<string> values) =>
+        values
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
 
     private static StationDatabaseTarget CreateTarget(AuthorizedBranch branch) =>
         new(branch.Id, branch.DatabaseName, branch.TypeTram);
