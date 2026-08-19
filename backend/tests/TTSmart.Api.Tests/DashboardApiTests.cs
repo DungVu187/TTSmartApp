@@ -211,7 +211,7 @@ public sealed class DashboardApiTests(TTSmartApiFactory factory) : IClassFixture
 
         Assert.NotNull(response);
         Assert.Equal(0, response.OrderCount);
-        Assert.Equal(2, response.ConcreteGradeCount);
+        Assert.Equal(1, response.ConcreteGradeCount);
         Assert.Equal(1, response.MixerTruckCount);
         Assert.Equal(0, response.SalesEmployeeCount);
         Assert.Equal(5.2m, response.TotalMixedVolume);

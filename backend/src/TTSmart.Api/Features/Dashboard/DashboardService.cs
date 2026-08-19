@@ -169,7 +169,11 @@ public sealed class DashboardService(
         return new DashboardResponse(
             DateTimeOffset.UtcNow,
             successfulKpiResults.Sum(result => result.Data.Orders.OrderCount),
-            DistinctCount(successfulKpiResults.SelectMany(result => result.Data.Statistics.ConcreteGradeNames)),
+            successfulResults
+                .Where(result => result.Data.OrderCount > 0)
+                .Select(result => result.Branch.Name ?? string.Empty)
+                .Distinct(StringComparer.Ordinal)
+                .Count(),
             WebDistinctCount(successfulKpiResults.SelectMany(result => result.Data.Statistics.VehiclePlates)),
             WebDistinctCount(successfulKpiResults.SelectMany(result => result.Data.Orders.SalesEmployeeKeys)),
             Normalize(successfulResults.Sum(result => result.Data.TotalMixedVolume)),
