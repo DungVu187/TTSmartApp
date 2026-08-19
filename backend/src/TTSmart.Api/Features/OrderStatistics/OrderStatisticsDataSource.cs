@@ -178,7 +178,11 @@ public sealed class SqlOrderStatisticsDataSource(
         OrderStatisticsFilter filter,
         CancellationToken cancellationToken)
     {
-        var histories = CreateWebDashboardHistoryQuery(dbContext, filter);
+        var histories = dbContext.MixingHistories
+            .AsNoTracking()
+            .Where(history =>
+                history.FinishedAt >= filter.FromInclusive &&
+                history.FinishedAt <= filter.ToExclusive);
         var concreteGradeNames = await histories
             .Where(history =>
                 history.ConcreteGradeName != null && history.ConcreteGradeName != string.Empty)
