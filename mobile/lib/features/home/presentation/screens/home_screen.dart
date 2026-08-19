@@ -210,7 +210,9 @@ class _DashboardFilters extends StatelessWidget {
       showDropdownIcon: true,
     );
     final stationField = SearchableAutocompleteField<DashboardScope>(
-      key: const ValueKey<String>('dashboard-station-filter'),
+      key: ValueKey<String>(
+        'dashboard-station-filter-${selectedCompany?.companyId ?? 'all'}',
+      ),
       options: controller.stationScopes,
       selectedOption: selectedStation,
       displayStringForOption: (option) => option.label,
