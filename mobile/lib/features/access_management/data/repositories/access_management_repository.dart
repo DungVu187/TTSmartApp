@@ -110,6 +110,16 @@ class AccessManagementRepository {
     }
   }
 
+  Future<List<RoleListItemResponse>> getAssignableRoles() async {
+    final response = await _apiClient.get('/api/users/assignable-roles');
+    return _parse(
+      () => requireJsonList(
+        response,
+        'vai trò được phép gán',
+      ).map(RoleListItemResponse.fromJson).toList(growable: false),
+    );
+  }
+
   Future<RoleResponse> getRole(int id) =>
       _getModel('/api/roles/$id', RoleResponse.fromJson);
 

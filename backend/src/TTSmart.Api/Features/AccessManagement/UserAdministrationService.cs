@@ -19,6 +19,7 @@ public sealed class UserAdministrationService(
     ISystemRoleEvaluator systemRoleEvaluator,
     Microsoft.Extensions.Options.IOptions<UserAccountStatusOptions>? userAccountStatusOptions = null) : IUserAdministrationService
 {
+    private const string ResetPasswordValue = "123456";
     private const string UserAccountStatusChangesDisabledMessage =
         "Tính năng khóa/mở khóa tài khoản trên mobile đang tạm tắt. Vui lòng thực hiện trên website.";
 
@@ -78,6 +79,37 @@ public sealed class UserAdministrationService(
             ?? throw new NotFoundException("Không tìm thấy người dùng.");
         var rolesByUser = await LoadRolesByUserAsync([id], cancellationToken);
         return BuildResponse(user, rolesByUser);
+    }
+
+    public async Task<IReadOnlyList<RoleListItemResponse>> GetAssignableRolesAsync(
+        int currentUserId,
+        CancellationToken cancellationToken)
+    {
+        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var rolesQuery = dbContext.Roles.AsNoTracking()
+            .Where(role => role.Status == WebDataStatus.Active);
+        if (!scope.IsSuperAdmin)
+        {
+            rolesQuery = rolesQuery.Where(role =>
+                role.Code != SystemRoleCodes.Admin &&
+                role.Code != SystemRoleCodes.Company);
+        }
+
+        return await rolesQuery
+            .OrderBy(role => role.Name)
+            .ThenBy(role => role.RoleId)
+            .Select(role => new RoleListItemResponse(
+                role.RoleId,
+                role.Code,
+                role.Name,
+                role.Note,
+                role.LevelRole,
+                role.Status ?? WebDataStatus.Inactive,
+                true,
+                0,
+                0,
+                0))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<UserResponse> CreateAsync(
@@ -329,8 +361,7 @@ public sealed class UserAdministrationService(
         }
 
         var user = await GetTrackedUserAsync(id, scope, cancellationToken);
-        PasswordPolicy.Validate(request.NewPassword);
-        user.Password = passwordService.HashForStorage(user, request.NewPassword);
+        user.Password = passwordService.HashForStorage(user, ResetPasswordValue);
         var now = VietnamTime.Now;
         user.TokenSince = user.TokenSince.HasValue && user.TokenSince.Value >= now
             ? user.TokenSince.Value.AddSeconds(1)

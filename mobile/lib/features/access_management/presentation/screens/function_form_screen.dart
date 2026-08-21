@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../data/models/function_models.dart';
@@ -71,6 +72,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
       _error = null;
     });
     try {
+      final appController = AppScope.read(context);
       final fields = FunctionFieldsRequest(
         parentFunctionId: _parentFunctionId,
         code: _codeController.text.trim(),
@@ -104,7 +106,12 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                 icon: fields.icon,
               ),
             );
-      if (mounted) Navigator.pop(context, response);
+      if (mounted) {
+        // Function metadata (name, location, status and tree) is also the
+        // source for the shell menu, so refresh the session before returning.
+        await appController.refreshCurrentSession();
+        if (mounted) Navigator.pop(context, response);
+      }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {

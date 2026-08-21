@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/app_scope.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../../core/widgets/password_field.dart';
+import '../../../company_management/data/models/company_models.dart';
+import '../../../company_management/data/repositories/company_repository.dart';
+import '../../../company_management/presentation/widgets/company_autocomplete_field.dart';
+import '../../../station_management/data/models/station_models.dart';
+import '../../../station_management/data/repositories/station_repository.dart';
 import '../../data/models/role_models.dart';
 import '../../data/models/user_models.dart';
 import '../controllers/users_controller.dart';
@@ -12,10 +18,14 @@ class UserFormScreen extends StatefulWidget {
   const UserFormScreen({
     super.key,
     required this.controller,
+    required this.companyRepository,
+    required this.stationRepository,
     this.existingUser,
   });
 
   final UsersController controller;
+  final CompanyRepository companyRepository;
+  final StationRepository stationRepository;
   final UserResponse? existingUser;
 
   bool get isEditing => existingUser != null;
@@ -32,14 +42,17 @@ class _UserFormScreenState extends State<UserFormScreen> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
-  late final TextEditingController _companyIdController;
   late final TextEditingController _departmentIdController;
   late final TextEditingController _positionIdController;
   late final TextEditingController _unitIdController;
-  late final TextEditingController _branchIdController;
   late final TextEditingController _passwordController;
   late final Future<List<RoleListItemResponse>> _rolesFuture;
+  late final Future<List<CompanyResponse>> _companiesFuture;
   final Set<int> _selectedRoleIds = <int>{};
+  final Set<int> _selectedBranchIds = <int>{};
+  Future<List<StationListItem>>? _stationsFuture;
+  late final bool _canSelectCompany;
+  int? _companyId;
   ApiException? _error;
   bool _submitting = false;
 
@@ -53,9 +66,6 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _addressController = TextEditingController(text: user?.address ?? '');
-    _companyIdController = TextEditingController(
-      text: user?.companyId?.toString() ?? '',
-    );
     _departmentIdController = TextEditingController(
       text: user?.departmentId?.toString() ?? '',
     );
@@ -65,10 +75,19 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _unitIdController = TextEditingController(
       text: user?.unitId?.toString() ?? '',
     );
-    _branchIdController = TextEditingController(text: user?.branchId ?? '');
     _passwordController = TextEditingController();
     _selectedRoleIds.addAll(user?.roles.map((role) => role.id) ?? const []);
+    final app = AppScope.read(context);
+    _canSelectCompany = app.hasRole('ADMIN');
+    _companyId =
+        user?.companyId ??
+        (_canSelectCompany ? null : app.session?.user.companyId);
+    _selectedBranchIds.addAll(_parseBranchIds(user?.branchId));
     _rolesFuture = widget.controller.getAvailableRoles();
+    _companiesFuture = _canSelectCompany
+        ? _loadCompanies()
+        : Future.value(const <CompanyResponse>[]);
+    _stationsFuture = _loadStations(_companyId);
   }
 
   @override
@@ -79,13 +98,255 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
-    _companyIdController.dispose();
     _departmentIdController.dispose();
     _positionIdController.dispose();
     _unitIdController.dispose();
-    _branchIdController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<List<CompanyResponse>> _loadCompanies() async {
+    final result = <CompanyResponse>[];
+    var pageNumber = 1;
+    var totalPages = 1;
+    do {
+      final page = await widget.companyRepository.getCompanies(
+        pageNumber: pageNumber,
+        pageSize: 100,
+        status: CompanyDataStatus.active,
+      );
+      result.addAll(page.items);
+      totalPages = page.totalPages;
+      pageNumber++;
+    } while (pageNumber <= totalPages);
+    return result;
+  }
+
+  Future<List<StationListItem>> _loadStations(int? companyId) async {
+    if (companyId == null) return const <StationListItem>[];
+    final result = <StationListItem>[];
+    var pageNumber = 1;
+    var totalPages = 1;
+    do {
+      final page = await widget.stationRepository.getStations(
+        pageNumber: pageNumber,
+        pageSize: 100,
+        companyId: companyId,
+        status: StationDataStatus.active,
+      );
+      result.addAll(page.items);
+      totalPages = page.totalPages;
+      pageNumber++;
+    } while (pageNumber <= totalPages);
+    return result;
+  }
+
+  void _selectCompany(CompanyResponse company) {
+    setState(() {
+      if (_companyId != company.id) _selectedBranchIds.clear();
+      _companyId = company.id;
+      _stationsFuture = _loadStations(company.id);
+    });
+  }
+
+  void _clearCompany() {
+    setState(() {
+      _companyId = null;
+      _selectedBranchIds.clear();
+      _stationsFuture = _loadStations(null);
+    });
+  }
+
+  Future<void> _pickStations(List<StationListItem> stations) async {
+    final selected = Set<int>.from(_selectedBranchIds);
+    final result = await showModalBottomSheet<Set<int>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * .76,
+            child: Column(
+              children: [
+                const ListTile(
+                  leading: Icon(Icons.factory_outlined),
+                  title: Text('Chọn trạm'),
+                  subtitle: Text('Có thể chọn nhiều trạm thuộc công ty.'),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: stations.isEmpty
+                      ? const Center(
+                          child: Text('Công ty chưa có trạm hiệu lực.'),
+                        )
+                      : ListView.builder(
+                          itemCount: stations.length,
+                          itemBuilder: (context, index) {
+                            final station = stations[index];
+                            return CheckboxListTile(
+                              value: selected.contains(station.id),
+                              title: Text(station.displayName),
+                              subtitle: Text(station.type?.label ?? 'Trạm'),
+                              onChanged: (checked) => setModalState(() {
+                                if (checked == true) {
+                                  selected.add(station.id);
+                                } else {
+                                  selected.remove(station.id);
+                                }
+                              }),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, selected),
+                      child: const Text('Xong'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _selectedBranchIds
+          ..clear()
+          ..addAll(result);
+      });
+    }
+  }
+
+  List<int> _parseBranchIds(String? value) => (value ?? '')
+      .split(',')
+      .map(int.tryParse)
+      .whereType<int>()
+      .where((id) => id > 0)
+      .toSet()
+      .toList(growable: false);
+
+  String? _branchIdValue() =>
+      _selectedBranchIds.isEmpty ? null : _selectedBranchIds.join(',');
+
+  Widget _buildOrganizationScope() {
+    return FutureBuilder<List<CompanyResponse>>(
+      future: _companiesFuture,
+      builder: (context, companySnapshot) {
+        final companies = companySnapshot.data ?? const <CompanyResponse>[];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_canSelectCompany) ...[
+              CompanyAutocompleteField(
+                companies: companies,
+                selectedCompanyId: _companyId,
+                onSelected: _selectCompany,
+                onCleared: _clearCompany,
+                enabled:
+                    !_submitting &&
+                    !companySnapshot.hasError &&
+                    companySnapshot.connectionState != ConnectionState.waiting,
+                hintText: 'Chọn công ty',
+                labelText: 'Công ty',
+                errorText: _error?.fieldMessage('companyId'),
+              ),
+              if (companySnapshot.connectionState == ConnectionState.waiting)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: LinearProgressIndicator(),
+                ),
+              if (companySnapshot.hasError)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('Không thể tải danh sách công ty.'),
+                ),
+              const SizedBox(height: 14),
+            ],
+            FutureBuilder<List<StationListItem>>(
+              future: _stationsFuture,
+              builder: (context, stationSnapshot) {
+                final stations =
+                    stationSnapshot.data ?? const <StationListItem>[];
+                final stationById = {
+                  for (final station in stations) station.id: station,
+                };
+                final staleIds = _selectedBranchIds
+                    .where((id) => !stationById.containsKey(id))
+                    .toList(growable: false);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InkWell(
+                      onTap: _companyId == null || stationSnapshot.hasError
+                          ? null
+                          : () => _pickStations(stations),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Trạm trộn / trạm cân',
+                          prefixIcon: const Icon(Icons.factory_outlined),
+                          suffixIcon: const Icon(Icons.arrow_drop_down),
+                          errorText: _error?.fieldMessage('branchId'),
+                        ),
+                        child: Text(
+                          _selectedBranchIds.isEmpty
+                              ? _companyId == null
+                                    ? 'Chọn công ty trước'
+                                    : 'Chọn một hoặc nhiều trạm'
+                              : 'Đã chọn ${_selectedBranchIds.length} trạm',
+                          style: TextStyle(
+                            color: _companyId == null
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (stationSnapshot.connectionState ==
+                        ConnectionState.waiting)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: LinearProgressIndicator(),
+                      ),
+                    if (staleIds.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Có trạm cũ không thuộc công ty hiện tại. Hãy gỡ trước khi lưu.',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
+                    if (_selectedBranchIds.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final id in _selectedBranchIds)
+                            InputChip(
+                              label: Text(
+                                stationById[id]?.displayName ??
+                                    'Trạm #$id (không hợp lệ)',
+                              ),
+                              onDeleted: () =>
+                                  setState(() => _selectedBranchIds.remove(id)),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _pickRoles(List<RoleListItemResponse> roles) async {
@@ -178,11 +439,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 unitId: _nullableInt(_unitIdController.text),
                 positionId: _nullableInt(_positionIdController.text),
                 departmentId: _nullableInt(_departmentIdController.text),
-                companyId: _nullableInt(_companyIdController.text),
+                companyId: _companyId,
                 roleMax: existing.roleMax,
                 roleLevel: existing.roleLevel,
                 isRoleGroup: existing.isRoleGroup,
-                branchId: _emptyToNull(_branchIdController.text),
+                branchId: _branchIdValue(),
               ),
             )
           : await widget.controller.create(
@@ -198,8 +459,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 unitId: _nullableInt(_unitIdController.text),
                 positionId: _nullableInt(_positionIdController.text),
                 departmentId: _nullableInt(_departmentIdController.text),
-                companyId: _nullableInt(_companyIdController.text),
-                branchId: _emptyToNull(_branchIdController.text),
+                companyId: _companyId,
+                branchId: _branchIdValue(),
               ),
             );
       if (mounted) Navigator.pop(context, response);
@@ -214,9 +475,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.isEditing ? 'Cập nhật người dùng' : 'Tạo người dùng',
-        ),
+        title: Text(widget.isEditing ? 'Sửa người dùng' : 'Thêm người dùng'),
       ),
       body: SafeArea(
         child: Form(
@@ -243,25 +502,20 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             TextFormField(
                               controller: _userNameController,
                               maxLength: 100,
-                              textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Tên đăng nhập *',
                                 counterText: '',
                                 errorText: _error?.fieldMessage('userName'),
                               ),
-                              validator: (value) {
-                                final text = value?.trim() ?? '';
-                                if (text.isEmpty) {
-                                  return 'Tên đăng nhập là bắt buộc.';
-                                }
-                                return null;
-                              },
+                              validator: (value) =>
+                                  value?.trim().isEmpty != false
+                                  ? 'Tên đăng nhập là bắt buộc.'
+                                  : null,
                             ),
                             const SizedBox(height: 14),
                             TextFormField(
                               controller: _fullNameController,
                               maxLength: 200,
-                              textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Họ tên',
                                 counterText: '',
@@ -272,7 +526,6 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             TextFormField(
                               controller: _codeController,
                               maxLength: 100,
-                              textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Mã người dùng',
                                 counterText: '',
@@ -284,15 +537,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
                               PasswordField(
                                 controller: _passwordController,
                                 label: 'Mật khẩu *',
-                                textInputAction: TextInputAction.next,
                                 errorText: _error?.fieldMessage('password'),
-                                validator: (value) {
-                                  final length = value?.length ?? 0;
-                                  if (length < 6 || length > 200) {
-                                    return 'Mật khẩu phải có từ 6 đến 200 ký tự.';
-                                  }
-                                  return null;
-                                },
+                                validator: (value) =>
+                                    value == null || value.length < 4
+                                    ? 'Mật khẩu phải có từ 4 đến 200 ký tự.'
+                                    : null,
                               ),
                             ],
                           ],
@@ -310,8 +559,6 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             TextFormField(
                               controller: _emailController,
                               maxLength: 50,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Email',
                                 counterText: '',
@@ -322,8 +569,6 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             TextFormField(
                               controller: _phoneController,
                               maxLength: 50,
-                              keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Số điện thoại',
                                 counterText: '',
@@ -351,65 +596,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       icon: Icons.apartment_outlined,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _IdField(
-                                    controller: _companyIdController,
-                                    label: 'Company ID',
-                                    errorText: _error?.fieldMessage(
-                                      'companyId',
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _IdField(
-                                    controller: _departmentIdController,
-                                    label: 'Department ID',
-                                    errorText: _error?.fieldMessage(
-                                      'departmentId',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _IdField(
-                                    controller: _positionIdController,
-                                    label: 'Position ID',
-                                    errorText: _error?.fieldMessage(
-                                      'positionId',
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _IdField(
-                                    controller: _unitIdController,
-                                    label: 'Unit ID',
-                                    errorText: _error?.fieldMessage('unitId'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _branchIdController,
-                              maxLength: 1000,
-                              decoration: InputDecoration(
-                                labelText: 'Phạm vi chi nhánh',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('branchId'),
-                              ),
-                            ),
-                          ],
-                        ),
+                        child: _buildOrganizationScope(),
                       ),
                     ),
                     if (!widget.isEditing) ...[
@@ -419,36 +606,31 @@ class _UserFormScreenState extends State<UserFormScreen> {
                         icon: Icons.badge_outlined,
                         child: FutureBuilder<List<RoleListItemResponse>>(
                           future: _rolesFuture,
-                          builder: (context, snapshot) {
-                            return ListTile(
-                              minVerticalPadding: 14,
-                              title: Text(
-                                _selectedRoleIds.isEmpty
-                                    ? 'Chưa chọn vai trò'
-                                    : 'Đã chọn ${_selectedRoleIds.length} vai trò',
-                              ),
-                              subtitle: snapshot.hasError
-                                  ? const Text(
-                                      'Không thể tải danh sách vai trò.',
-                                    )
-                                  : const Text(
-                                      'Vai trò được gửi bằng ID số nguyên.',
+                          builder: (context, snapshot) => ListTile(
+                            title: Text(
+                              _selectedRoleIds.isEmpty
+                                  ? 'Chưa chọn vai trò'
+                                  : 'Đã chọn ${_selectedRoleIds.length} vai trò',
+                            ),
+                            subtitle: Text(
+                              snapshot.hasError
+                                  ? 'Không thể tải danh sách vai trò.'
+                                  : 'Vai trò được gửi bằng ID số nguyên.',
+                            ),
+                            trailing:
+                                snapshot.connectionState ==
+                                    ConnectionState.waiting
+                                ? const SizedBox.square(
+                                    dimension: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
-                              trailing:
-                                  snapshot.connectionState ==
-                                      ConnectionState.waiting
-                                  ? const SizedBox.square(
-                                      dimension: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.chevron_right),
-                              onTap: snapshot.hasData
-                                  ? () => _pickRoles(snapshot.data!)
-                                  : null,
-                            );
-                          },
+                                  )
+                                : const Icon(Icons.chevron_right),
+                            onTap: snapshot.hasData
+                                ? () => _pickRoles(snapshot.data!)
+                                : null,
+                          ),
                         ),
                       ),
                     ],
@@ -488,33 +670,5 @@ class _UserFormScreenState extends State<UserFormScreen> {
   int? _nullableInt(String value) {
     final normalized = value.trim();
     return normalized.isEmpty ? null : int.parse(normalized);
-  }
-}
-
-class _IdField extends StatelessWidget {
-  const _IdField({
-    required this.controller,
-    required this.label,
-    required this.errorText,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final String? errorText;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label, errorText: errorText),
-      validator: (value) {
-        final text = value?.trim() ?? '';
-        if (text.isNotEmpty && int.tryParse(text) == null) {
-          return 'ID phải là số nguyên.';
-        }
-        return null;
-      },
-    );
   }
 }

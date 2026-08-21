@@ -73,7 +73,7 @@ public sealed class CreateBranchRequest
     public string Username { get; init; } = string.Empty;
 
     [Required(ErrorMessage = "Mật khẩu là bắt buộc.")]
-    [StringLength(1000, MinimumLength = 8, ErrorMessage = "Mật khẩu phải có từ 8 đến 1000 ký tự.")]
+    [StringLength(1000, MinimumLength = 4, ErrorMessage = "Mật khẩu phải có từ 4 đến 1000 ký tự.")]
     public string Password { get; init; } = string.Empty;
 
     [StringLength(1000, ErrorMessage = "Phần mềm quản lý xe không được vượt quá 1000 ký tự.")]

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app_dependencies.dart';
 import '../../../core/app_scope.dart';
 import '../../company_management/data/repositories/company_repository.dart';
 import '../../company_management/presentation/screens/companies_screen.dart';
@@ -12,6 +13,7 @@ import '../../station_management/presentation/screens/stations_screen.dart';
 import '../../weigh_station_management/data/repositories/weigh_station_repository.dart';
 import '../../weigh_station_management/presentation/screens/weigh_station_screen.dart';
 import '../../access_management/data/models/permission_models.dart';
+import '../../auth/data/models/auth_models.dart';
 import '../../access_management/presentation/screens/functions_screen.dart';
 import '../../access_management/presentation/screens/roles_screen.dart';
 import '../../access_management/presentation/screens/users_screen.dart';
@@ -26,6 +28,7 @@ class AccessModule {
     required this.description,
     required this.icon,
     required this.builder,
+    this.location,
   });
 
   final String keyName;
@@ -33,10 +36,21 @@ class AccessModule {
   final String label;
   final String description;
   final IconData icon;
-  final WidgetBuilder builder;
+  final Widget Function(BuildContext, AppFeatureRepositories) builder;
+  final int? location;
 
   bool canOpen(AppController controller) =>
       controller.hasPermission(functionCode, AccessPermission.dSach);
+
+  AccessModule withFunction(GrantedFunction function) => AccessModule(
+    keyName: keyName,
+    functionCode: functionCode,
+    label: _functionLabel(function, label),
+    description: description,
+    icon: _functionIcon(function, icon),
+    builder: builder,
+    location: function.location ?? location,
+  );
 }
 
 final accessModules = <AccessModule>[
@@ -46,7 +60,10 @@ final accessModules = <AccessModule>[
     label: 'Người dùng',
     description: 'Quản lý tài khoản và trạng thái sử dụng ứng dụng.',
     icon: Icons.people_alt_outlined,
-    builder: (_) => const UsersScreen(),
+    builder: (_, repositories) => UsersScreen(
+      companyRepository: repositories.companies,
+      stationRepository: repositories.stations,
+    ),
   ),
   AccessModule(
     keyName: 'roles',
@@ -54,7 +71,7 @@ final accessModules = <AccessModule>[
     label: 'Phân quyền',
     description: 'Thiết lập vai trò và quyền sử dụng từng chức năng.',
     icon: Icons.admin_panel_settings_outlined,
-    builder: (_) => const RolesScreen(),
+    builder: (_, _) => const RolesScreen(),
   ),
   AccessModule(
     keyName: 'functions',
@@ -62,14 +79,32 @@ final accessModules = <AccessModule>[
     label: 'Chức năng',
     description: 'Quản lý danh mục chức năng được sử dụng trong hệ thống.',
     icon: Icons.account_tree_outlined,
-    builder: (_) => const FunctionsScreen(),
+    builder: (_, _) => const FunctionsScreen(),
   ),
 ];
 
-List<AccessModule> visibleAccessModules(AppController controller) =>
-    accessModules.where((module) => module.canOpen(controller)).toList();
+List<AccessModule> visibleAccessModules(AppController controller) {
+  if (!_hasDynamicFunctions(controller)) {
+    return accessModules.where((module) => module.canOpen(controller)).toList();
+  }
+  final byCode = _functionsByCode(controller);
+  final modules = accessModules
+      .map((module) {
+        final function = byCode[module.functionCode.toUpperCase()];
+        return function == null ? null : module.withFunction(function);
+      })
+      .whereType<AccessModule>()
+      .where((module) => module.canOpen(controller))
+      .toList();
+  _sortByLocation(modules);
+  return modules;
+}
 
-Future<void> openAccessModule(BuildContext context, AccessModule module) async {
+Future<void> openAccessModule(
+  BuildContext context,
+  AccessModule module,
+  AppFeatureRepositories repositories,
+) async {
   final controller = AppScope.read(context);
   if (!module.canOpen(controller)) {
     await Navigator.of(
@@ -77,7 +112,11 @@ Future<void> openAccessModule(BuildContext context, AccessModule module) async {
     ).push(MaterialPageRoute(builder: (_) => const NoAccessScreen()));
     return;
   }
-  await Navigator.of(context).push(MaterialPageRoute(builder: module.builder));
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => module.builder(context, repositories),
+    ),
+  );
 }
 
 class OrganizationModule {
@@ -87,6 +126,7 @@ class OrganizationModule {
     required this.label,
     required this.description,
     required this.icon,
+    this.location,
   });
 
   final String keyName;
@@ -94,9 +134,20 @@ class OrganizationModule {
   final String label;
   final String description;
   final IconData icon;
+  final int? location;
 
   bool canOpen(AppController controller) =>
       controller.hasPermission(functionCode, AccessPermission.dSach);
+
+  OrganizationModule withFunction(GrantedFunction function) =>
+      OrganizationModule(
+        keyName: keyName,
+        functionCode: functionCode,
+        label: _functionLabel(function, label),
+        description: description,
+        icon: _functionIcon(function, icon),
+        location: function.location ?? location,
+      );
 }
 
 const organizationModules = <OrganizationModule>[
@@ -116,6 +167,7 @@ class StationModule {
     required this.label,
     required this.description,
     required this.icon,
+    this.location,
   });
 
   final String keyName;
@@ -123,10 +175,20 @@ class StationModule {
   final String label;
   final String description;
   final IconData icon;
+  final int? location;
 
   bool canOpen(AppController controller) =>
       controller.hasRole('ADMIN') ||
       controller.hasPermission(functionCode, AccessPermission.dSach);
+
+  StationModule withFunction(GrantedFunction function) => StationModule(
+    keyName: keyName,
+    functionCode: functionCode,
+    label: _functionLabel(function, label),
+    description: description,
+    icon: _functionIcon(function, icon),
+    location: function.location ?? location,
+  );
 }
 
 const stationModules = <StationModule>[
@@ -147,6 +209,7 @@ class OperationalModule {
     required this.description,
     required this.icon,
     this.permission = AccessPermission.dSach,
+    this.location,
   });
 
   final String keyName;
@@ -155,9 +218,20 @@ class OperationalModule {
   final String description;
   final IconData icon;
   final AccessPermission permission;
+  final int? location;
 
   bool canOpen(AppController controller) =>
       controller.hasPermission(functionCode, permission);
+
+  OperationalModule withFunction(GrantedFunction function) => OperationalModule(
+    keyName: keyName,
+    functionCode: functionCode,
+    label: _functionLabel(function, label),
+    description: description,
+    icon: _functionIcon(function, icon),
+    permission: permission,
+    location: function.location ?? location,
+  );
 }
 
 const operationalModules = <OperationalModule>[
@@ -227,11 +301,98 @@ Future<void> openMaterialReportModule(
   );
 }
 
-List<OperationalModule> visibleOperationalModules(AppController controller) =>
-    operationalModules.where((module) => module.canOpen(controller)).toList();
+List<OperationalModule> visibleOperationalModules(AppController controller) {
+  if (!_hasDynamicFunctions(controller)) {
+    return operationalModules
+        .where((module) => module.canOpen(controller))
+        .toList();
+  }
+  final byCode = _functionsByCode(controller);
+  final modules = operationalModules
+      .map((module) {
+        final function = byCode[module.functionCode.toUpperCase()];
+        return function == null ? null : module.withFunction(function);
+      })
+      .whereType<OperationalModule>()
+      .where((module) => module.canOpen(controller))
+      .toList();
+  _sortByLocation(modules);
+  return modules;
+}
 
-List<StationModule> visibleStationModules(AppController controller) =>
-    stationModules.where((module) => module.canOpen(controller)).toList();
+List<StationModule> visibleStationModules(AppController controller) {
+  if (!_hasDynamicFunctions(controller)) {
+    return stationModules
+        .where((module) => module.canOpen(controller))
+        .toList();
+  }
+  final byCode = _functionsByCode(controller);
+  final modules = stationModules
+      .map((module) {
+        final function = byCode[module.functionCode.toUpperCase()];
+        if (function == null && controller.hasRole('ADMIN')) return module;
+        return function == null ? null : module.withFunction(function);
+      })
+      .whereType<StationModule>()
+      .where((module) => module.canOpen(controller))
+      .toList();
+  _sortByLocation(modules);
+  return modules;
+}
+
+Map<String, GrantedFunction> _functionsByCode(AppController controller) => {
+  for (final function
+      in controller.session?.functions ?? const <GrantedFunction>[])
+    function.code.toUpperCase(): function,
+};
+
+bool _hasDynamicFunctions(AppController controller) =>
+    controller.session?.functions.isNotEmpty ?? false;
+
+void _sortByLocation<T>(List<T> modules) {
+  int? locationOf(T module) => switch (module) {
+    AccessModule value => value.location,
+    OrganizationModule value => value.location,
+    StationModule value => value.location,
+    OperationalModule value => value.location,
+    _ => null,
+  };
+  modules.sort(
+    (left, right) =>
+        (locationOf(left) ?? 1 << 30).compareTo(locationOf(right) ?? 1 << 30),
+  );
+}
+
+String _functionLabel(GrantedFunction function, String fallback) {
+  final name = function.name.trim();
+  return name.isEmpty ? fallback : name;
+}
+
+IconData _functionIcon(GrantedFunction function, IconData fallback) {
+  final icon = function.icon?.toLowerCase() ?? '';
+  if (icon.contains('user') || icon.contains('people')) {
+    return Icons.people_alt_outlined;
+  }
+  if (icon.contains('role') || icon.contains('admin')) {
+    return Icons.admin_panel_settings_outlined;
+  }
+  if (icon.contains('function') || icon.contains('setting')) {
+    return Icons.settings_outlined;
+  }
+  if (icon.contains('company') || icon.contains('building')) {
+    return Icons.apartment_outlined;
+  }
+  if (icon.contains('branch') || icon.contains('factory')) {
+    return Icons.factory_outlined;
+  }
+  if (icon.contains('scale') || icon.contains('weigh')) {
+    return Icons.scale_outlined;
+  }
+  if (icon.contains('order') || icon.contains('receipt')) {
+    return Icons.receipt_long_outlined;
+  }
+  return fallback;
+}
 
 Future<void> openStationModule(
   BuildContext context,
@@ -308,8 +469,24 @@ Future<void> openWeighStationModule(
   );
 }
 
-List<OrganizationModule> visibleOrganizationModules(AppController controller) =>
-    organizationModules.where((module) => module.canOpen(controller)).toList();
+List<OrganizationModule> visibleOrganizationModules(AppController controller) {
+  if (!_hasDynamicFunctions(controller)) {
+    return organizationModules
+        .where((module) => module.canOpen(controller))
+        .toList();
+  }
+  final byCode = _functionsByCode(controller);
+  final modules = organizationModules
+      .map((module) {
+        final function = byCode[module.functionCode.toUpperCase()];
+        return function == null ? null : module.withFunction(function);
+      })
+      .whereType<OrganizationModule>()
+      .where((module) => module.canOpen(controller))
+      .toList();
+  _sortByLocation(modules);
+  return modules;
+}
 
 Future<void> openOrganizationModule(
   BuildContext context,

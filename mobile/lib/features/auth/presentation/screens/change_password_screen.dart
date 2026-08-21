@@ -89,8 +89,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   textInputAction: TextInputAction.next,
                   errorText: _error?.fieldMessage('newPassword'),
                   validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return 'Mật khẩu mới phải có ít nhất 6 ký tự.';
+                    if (value == null || value.length < 4) {
+                      return 'Mật khẩu mới phải có ít nhất 4 ký tự.';
                     }
                     if (value.length > 200) {
                       return 'Mật khẩu mới không được vượt quá 200 ký tự.';

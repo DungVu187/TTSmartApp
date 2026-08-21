@@ -20,7 +20,7 @@ public sealed class ChangePasswordRequest
     public string CurrentPassword { get; init; } = string.Empty;
 
     [Required(ErrorMessage = "Mật khẩu mới là bắt buộc.")]
-    [StringLength(200, MinimumLength = 8, ErrorMessage = "Mật khẩu mới phải có từ 8 đến 200 ký tự.")]
+    [StringLength(200, MinimumLength = 4, ErrorMessage = "Mật khẩu mới phải có từ 4 đến 200 ký tự.")]
     public string NewPassword { get; init; } = string.Empty;
 }
 

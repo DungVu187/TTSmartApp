@@ -23,6 +23,7 @@ class AppController extends ChangeNotifier {
     required this.tokenStorage,
   }) {
     apiClient.onUnauthorized = _handleUnauthorized;
+    apiClient.onForbidden = _handleForbidden;
   }
 
   final ApiClient apiClient;
@@ -37,6 +38,7 @@ class AppController extends ChangeNotifier {
   String? _notice;
   bool _isLoginSubmitting = false;
   bool _isLoggingOut = false;
+  Future<void>? _permissionRefresh;
 
   SessionStatus get status => _status;
   CurrentSession? get session => _session;
@@ -129,6 +131,13 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Refreshes menu and permission data without surfacing a background error.
+  /// Used when returning to the app or when a protected request is rejected.
+  Future<void> refreshCurrentSessionSilently() {
+    if (_status != SessionStatus.authenticated) return Future<void>.value();
+    return _permissionRefresh ??= _refreshCurrentSessionSilently();
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -191,6 +200,20 @@ class AppController extends ChangeNotifier {
     _notice = 'Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.';
     _status = SessionStatus.unauthenticated;
     notifyListeners();
+  }
+
+  Future<void> _handleForbidden() => refreshCurrentSessionSilently();
+
+  Future<void> _refreshCurrentSessionSilently() async {
+    try {
+      await refreshCurrentSession();
+    } on ApiException {
+      // The rejected request already displays its own permission/error state.
+    } catch (_) {
+      // Keep the last verified session until a later foreground refresh succeeds.
+    } finally {
+      _permissionRefresh = null;
+    }
   }
 
   Future<void> _clearSessionStorage() async {

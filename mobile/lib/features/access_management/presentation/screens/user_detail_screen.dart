@@ -5,12 +5,13 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
+import '../../../company_management/data/repositories/company_repository.dart';
+import '../../../station_management/data/repositories/station_repository.dart';
 import '../../data/models/permission_models.dart';
 import '../../data/models/user_models.dart';
 import '../controllers/users_controller.dart';
 import '../widgets/access_layout.dart';
 import '../widgets/access_status_chip.dart';
-import 'reset_password_dialog.dart';
 import 'user_form_screen.dart';
 import 'user_roles_screen.dart';
 
@@ -19,10 +20,14 @@ class UserDetailScreen extends StatefulWidget {
     super.key,
     required this.userId,
     required this.controller,
+    required this.companyRepository,
+    required this.stationRepository,
   });
 
   final int userId;
   final UsersController controller;
+  final CompanyRepository companyRepository;
+  final StationRepository stationRepository;
 
   @override
   State<UserDetailScreen> createState() => _UserDetailScreenState();
@@ -53,8 +58,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   Future<void> _edit(UserResponse user) async {
     final updated = await Navigator.of(context).push<UserResponse>(
       MaterialPageRoute(
-        builder: (_) =>
-            UserFormScreen(controller: widget.controller, existingUser: user),
+        builder: (_) => UserFormScreen(
+          controller: widget.controller,
+          companyRepository: widget.companyRepository,
+          stationRepository: widget.stationRepository,
+          existingUser: user,
+        ),
       ),
     );
     if (updated != null && mounted) _setUser(updated);
@@ -122,7 +131,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Đặt lại mật khẩu?'),
-        content: Text('Tạo mật khẩu mới cho ${user.displayName}.'),
+        content: Text(
+          'Mật khẩu của ${user.displayName} sẽ được đặt lại về 123456.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -130,19 +141,22 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Tiếp tục'),
+            child: const Text('Đặt lại'),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
-    final changed = await showDialog<bool>(
-      context: context,
-      builder: (_) =>
-          ResetPasswordDialog(controller: widget.controller, userId: user.id),
-    );
-    if (changed == true && mounted) {
-      _showMessage('Đã đặt lại mật khẩu.');
+    setState(() => _busy = true);
+    try {
+      await widget.controller.resetPassword(user.id);
+      if (mounted) {
+        _showMessage('Đã đặt lại mật khẩu về 123456.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 

@@ -40,74 +40,68 @@ class MoreScreen extends StatelessWidget {
     final weighStationModules = operationalModules
         .where((module) => module.keyName == 'weigh-stations')
         .toList(growable: false);
-    final actions = <_MoreAction>[];
-
-    actions.addAll(
-      mixDesignModules.map(
-        (module) => _MoreAction(
-          label: module.label,
-          icon: module.icon,
-          onTap: () => openMixDesignModule(
-            context,
-            module,
-            mixDesignRepository,
-            companyRepository,
-          ),
-        ),
-      ),
-    );
-    actions.addAll(
-      weighStationModules.map(
-        (module) => _MoreAction(
-          label: module.label,
-          icon: module.icon,
-          onTap: () => openWeighStationModule(
-            context,
-            module,
-            weighStationRepository,
-            companyRepository,
-          ),
-        ),
-      ),
-    );
-    actions.addAll(
-      materialReportModules.map(
-        (module) => _MoreAction(
-          label: module.label,
-          icon: module.icon,
-          onTap: () => openMaterialReportModule(
-            context,
-            module,
-            materialReportRepository,
-            companyRepository,
-          ),
-        ),
-      ),
-    );
-    actions.addAll(
-      stationModules.map(
-        (module) => _MoreAction(
-          label: module.label,
-          icon: module.icon,
-          onTap: () => openStationModule(
-            context,
-            module,
-            stationRepository,
-            companyRepository,
-          ),
-        ),
-      ),
-    );
-    actions.addAll(
-      organizationModules.map(
-        (module) => _MoreAction(
-          label: module.label,
-          icon: module.icon,
-          onTap: () =>
-              openOrganizationModule(context, module, companyRepository),
-        ),
-      ),
-    );
+    final actions =
+        <_MoreAction>[
+          for (final module in mixDesignModules)
+            _MoreAction(
+              label: module.label,
+              icon: module.icon,
+              location: module.location,
+              onTap: () => openMixDesignModule(
+                context,
+                module,
+                mixDesignRepository,
+                companyRepository,
+              ),
+            ),
+          for (final module in weighStationModules)
+            _MoreAction(
+              label: module.label,
+              icon: module.icon,
+              location: module.location,
+              onTap: () => openWeighStationModule(
+                context,
+                module,
+                weighStationRepository,
+                companyRepository,
+              ),
+            ),
+          for (final module in materialReportModules)
+            _MoreAction(
+              label: module.label,
+              icon: module.icon,
+              location: module.location,
+              onTap: () => openMaterialReportModule(
+                context,
+                module,
+                materialReportRepository,
+                companyRepository,
+              ),
+            ),
+          for (final module in stationModules)
+            _MoreAction(
+              label: module.label,
+              icon: module.icon,
+              location: module.location,
+              onTap: () => openStationModule(
+                context,
+                module,
+                stationRepository,
+                companyRepository,
+              ),
+            ),
+          for (final module in organizationModules)
+            _MoreAction(
+              label: module.label,
+              icon: module.icon,
+              location: module.location,
+              onTap: () =>
+                  openOrganizationModule(context, module, companyRepository),
+            ),
+        ]..sort(
+          (left, right) =>
+              (left.location ?? 1 << 30).compareTo(right.location ?? 1 << 30),
+        );
     return ModulePanelGrid(
       compactColumnCount: 4,
       items: [
@@ -130,11 +124,13 @@ class _MoreAction {
     required this.label,
     required this.icon,
     required this.onTap,
+    this.location,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final int? location;
 }
 
 class _ModulePalette {

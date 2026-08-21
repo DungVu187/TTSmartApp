@@ -8,6 +8,9 @@ public interface IUserAdministrationService
         UserListQuery query,
         int currentUserId,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<RoleListItemResponse>> GetAssignableRolesAsync(
+        int currentUserId,
+        CancellationToken cancellationToken);
     Task<UserResponse> GetByIdAsync(int id, int currentUserId, CancellationToken cancellationToken);
     Task<UserResponse> CreateAsync(CreateUserRequest request, int currentUserId, CancellationToken cancellationToken);
     Task<UserResponse> UpdateAsync(int id, UpdateUserRequest request, int currentUserId, CancellationToken cancellationToken);

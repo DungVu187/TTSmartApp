@@ -20,7 +20,10 @@ class AuthRepository {
   }
 
   Future<CurrentSession> getCurrentSession() async {
-    final response = await _apiClient.get('/api/auth/me');
+    final response = await _apiClient.get(
+      '/api/auth/me',
+      notifyForbidden: false,
+    );
     return _parse(() => CurrentSession.fromJson(response));
   }
 

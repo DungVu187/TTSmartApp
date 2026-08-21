@@ -25,14 +25,28 @@ class TTsmartApp extends StatefulWidget {
   State<TTsmartApp> createState() => _TTsmartAppState();
 }
 
-class _TTsmartAppState extends State<TTsmartApp> {
+class _TTsmartAppState extends State<TTsmartApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.initializeOnStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.controller.initialize();
       });
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.refreshCurrentSessionSilently();
     }
   }
 

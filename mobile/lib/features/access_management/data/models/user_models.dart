@@ -256,11 +256,7 @@ class SetUserRolesRequest {
 }
 
 class ResetPasswordRequest {
-  const ResetPasswordRequest({required this.newPassword});
+  const ResetPasswordRequest();
 
-  final String newPassword;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'newPassword': newPassword,
-  };
+  Map<String, Object?> toJson() => const <String, Object?>{};
 }

@@ -561,14 +561,8 @@ class _StationFormScreenState extends State<StationFormScreen> {
     final normalized = value ?? '';
     if (normalized.isEmpty && widget.isEditing) return null;
     if (normalized.isEmpty) return 'Vui lòng nhập mật khẩu.';
-    if (normalized.length < 8 || normalized.length > 1000) {
-      return 'Mật khẩu phải có từ 8 đến 1000 ký tự.';
-    }
-    if (!RegExp(r'[a-z]').hasMatch(normalized) ||
-        !RegExp(r'[A-Z]').hasMatch(normalized) ||
-        !RegExp(r'[0-9]').hasMatch(normalized) ||
-        !RegExp(r'[@#$%]').hasMatch(normalized)) {
-      return 'Mật khẩu cần chữ thường, chữ hoa, số và ký tự @#\$%.';
+    if (normalized.length < 4 || normalized.length > 1000) {
+      return 'Mật khẩu phải có từ 4 đến 1000 ký tự.';
     }
     return null;
   }

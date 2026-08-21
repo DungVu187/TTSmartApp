@@ -141,12 +141,15 @@ class _AppShellState extends State<AppShell>
     final app = AppScope.of(context);
     final session = app.session!;
     final visibleOperations = visibleOperationalModules(app);
-    final canViewOrderReports = visibleOperations.any(
-      (module) => module.keyName == 'order-reports',
-    );
-    final canViewOrderStatistics = visibleOperations.any(
-      (module) => module.keyName == 'order-statistics',
-    );
+    final orderReportsModule = visibleOperations
+        .where((module) => module.keyName == 'order-reports')
+        .firstOrNull;
+    final orderStatisticsModule = visibleOperations
+        .where((module) => module.keyName == 'order-statistics')
+        .firstOrNull;
+    final canViewOrderReports = orderReportsModule != null;
+    final canViewOrderStatistics = orderStatisticsModule != null;
+    final canViewSystem = visibleAccessModules(app).isNotEmpty;
     final tabs = <_ShellTabDefinition>[
       _ShellTabDefinition(
         keyName: _ShellTabKey.home,
@@ -166,9 +169,9 @@ class _AppShellState extends State<AppShell>
       if (canViewOrderReports)
         _ShellTabDefinition(
           keyName: _ShellTabKey.orders,
-          label: 'Đơn hàng',
-          icon: Icons.receipt_long_outlined,
-          selectedIcon: Icons.receipt_long,
+          label: orderReportsModule.label,
+          icon: orderReportsModule.icon,
+          selectedIcon: orderReportsModule.icon,
           child: OrderReportsScreen(
             repository: widget.repositories.orderReports,
             companyRepository: widget.repositories.companies,
@@ -177,20 +180,21 @@ class _AppShellState extends State<AppShell>
       if (canViewOrderStatistics)
         _ShellTabDefinition(
           keyName: _ShellTabKey.statistics,
-          label: 'Thống kê',
-          icon: Icons.query_stats_outlined,
-          selectedIcon: Icons.query_stats,
+          label: orderStatisticsModule.label,
+          icon: orderStatisticsModule.icon,
+          selectedIcon: orderStatisticsModule.icon,
           child: ReportsScreen(
             repository: widget.repositories.reports,
             companyRepository: widget.repositories.companies,
           ),
         ),
-      _ShellTabDefinition(
-        keyName: _ShellTabKey.system,
-        label: 'Hệ thống',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
-      ),
+      if (canViewSystem)
+        _ShellTabDefinition(
+          keyName: _ShellTabKey.system,
+          label: 'Hệ thống',
+          icon: Icons.settings_outlined,
+          selectedIcon: Icons.settings,
+        ),
       _ShellTabDefinition(
         keyName: _ShellTabKey.more,
         label: 'Xem thêm',
@@ -256,7 +260,7 @@ class _AppShellState extends State<AppShell>
                 scrimAnimation: _panelScrimAnimation,
                 onClose: _closePanel,
                 child: panel.keyName == 'system'
-                    ? const SystemScreen()
+                    ? SystemScreen(repositories: widget.repositories)
                     : MoreScreen(
                         companyRepository: widget.repositories.companies,
                         mixDesignRepository: widget.repositories.mixDesigns,

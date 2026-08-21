@@ -227,7 +227,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey<String>('dashboard-station-filter')),
+      find.byKey(const ValueKey<String>('dashboard-station-filter-all')),
       findsOneWidget,
     );
     expect(homeRepository.dashboardCallCount, 1);
@@ -240,8 +240,18 @@ void main() {
       ),
     );
     expect(companyInput.controller?.text, isEmpty);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('dashboard-company-filter')),
+        matching: find.byType(TextFormField),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Công ty A').last);
+    await tester.pumpAndSettle();
+
     final stationInput = find.descendant(
-      of: find.byKey(const ValueKey<String>('dashboard-station-filter')),
+      of: find.byKey(const ValueKey<String>('dashboard-station-filter-1')),
       matching: find.byType(TextFormField),
     );
     await tester.tap(stationInput);
@@ -253,7 +263,7 @@ void main() {
     expect(homeRepository.lastScope?.companyId, 1);
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey<String>('dashboard-station-filter')),
+        of: find.byKey(const ValueKey<String>('dashboard-station-filter-1')),
         matching: find.text('Trạm A'),
       ),
       findsOneWidget,
@@ -291,7 +301,7 @@ void main() {
     );
     _expectPanelDesign(tester);
     _expectFourColumnGrid(tester);
-    _expectModuleTileDesign(tester, index: 0, label: 'Chức năng');
+    _expectModuleTileDesign(tester, index: 0, label: 'Người dùng');
     expect(find.text('(Trống)'), findsNothing);
     _expectNavigationColors(
       tester,

@@ -46,6 +46,32 @@ public sealed class AccessManagementServiceTests
     }
 
     [Fact]
+    public async Task ResetPassword_DatLaiMatKhauMacDinhTheoWeb()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Roles.Add(new WebRole { RoleId = 3, Code = "ROLE", Name = "Vai trÃ²", Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var passwordService = CreatePasswordService();
+        var service = CreateUserService(dbContext, passwordService);
+        var user = await service.CreateAsync(new CreateUserRequest
+        {
+            UserName = "reset-password-user",
+            Password = "password-cu",
+            RoleIds = [3]
+        }, 900, CancellationToken.None);
+
+        await service.ResetPasswordAsync(
+            user.Id,
+            900,
+            new ResetPasswordRequest(),
+            CancellationToken.None);
+
+        var updated = await dbContext.Users.SingleAsync(item => item.UserId == user.Id);
+        Assert.True(passwordService.Verify(updated, "123456"));
+        Assert.NotNull(updated.TokenSince);
+    }
+
+    [Fact]
     public async Task RoleMatrix_Validate9BitVaCapNhatFunctionRole()
     {
         await using var dbContext = CreateDbContext();

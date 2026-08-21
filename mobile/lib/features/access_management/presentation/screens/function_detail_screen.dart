@@ -83,10 +83,12 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     if (confirmed != true || !mounted || _busy) return;
     setState(() => _busy = true);
     try {
+      final appController = AppScope.read(context);
       final updated = await widget.controller.setActive(
         function.id,
         nextActive,
       );
+      await appController.refreshCurrentSession();
       if (mounted) {
         setState(() {
           _changed = true;
@@ -125,7 +127,9 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     if (confirmed != true || !mounted || _busy) return;
     setState(() => _busy = true);
     try {
+      final appController = AppScope.read(context);
       await widget.controller.delete(function.id);
+      await appController.refreshCurrentSession();
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (error) {
       if (mounted) _showMessage(error.message);

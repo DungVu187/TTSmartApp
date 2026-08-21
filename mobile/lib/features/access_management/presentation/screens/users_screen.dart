@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/widgets/error_panel.dart';
+import '../../../company_management/data/repositories/company_repository.dart';
+import '../../../station_management/data/repositories/station_repository.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
 import '../../data/models/permission_models.dart';
 import '../../data/models/user_models.dart';
@@ -15,7 +17,14 @@ import 'user_detail_screen.dart';
 import 'user_form_screen.dart';
 
 class UsersScreen extends StatefulWidget {
-  const UsersScreen({super.key});
+  const UsersScreen({
+    super.key,
+    required this.companyRepository,
+    required this.stationRepository,
+  });
+
+  final CompanyRepository companyRepository;
+  final StationRepository stationRepository;
 
   @override
   State<UsersScreen> createState() => _UsersScreenState();
@@ -59,7 +68,11 @@ class _UsersScreenState extends State<UsersScreen> {
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<UserResponse>(
       MaterialPageRoute(
-        builder: (_) => UserFormScreen(controller: _controller),
+        builder: (_) => UserFormScreen(
+          controller: _controller,
+          companyRepository: widget.companyRepository,
+          stationRepository: widget.stationRepository,
+        ),
       ),
     );
     if (created != null) await _controller.load();
@@ -68,8 +81,12 @@ class _UsersScreenState extends State<UsersScreen> {
   Future<void> _openDetail(UserResponse user) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            UserDetailScreen(userId: user.id, controller: _controller),
+        builder: (_) => UserDetailScreen(
+          userId: user.id,
+          controller: _controller,
+          companyRepository: widget.companyRepository,
+          stationRepository: widget.stationRepository,
+        ),
       ),
     );
     if (changed == true) await _controller.load();

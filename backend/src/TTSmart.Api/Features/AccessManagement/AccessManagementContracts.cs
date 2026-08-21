@@ -108,7 +108,7 @@ public abstract class UserFieldsRequest
 public sealed class CreateUserRequest : UserFieldsRequest
 {
     [Required(ErrorMessage = "Mật khẩu là bắt buộc.")]
-    [StringLength(200, MinimumLength = 8, ErrorMessage = "Mật khẩu phải có từ 8 đến 200 ký tự.")]
+    [StringLength(200, MinimumLength = 4, ErrorMessage = "Mật khẩu phải có từ 4 đến 200 ký tự.")]
     public string Password { get; init; } = string.Empty;
 
     public IReadOnlyList<int> RoleIds { get; init; } = [];
@@ -130,12 +130,7 @@ public sealed class SetUserRolesRequest
     public IReadOnlyList<int> RoleIds { get; init; } = [];
 }
 
-public sealed class ResetPasswordRequest
-{
-    [Required(ErrorMessage = "Mật khẩu mới là bắt buộc.")]
-    [StringLength(200, MinimumLength = 8, ErrorMessage = "Mật khẩu mới phải có từ 8 đến 200 ký tự.")]
-    public string NewPassword { get; init; } = string.Empty;
-}
+public sealed class ResetPasswordRequest;
 
 public sealed record RoleListItemResponse(
     int Id,
