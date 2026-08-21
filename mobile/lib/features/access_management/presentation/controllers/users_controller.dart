@@ -22,6 +22,9 @@ class UsersController extends ChangeNotifier {
   String search = '';
   int? status;
   int? roleId;
+  int? companyId;
+  int? branchId;
+  bool withoutRole = false;
   int _requestVersion = 0;
   bool _disposed = false;
 
@@ -43,6 +46,9 @@ class UsersController extends ChangeNotifier {
         search: search,
         status: status,
         roleId: roleId,
+        companyId: companyId,
+        branchId: branchId,
+        withoutRole: withoutRole ? true : null,
       );
       if (requestVersion != _requestVersion) return;
       items
@@ -74,6 +80,9 @@ class UsersController extends ChangeNotifier {
         search: search,
         status: status,
         roleId: roleId,
+        companyId: companyId,
+        branchId: branchId,
+        withoutRole: withoutRole ? true : null,
       );
       if (requestVersion != _requestVersion) return;
       final existingIds = items.map((item) => item.id).toSet();
@@ -96,6 +105,12 @@ class UsersController extends ChangeNotifier {
   void setStatus(int? value) => status = value;
 
   void setRoleId(int? value) => roleId = value;
+
+  void setScopeFilters({int? companyId, int? branchId, bool? withoutRole}) {
+    this.companyId = companyId;
+    this.branchId = branchId;
+    this.withoutRole = withoutRole ?? false;
+  }
 
   Future<UserResponse> getById(int id) => repository.getUser(id);
 

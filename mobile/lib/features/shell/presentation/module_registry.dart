@@ -53,6 +53,22 @@ class AccessModule {
   );
 }
 
+/// A permission-filtered Function hierarchy returned by the backend.
+/// Parents are retained even if their own ActiveKey is empty, matching web.
+class FunctionMenuNode {
+  const FunctionMenuNode({
+    required this.function,
+    required this.module,
+    required this.children,
+  });
+
+  final GrantedFunction function;
+  final AccessModule? module;
+  final List<FunctionMenuNode> children;
+
+  bool get canOpen => module != null;
+}
+
 final accessModules = <AccessModule>[
   AccessModule(
     keyName: 'users',
@@ -98,6 +114,58 @@ List<AccessModule> visibleAccessModules(AppController controller) {
       .toList();
   _sortByLocation(modules);
   return modules;
+}
+
+List<FunctionMenuNode> visibleAccessFunctionTree(AppController controller) {
+  if (!_hasDynamicFunctions(controller)) return const <FunctionMenuNode>[];
+  final modulesByCode = <String, AccessModule>{
+    for (final module in accessModules)
+      module.functionCode.toUpperCase(): module,
+  };
+  final allFunctions = controller.session!.functions;
+  final byId = {for (final function in allFunctions) function.id: function};
+  final includedIds = <int>{
+    for (final function in allFunctions)
+      if (modulesByCode.containsKey(function.code.toUpperCase())) function.id,
+  };
+  for (final functionId in includedIds.toList()) {
+    var parentId = byId[functionId]?.parentFunctionId;
+    while (parentId != null && includedIds.add(parentId)) {
+      parentId = byId[parentId]?.parentFunctionId;
+    }
+  }
+  final functions = allFunctions
+      .where((function) => includedIds.contains(function.id))
+      .toList(growable: false);
+  final functionIds = functions.map((item) => item.id).toSet();
+  final childrenByParent = <int, List<GrantedFunction>>{};
+  final roots = <GrantedFunction>[];
+  for (final function in functions) {
+    final parentId = function.parentFunctionId;
+    if (parentId == null || !functionIds.contains(parentId)) {
+      roots.add(function);
+    } else {
+      childrenByParent.putIfAbsent(parentId, () => []).add(function);
+    }
+  }
+  int compare(GrantedFunction left, GrantedFunction right) =>
+      (left.location ?? 1 << 30).compareTo(right.location ?? 1 << 30);
+  FunctionMenuNode build(GrantedFunction function) {
+    final module = modulesByCode[function.code.toUpperCase()];
+    final children =
+        (childrenByParent[function.id] ?? const <GrantedFunction>[])
+            .map(build)
+            .toList()
+          ..sort((left, right) => compare(left.function, right.function));
+    return FunctionMenuNode(
+      function: function,
+      module: module?.withFunction(function),
+      children: children,
+    );
+  }
+
+  return roots.map(build).toList()
+    ..sort((left, right) => compare(left.function, right.function));
 }
 
 Future<void> openAccessModule(

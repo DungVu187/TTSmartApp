@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/app_scope.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
+import '../../../company_management/data/models/company_models.dart';
 import '../../../station_management/data/repositories/station_repository.dart';
+import '../../../station_management/data/models/station_models.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
 import '../../data/models/permission_models.dart';
+import '../../data/models/role_models.dart';
 import '../../data/models/user_models.dart';
 import '../controllers/users_controller.dart';
 import '../widgets/access_layout.dart';
@@ -65,6 +68,26 @@ class _UsersScreenState extends State<UsersScreen> {
     _controller.load();
   }
 
+  Future<void> _openFilters() async {
+    final filters = await showModalBottomSheet<_UserScopeFilters>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _UserScopeFilterSheet(
+        companyRepository: widget.companyRepository,
+        stationRepository: widget.stationRepository,
+        controller: _controller,
+      ),
+    );
+    if (filters == null) return;
+    _controller.setScopeFilters(
+      companyId: filters.companyId,
+      branchId: filters.branchId,
+      withoutRole: filters.withoutRole,
+    );
+    _controller.setRoleId(filters.roleId);
+    await _controller.load();
+  }
+
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<UserResponse>(
       MaterialPageRoute(
@@ -107,7 +130,23 @@ class _UsersScreenState extends State<UsersScreen> {
       AccessPermission.view,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('Người dùng')),
+      appBar: AppBar(
+        title: const Text('Người dùng'),
+        actions: [
+          IconButton(
+            tooltip: 'Bộ lọc',
+            onPressed: _openFilters,
+            icon: Badge(
+              isLabelVisible:
+                  _controller.companyId != null ||
+                  _controller.branchId != null ||
+                  _controller.roleId != null ||
+                  _controller.withoutRole,
+              child: const Icon(Icons.tune),
+            ),
+          ),
+        ],
+      ),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => Column(
@@ -225,6 +264,217 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _UserScopeFilters {
+  const _UserScopeFilters({
+    required this.companyId,
+    required this.branchId,
+    required this.roleId,
+    required this.withoutRole,
+  });
+
+  final int? companyId;
+  final int? branchId;
+  final int? roleId;
+  final bool withoutRole;
+}
+
+class _UserScopeFilterSheet extends StatefulWidget {
+  const _UserScopeFilterSheet({
+    required this.companyRepository,
+    required this.stationRepository,
+    required this.controller,
+  });
+
+  final CompanyRepository companyRepository;
+  final StationRepository stationRepository;
+  final UsersController controller;
+
+  @override
+  State<_UserScopeFilterSheet> createState() => _UserScopeFilterSheetState();
+}
+
+class _UserScopeFilterSheetState extends State<_UserScopeFilterSheet> {
+  late int? _companyId = widget.controller.companyId;
+  late int? _branchId = widget.controller.branchId;
+  late int? _roleId = widget.controller.roleId;
+  late bool _withoutRole = widget.controller.withoutRole;
+  late final Future<_UserFilterOptions> _options = _UserFilterOptions.load(
+    widget.companyRepository,
+    widget.controller,
+  );
+  late Future<StationPage> _stationsFuture = widget.stationRepository
+      .getStations(pageSize: 100, companyId: _companyId);
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: FutureBuilder<_UserFilterOptions>(
+          future: _options,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox(
+                height: 180,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final options = snapshot.data!;
+            return FutureBuilder<StationPage>(
+              future: _stationsFuture,
+              builder: (context, stationSnapshot) {
+                final stations =
+                    stationSnapshot.data?.items ?? const <StationListItem>[];
+                if (_branchId != null &&
+                    stationSnapshot.hasData &&
+                    !stations.any((item) => item.id == _branchId)) {
+                  _branchId = null;
+                }
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Lọc người dùng',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        key: ValueKey<String>(
+                          'user-filter-company-$_companyId',
+                        ),
+                        initialValue: _companyId,
+                        decoration: const InputDecoration(labelText: 'Công ty'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Tất cả công ty'),
+                          ),
+                          for (final company in options.companies)
+                            DropdownMenuItem(
+                              value: company.id,
+                              child: Text(company.displayName),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() {
+                          _companyId = value;
+                          _branchId = null;
+                          _stationsFuture = widget.stationRepository
+                              .getStations(pageSize: 100, companyId: value);
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        key: ValueKey<String>('user-filter-branch-$_branchId'),
+                        initialValue: _branchId,
+                        decoration: const InputDecoration(labelText: 'Trạm'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Tất cả trạm'),
+                          ),
+                          for (final station in stations)
+                            DropdownMenuItem(
+                              value: station.id,
+                              child: Text(station.displayName),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() => _branchId = value),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        key: ValueKey<String>('user-filter-role-$_roleId'),
+                        initialValue: _roleId,
+                        decoration: const InputDecoration(labelText: 'Vai trò'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Tất cả vai trò'),
+                          ),
+                          for (final role in options.roles)
+                            DropdownMenuItem(
+                              value: role.id,
+                              child: Text(role.name),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() => _roleId = value),
+                      ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _withoutRole,
+                        title: const Text('Chỉ người dùng chưa có vai trò'),
+                        onChanged: (value) =>
+                            setState(() => _withoutRole = value ?? false),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(
+                              context,
+                              const _UserScopeFilters(
+                                companyId: null,
+                                branchId: null,
+                                roleId: null,
+                                withoutRole: false,
+                              ),
+                            ),
+                            child: const Text('Xóa lọc'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(
+                              context,
+                              _UserScopeFilters(
+                                companyId: _companyId,
+                                branchId: _branchId,
+                                roleId: _roleId,
+                                withoutRole: _withoutRole,
+                              ),
+                            ),
+                            child: const Text('Áp dụng'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _UserFilterOptions {
+  const _UserFilterOptions(this.companies, this.roles);
+
+  final List<CompanyResponse> companies;
+  final List<RoleListItemResponse> roles;
+
+  static Future<_UserFilterOptions> load(
+    CompanyRepository companies,
+    UsersController controller,
+  ) async {
+    final results = await Future.wait<Object>([
+      companies.getCompanies(pageSize: 100),
+      controller.getAvailableRoles(),
+    ]);
+    return _UserFilterOptions(
+      (results[0] as CompanyPage).items,
+      results[1] as List<RoleListItemResponse>,
     );
   }
 }

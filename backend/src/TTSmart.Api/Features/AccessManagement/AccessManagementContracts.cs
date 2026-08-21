@@ -18,6 +18,9 @@ public sealed class UserListQuery : PagedQuery
     public string? Search { get; init; }
     public byte? Status { get; init; }
     public int? RoleId { get; init; }
+    public int? CompanyId { get; init; }
+    public int? BranchId { get; init; }
+    public bool? WithoutRole { get; init; }
 }
 
 public sealed class RoleListQuery : PagedQuery

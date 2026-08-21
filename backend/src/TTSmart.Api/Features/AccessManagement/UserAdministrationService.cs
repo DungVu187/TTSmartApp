@@ -55,6 +55,26 @@ public sealed class UserAdministrationService(
                     role.Status == WebDataStatus.Active));
         }
 
+        if (query.CompanyId.HasValue)
+        {
+            usersQuery = usersQuery.Where(user => user.CompanyId == query.CompanyId.Value);
+        }
+
+        if (query.BranchId.HasValue)
+        {
+            var branchId = query.BranchId.Value.ToString();
+            usersQuery = usersQuery.Where(user =>
+                user.BranchId != null &&
+                EF.Functions.Like("," + user.BranchId + ",", "%," + branchId + ",%"));
+        }
+
+        if (query.WithoutRole == true)
+        {
+            usersQuery = usersQuery.Where(user => !dbContext.UserRoles.AsNoTracking().Any(userRole =>
+                userRole.UserId == user.UserId &&
+                userRole.Status == WebDataStatus.Active));
+        }
+
         var totalCount = await usersQuery.CountAsync(cancellationToken);
         var users = await usersQuery
             .OrderBy(user => user.UserName)
