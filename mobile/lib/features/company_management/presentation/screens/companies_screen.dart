@@ -11,7 +11,6 @@ import '../../data/repositories/company_repository.dart';
 import '../controllers/companies_controller.dart';
 import '../widgets/company_widgets.dart';
 import 'company_detail_screen.dart';
-import 'company_form_screen.dart';
 
 class CompaniesScreen extends StatefulWidget {
   const CompaniesScreen({super.key, required this.repository});
@@ -60,15 +59,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     _controller.load();
   }
 
-  Future<void> _openCreate() async {
-    final created = await Navigator.of(context).push<CompanyResponse>(
-      MaterialPageRoute(
-        builder: (_) => CompanyFormScreen(controller: _controller),
-      ),
-    );
-    if (created != null && mounted) await _controller.load();
-  }
-
   Future<void> _openDetail(CompanyResponse company) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -88,10 +78,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     )) {
       return const NoAccessScreen();
     }
-    final canCreate = app.hasPermission(
-      AccessFunctionCodes.companies,
-      AccessPermission.create,
-    );
     final canView = app.hasPermission(
       AccessFunctionCodes.companies,
       AccessPermission.view,
@@ -108,13 +94,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           ],
         ),
       ),
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: _openCreate,
-              icon: const Icon(Icons.add_business_outlined),
-              label: const Text('Thêm công ty'),
-            )
-          : null,
     );
   }
 

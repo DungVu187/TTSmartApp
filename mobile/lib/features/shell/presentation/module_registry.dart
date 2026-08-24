@@ -122,20 +122,13 @@ List<FunctionMenuNode> visibleAccessFunctionTree(AppController controller) {
     for (final module in accessModules)
       module.functionCode.toUpperCase(): module,
   };
-  final allFunctions = controller.session!.functions;
-  final byId = {for (final function in allFunctions) function.id: function};
-  final includedIds = <int>{
-    for (final function in allFunctions)
-      if (modulesByCode.containsKey(function.code.toUpperCase())) function.id,
-  };
-  for (final functionId in includedIds.toList()) {
-    var parentId = byId[functionId]?.parentFunctionId;
-    while (parentId != null && includedIds.add(parentId)) {
-      parentId = byId[parentId]?.parentFunctionId;
-    }
-  }
-  final functions = allFunctions
-      .where((function) => includedIds.contains(function.id))
+  // Only render Functions that have a native mobile module. Web-only
+  // Functions (and their unsupported parent folders) stay available for
+  // authorization but must not appear in the mobile menu.
+  final functions = controller.session!.functions
+      .where(
+        (function) => modulesByCode.containsKey(function.code.toUpperCase()),
+      )
       .toList(growable: false);
   final functionIds = functions.map((item) => item.id).toSet();
   final childrenByParent = <int, List<GrantedFunction>>{};

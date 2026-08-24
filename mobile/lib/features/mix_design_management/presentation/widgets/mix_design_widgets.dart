@@ -139,93 +139,18 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
   bool _syncing = false;
 
   List<_MixDesignColumn> get _columns => <_MixDesignColumn>[
+    for (final material in widget.page.materialColumns)
+      _MixDesignColumn(
+        material.materialName,
+        96,
+        (item) =>
+            formatMixDesignNumber(item.quantityForColumn(material.columnKey)),
+        material: true,
+        tooltip: '${material.category} · cửa ${material.slotNumber}',
+      ),
     _MixDesignColumn('Cường độ', 94, (item) => '${item.strength}'),
     _MixDesignColumn('Cốt liệu max', 108, (item) => '${item.maxAggregate}'),
     _MixDesignColumn('Độ sụt', 96, (item) => item.slump),
-    _MixDesignColumn(
-      'Cát 1',
-      88,
-      (item) => formatMixDesignNumber(item.sand1),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Cát 2',
-      88,
-      (item) => formatMixDesignNumber(item.sand2),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Đá 1',
-      88,
-      (item) => formatMixDesignNumber(item.stone1),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Đá 2',
-      88,
-      (item) => formatMixDesignNumber(item.stone2),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Đá 3',
-      88,
-      (item) => formatMixDesignNumber(item.stone3),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 1',
-      88,
-      (item) => formatMixDesignNumber(item.cement1),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 2',
-      88,
-      (item) => formatMixDesignNumber(item.cement2),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 3',
-      88,
-      (item) => formatMixDesignNumber(item.cement3),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 4',
-      88,
-      (item) => formatMixDesignNumber(item.cement4),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Nước',
-      88,
-      (item) => formatMixDesignNumber(item.water),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'SIKA',
-      88,
-      (item) => formatMixDesignNumber(item.sika),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'TULOG',
-      92,
-      (item) => formatMixDesignNumber(item.tulog),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'SIKAROAD',
-      104,
-      (item) => formatMixDesignNumber(item.sikaroad),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'BIFI',
-      88,
-      (item) => formatMixDesignNumber(item.bifi),
-      material: true,
-    ),
   ];
 
   @override
@@ -452,6 +377,7 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
     double width, {
     Key? key,
     bool material = false,
+    String? tooltip,
   }) {
     return Container(
       key: key,
@@ -465,12 +391,15 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
             : AppColors.brandBlue.withValues(alpha: 0.08),
         border: const Border(right: BorderSide(color: AppColors.border)),
       ),
-      child: Text(
-        label,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+      child: Tooltip(
+        message: tooltip ?? label,
+        child: Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        ),
       ),
     );
   }
@@ -593,12 +522,14 @@ class _MixDesignColumn {
     this.width,
     this.value, {
     this.material = false,
+    this.tooltip,
   });
 
   final String label;
   final double width;
   final String Function(MixDesignItem item) value;
   final bool material;
+  final String? tooltip;
 }
 
 String formatMixDesignNumber(num value) {

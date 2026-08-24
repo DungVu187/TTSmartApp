@@ -340,6 +340,7 @@ public sealed class BranchManagementService(
             companyName,
             branch.Code,
             branch.Name,
+            branch.Avatar,
             branch.Email,
             branch.Phone,
             branch.Address,

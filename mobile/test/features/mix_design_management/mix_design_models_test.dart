@@ -30,12 +30,31 @@ void main() {
           'tulog': 0,
           'sikaroad': 0,
           'bifi': 0,
+          'materials': [
+            {
+              'materialSlotId': 3,
+              'slotNumber': 3,
+              'columnKey': 'slot-3',
+              'quantity': 500.25,
+            },
+          ],
         },
       ],
       'pageNumber': 2,
       'pageSize': 10,
       'totalCount': 12,
       'totalPages': 2,
+      'materialColumns': [
+        {
+          'materialSlotId': 3,
+          'slotNumber': 3,
+          'materialName': 'Đá 1x2',
+          'category': 'Đá',
+          'categoryCode': 'stone',
+          'typePosition': 1,
+          'columnKey': 'slot-3',
+        },
+      ],
     });
 
     expect(station.id, 10);
@@ -44,6 +63,8 @@ void main() {
     expect(page.items.single.stt, 11);
     expect(page.items.single.stone1, 500.25);
     expect(page.items.single.sika, 2.68);
+    expect(page.materialColumns.single.materialName, 'Đá 1x2');
+    expect(page.items.single.quantityForColumn('slot-3'), 500.25);
     expect(formatMixDesignNumber(page.items.single.stone1), '500,25');
     expect(formatMixDesignNumber(0), '0');
   });

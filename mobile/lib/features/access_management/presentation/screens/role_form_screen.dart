@@ -154,14 +154,14 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
                               keyboardType: TextInputType.number,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                labelText: 'Cấp vai trò',
+                                labelText: 'Cấp quản lý',
                                 errorText: _error?.fieldMessage('levelRole'),
                               ),
                               validator: (value) {
                                 final text = value?.trim() ?? '';
                                 if (text.isNotEmpty &&
                                     int.tryParse(text) == null) {
-                                  return 'Cấp vai trò phải là số nguyên.';
+                                  return 'Cấp quản lý phải là số nguyên.';
                                 }
                                 return null;
                               },

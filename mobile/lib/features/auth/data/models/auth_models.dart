@@ -200,7 +200,6 @@ class CurrentSession {
   final List<AuthRole> roles;
   final List<GrantedFunction> functions;
   final List<AuthRoleFunction> roleFunctions;
-
   GrantedFunction? functionByCode(String code) {
     final normalized = code.toUpperCase();
     for (final item in functions) {

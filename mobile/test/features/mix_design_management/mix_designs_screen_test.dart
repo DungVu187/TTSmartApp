@@ -91,6 +91,7 @@ class _FakeMixDesignRepository implements MixDesignRepository {
       pageSize: 10,
       totalCount: 12,
       totalPages: 2,
+      materialColumns: _materialColumns,
     );
   }
 }
@@ -174,7 +175,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Mác BT'), findsOneWidget);
-    expect(find.text('SIKAROAD'), findsOneWidget);
+    expect(find.text('Phụ gia Sika Road'), findsOneWidget);
     expect(find.text('M300'), findsOneWidget);
     expect(
       find.descendant(
@@ -365,7 +366,42 @@ MixDesignItem _item(int stt, {String concreteGradeName = 'M300'}) =>
       tulog: 0,
       sikaroad: 0,
       bifi: 0,
+      materials: const [
+        MixDesignMaterial(
+          materialSlotId: 3,
+          slotNumber: 3,
+          columnKey: 'slot-3',
+          quantity: 500,
+        ),
+        MixDesignMaterial(
+          materialSlotId: 12,
+          slotNumber: 12,
+          columnKey: 'slot-12',
+          quantity: 2,
+        ),
+      ],
     );
+
+const _materialColumns = <MixDesignMaterialColumn>[
+  MixDesignMaterialColumn(
+    materialSlotId: 3,
+    slotNumber: 3,
+    materialName: 'Đá 1x2',
+    category: 'Đá',
+    categoryCode: 'stone',
+    typePosition: 1,
+    columnKey: 'slot-3',
+  ),
+  MixDesignMaterialColumn(
+    materialSlotId: 12,
+    slotNumber: 12,
+    materialName: 'Phụ gia Sika Road',
+    category: 'Phụ gia',
+    categoryCode: 'additive',
+    typePosition: 1,
+    columnKey: 'slot-12',
+  ),
+];
 
 CompanyResponse _company() => const CompanyResponse(
   id: 3,

@@ -1,3 +1,7 @@
+// Temporary read-only mode: write handlers remain available for a later
+// re-enable, but their controls are intentionally hidden from mobile.
+// ignore_for_file: unused_element, unused_field, unused_local_variable
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -276,7 +280,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
           return Scaffold(
             appBar: AppBar(
               title: const Text('Chi tiết công ty'),
-              actions: [
+              /* actions: [
                 if (_busy)
                   const Padding(
                     padding: EdgeInsets.all(14),
@@ -353,7 +357,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                       ],
                     ),
                 ],
-              ],
+              ], */
             ),
             body: _buildBody(snapshot),
           );

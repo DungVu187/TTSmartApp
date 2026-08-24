@@ -97,8 +97,8 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Function & menu'),
-        actions: [
+        title: const Text('Chức năng & menu'),
+        /* actions: [
           IconButton(
             tooltip: 'Mở tất cả',
             onPressed: () => setState(() {
@@ -109,14 +109,14 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
                     .map((item) => item.id),
               );
             }),
-            icon: const Icon(Icons.unfold_more),
+            icon: const Icon(Icons.expand_more),
           ),
           IconButton(
             tooltip: 'Thu gọn',
             onPressed: () => setState(_expanded.clear),
-            icon: const Icon(Icons.unfold_less),
+            icon: const Icon(Icons.expand_less),
           ),
-        ],
+        ], */
       ),
       body: AnimatedBuilder(
         animation: _controller,
@@ -127,7 +127,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
                 padding: accessPagePadding(context, top: 12, bottom: 8),
                 child: AccessSearchFilter(
                   controller: _searchController,
-                  hintText: 'Tìm theo mã, tên hoặc URL function',
+                  hintText: 'Tìm theo tên, mã hoặc đường dẫn',
                   selectedStatus: _controller.status,
                   onSearchChanged: _onSearchChanged,
                   onStatusChanged: _onStatusChanged,
@@ -142,7 +142,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
           ? FloatingActionButton.extended(
               onPressed: _openCreate,
               icon: const Icon(Icons.create_new_folder_outlined),
-              label: const Text('Tạo function'),
+              label: const Text('Tạo chức năng'),
             )
           : null,
     );
@@ -175,7 +175,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
             SizedBox(height: 80),
             AccessEmptyState(
               icon: Icons.account_tree_outlined,
-              title: 'Không có function',
+              title: 'Không có chức năng',
               message: 'Thử thay đổi từ khóa hoặc bộ lọc trạng thái.',
             ),
           ],
@@ -201,7 +201,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
                 padding: EdgeInsets.only(
                   left: (node.depth * 14).clamp(0, 56).toDouble(),
                 ),
-                child: _FunctionTreeItem(
+                child: _ModernFunctionTreeItem(
                   item: node.item,
                   onTap: canView ? () => _openDetail(node.item) : null,
                   expanded: _expanded.contains(node.item.id),
@@ -241,6 +241,175 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
   }
 }
 
+class _ModernFunctionTreeItem extends StatelessWidget {
+  const _ModernFunctionTreeItem({
+    required this.item,
+    required this.onTap,
+    required this.expanded,
+    required this.onExpand,
+  });
+
+  final FunctionTreeNodeResponse item;
+  final VoidCallback? onTap;
+  final bool expanded;
+  final VoidCallback? onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = item.isContainer
+        ? theme.colorScheme.secondary
+        : theme.colorScheme.primary;
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surface,
+                Color.alphaBlend(
+                  accent.withValues(alpha: 0.08),
+                  theme.colorScheme.surface,
+                ),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(
+                      item.isContainer
+                          ? Icons.folder_rounded
+                          : Icons.hub_rounded,
+                      color: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.code.toUpperCase(),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            letterSpacing: 0.8,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (item.isContainer)
+                    IconButton(
+                      tooltip: expanded ? 'Thu gon' : 'Mo rong',
+                      onPressed: onExpand,
+                      style: IconButton.styleFrom(
+                        backgroundColor: accent.withValues(alpha: 0.10),
+                      ),
+                      icon: Icon(
+                        expanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                      ),
+                    )
+                  else if (onTap != null)
+                    Icon(Icons.arrow_forward_rounded, color: accent),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(child: AccessStatusChip(isActive: item.isActive)),
+                  if (item.isContainer) ...[
+                    const SizedBox(width: 8),
+                    _FunctionMetric(
+                      label: 'Con',
+                      value: '${item.children.length}',
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  _FunctionMetric(
+                    label: 'Vai trò',
+                    value: '${item.assignedRoleCount}',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FunctionMetric extends StatelessWidget {
+  const _FunctionMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.labelMedium,
+          children: [
+            TextSpan(
+              text: '$value ',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: colors.onSurface,
+              ),
+            ),
+            TextSpan(
+              text: label,
+              style: TextStyle(color: colors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _VisibleFunctionNode {
   const _VisibleFunctionNode({required this.item, required this.depth});
 
@@ -248,6 +417,7 @@ class _VisibleFunctionNode {
   final int depth;
 }
 
+// ignore: unused_element, retained for reference during the legacy UI migration.
 class _FunctionTreeItem extends StatelessWidget {
   const _FunctionTreeItem({
     required this.item,
@@ -265,7 +435,9 @@ class _FunctionTreeItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerLow,
+      elevation: 1,
+      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -287,6 +459,12 @@ class _FunctionTreeItem extends StatelessWidget {
                 const SizedBox(width: 48),
               CircleAvatar(
                 radius: 20,
+                backgroundColor: item.isContainer
+                    ? theme.colorScheme.secondaryContainer
+                    : theme.colorScheme.primaryContainer,
+                foregroundColor: item.isContainer
+                    ? theme.colorScheme.onSecondaryContainer
+                    : theme.colorScheme.onPrimaryContainer,
                 child: Icon(
                   item.isContainer
                       ? Icons.folder_outlined
@@ -323,7 +501,7 @@ class _FunctionTreeItem extends StatelessWidget {
                         if (item.isContainer)
                           Chip(
                             visualDensity: VisualDensity.compact,
-                            label: Text('${item.children.length} con'),
+                            label: Text('${item.children.length} mục con'),
                           ),
                         Chip(
                           visualDensity: VisualDensity.compact,

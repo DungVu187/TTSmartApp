@@ -121,9 +121,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
           item.functionId: '${item.isAssigned}:${item.activeKey}',
       };
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã lưu ma trận quyền và cập nhật phiên.'),
-        ),
+        const SnackBar(content: Text('Đã lưu phân quyền và cập nhật phiên.')),
       );
       Navigator.pop(context, true);
     } on ApiException catch (error) {
@@ -142,9 +140,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Bỏ thay đổi chưa lưu?'),
-        content: const Text(
-          'Các thay đổi trong ma trận quyền sẽ không được lưu.',
-        ),
+        content: const Text('Các thay đổi phân quyền sẽ không được lưu.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -169,7 +165,9 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.canEdit ? 'Ma trận quyền' : 'Xem ma trận quyền'),
+          title: Text(
+            widget.canEdit ? 'Phân quyền chức năng' : 'Quyền chức năng',
+          ),
           actions: [
             IconButton(
               tooltip: 'Mở tất cả',
@@ -209,7 +207,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
                     child: ErrorPanel(
                       message: error is ApiException
                           ? error.message
-                          : 'Không thể tải ma trận quyền.',
+                          : 'Không thể tải danh sách phân quyền.',
                       onRetry: _retry,
                     ),
                   ),
@@ -221,8 +219,8 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
             if (visible.isEmpty) {
               return const AccessEmptyState(
                 icon: Icons.rule_folder_outlined,
-                title: 'Chưa có function',
-                message: 'Backend chưa trả function cho ma trận quyền.',
+                title: 'Chưa có chức năng',
+                message: 'Chưa có chức năng nào để phân quyền.',
               );
             }
             return Column(
@@ -242,7 +240,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           widget.canEdit
-                              ? 'Chọn trạng thái gán và các quyền cho từng function.'
+                              ? 'Bật chức năng và chọn quyền sử dụng cho từng mục.'
                               : 'Bạn đang xem ở chế độ chỉ đọc.',
                         ),
                         if (widget.canEdit) ...[
@@ -269,7 +267,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
                                         const PermissionSet.none(),
                                       ),
                                 icon: const Icon(Icons.remove_done),
-                                label: const Text('Xóa quyền đang hiển thị'),
+                                label: const Text('Bỏ các quyền đang chọn'),
                               ),
                             ],
                           ),
@@ -369,7 +367,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
                                   )
                                 : const Icon(Icons.save_outlined),
                             label: Text(
-                              _submitting ? 'Đang lưu...' : 'Lưu ma trận quyền',
+                              _submitting ? 'Đang lưu...' : 'Lưu phân quyền',
                             ),
                           ),
                         ),
@@ -525,7 +523,7 @@ class _PermissionNodeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(item.isAssigned ? 'Đã gán' : 'Chưa gán'),
+                Text(item.isAssigned ? 'Đang dùng' : 'Chưa dùng'),
                 Switch(
                   value: item.isAssigned,
                   onChanged: canEdit ? onAssigned : null,

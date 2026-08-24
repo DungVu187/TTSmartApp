@@ -152,7 +152,8 @@ public sealed class OrderStatisticsService(
         var totalPages = page.TotalCount == 0
             ? 0
             : checked((int)(((long)page.TotalCount + page.PageSize - 1) / page.PageSize));
-        var materialSummaryRows = BuildMaterialSummaryRows(page.Summary.Materials);
+        var materialSummaryRows = BuildMaterialSummaryRows(
+            AlignMaterialsToCurrentLayout(page.Summary.Materials, currentMaterialLayout));
         var totalMaterialQuantity = NormalizeNumber(page.Summary.TotalMaterialQuantity, 2);
         var totalConcreteVolume = NormalizeNumber(page.Summary.TotalMixedVolume);
 
@@ -191,10 +192,10 @@ public sealed class OrderStatisticsService(
                     layoutSlotNumbers);
 
                 return new OrderStatisticsMaterialResponse(
-                    value?.MaterialSlotId ?? column.Response.MaterialSlotId,
+                    column.Response.MaterialSlotId ?? value?.MaterialSlotId,
                     column.Response.SlotNumber,
-                    TrimOrNull(value?.MaterialName) ?? column.Response.MaterialName,
-                    TrimOrNull(value?.Category) ?? column.Response.Category,
+                    column.Response.MaterialName,
+                    column.Response.Category,
                     NormalizeMaterialNumber(value?.DesignQuantity, column.Response.CategoryCode),
                     NormalizeMaterialNumber(value?.TQuantity, column.Response.CategoryCode),
                     NormalizeMaterialNumber(value?.ActualQuantity, column.Response.CategoryCode),
@@ -272,43 +273,12 @@ public sealed class OrderStatisticsService(
         IReadOnlyList<OrderStatisticsMaterialValue> sourceValues,
         MaterialLayoutMapping currentMaterialLayout)
     {
-        var rowColumns = CreateMaterialColumns(sourceValues);
-        if (rowColumns.Count == 0)
+        if (currentMaterialLayout.Columns.Count > 0)
         {
             return currentMaterialLayout;
         }
 
-        var currentColumnsBySlot = currentMaterialLayout.Columns
-            .Select(column => column.Response)
-            .ToDictionary(column => column.SlotNumber);
-        var isCompatibleWithCurrentLayout = rowColumns.All(column =>
-            currentColumnsBySlot.TryGetValue(column.SlotNumber!.Value, out var currentColumn) &&
-            currentColumn.CategoryCode == OrderStatisticsMaterialCategories.Normalize(
-                column.CategoryCode,
-                column.Category,
-                column.MaterialName));
-        if (!isCompatibleWithCurrentLayout)
-        {
-            return CreateMaterialLayout(rowColumns);
-        }
-
-        var rowColumnsBySlot = rowColumns.ToDictionary(column => column.SlotNumber!.Value);
-        var mergedColumns = currentMaterialLayout.Columns
-            .Select(column => rowColumnsBySlot.TryGetValue(column.Response.SlotNumber, out var rowColumn)
-                ? rowColumn
-                : new OrderStatisticsMaterialColumn(
-                    column.Response.MaterialSlotId ?? 0,
-                    column.Response.SlotNumber,
-                    column.Response.MaterialName,
-                    column.Response.Category,
-                    column.Response.DesignLabel,
-                    column.Response.TLabel,
-                    column.Response.ActualLabel,
-                    column.Response.VarianceLabel,
-                    column.Response.CategoryCode,
-                    column.Response.TypePosition))
-            .ToArray();
-        return CreateMaterialLayout(mergedColumns);
+        return CreateMaterialLayout(sourceValues);
     }
 
     private static MaterialLayoutMapping CreateMaterialLayout(
@@ -418,12 +388,10 @@ public sealed class OrderStatisticsService(
     private static AggregatedMaterialValue? ResolveMaterialValue(
         OrderStatisticsMaterialColumnResponse column,
         IReadOnlyDictionary<(string CategoryCode, int TypePosition), AggregatedMaterialValue> valuesByPosition,
-        IReadOnlyDictionary<(int SlotNumber, string CategoryCode), AggregatedMaterialValue> valuesBySlotNumber,
+        IReadOnlyDictionary<int, AggregatedMaterialValue> valuesBySlotNumber,
         IReadOnlySet<int> layoutSlotNumbers)
     {
-        if (valuesBySlotNumber.TryGetValue(
-            (column.SlotNumber, column.CategoryCode),
-            out var slotValue))
+        if (valuesBySlotNumber.TryGetValue(column.SlotNumber, out var slotValue))
         {
             return slotValue;
         }
@@ -465,6 +433,35 @@ public sealed class OrderStatisticsService(
                         rowNumber,
                         valuesByPosition))
                     .ToArray()))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<OrderStatisticsMaterialValue> AlignMaterialsToCurrentLayout(
+        IReadOnlyList<OrderStatisticsMaterialValue> sourceRows,
+        MaterialLayoutMapping currentMaterialLayout)
+    {
+        if (currentMaterialLayout.Columns.Count == 0)
+        {
+            return sourceRows;
+        }
+
+        var valuesBySlotNumber = AggregateMaterialsBySlot(sourceRows);
+        return currentMaterialLayout.Columns
+            .Select(column =>
+            {
+                valuesBySlotNumber.TryGetValue(column.Response.SlotNumber, out var value);
+                return new OrderStatisticsMaterialValue(
+                    column.Response.MaterialSlotId ?? value?.MaterialSlotId ?? 0,
+                    column.Response.SlotNumber,
+                    column.Response.MaterialName,
+                    column.Response.Category,
+                    value?.DesignQuantity ?? 0d,
+                    value?.TQuantity ?? 0d,
+                    value?.ActualQuantity ?? 0d,
+                    value?.Variance ?? 0d,
+                    column.Response.CategoryCode,
+                    column.Response.TypePosition);
+            })
             .ToArray();
     }
 
@@ -564,11 +561,14 @@ public sealed class OrderStatisticsService(
                         designQuantity,
                         tQuantity,
                         actualQuantity,
-                        actualQuantity - designQuantity);
+                        OrderStatisticsMaterialCalculations.CalculateVariance(
+                            designQuantity,
+                            tQuantity,
+                            actualQuantity));
                 });
     }
 
-    private static IReadOnlyDictionary<(int SlotNumber, string CategoryCode), AggregatedMaterialValue>
+    private static IReadOnlyDictionary<int, AggregatedMaterialValue>
         AggregateMaterialsBySlot(IEnumerable<OrderStatisticsMaterialValue> sourceRows) =>
         sourceRows
             .Where(material => material.SlotNumber is >= 1)
@@ -580,7 +580,7 @@ public sealed class OrderStatisticsService(
                     material.Category,
                     material.MaterialName)
             })
-            .GroupBy(row => (row.Material.SlotNumber!.Value, row.CategoryCode))
+            .GroupBy(row => row.Material.SlotNumber!.Value)
             .ToDictionary(
                 group => group.Key,
                 group =>
@@ -596,11 +596,14 @@ public sealed class OrderStatisticsService(
                         representative.Material.SlotNumber,
                         representative.Material.MaterialName,
                         representative.Material.Category,
-                        group.Key.CategoryCode,
+                        representative.CategoryCode,
                         designQuantity,
                         tQuantity,
                         actualQuantity,
-                        actualQuantity - designQuantity);
+                        OrderStatisticsMaterialCalculations.CalculateVariance(
+                            designQuantity,
+                            tQuantity,
+                            actualQuantity));
                 });
 
     private static OrderStatisticsFilter CreateFilter(

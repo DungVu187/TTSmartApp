@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using TTSmart.Api.Data.Company;
+using TTSmart.Api.Data.StationOperations;
 using TTSmart.Api.Features.Authorization;
 using TTSmart.Api.Features.Dashboard;
 using TTSmart.Api.Features.OrderStatistics;
@@ -9,6 +10,79 @@ namespace TTSmart.Api.Tests;
 
 public sealed class OrderStatisticsSqlApiTests
 {
+    [SqlE2EFact]
+    [Trait("Category", "SqlE2E")]
+    public async Task FullHttpE2E_LayoutDungTenCuaHienTaiTheoWebsite()
+    {
+        var stationConnection = Environment.GetEnvironmentVariable(
+            SqlE2EFactAttribute.StationConnectionEnvironmentVariable)!;
+        await using var factory = new SqlOrderStatisticsApiFactory(stationConnection);
+        var identity = await SeedScopeAsync(factory);
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, identity);
+
+        const string timeRange =
+            "from=2024-01-01T00%3A00%3A00%2B07%3A00&to=2025-12-31T23%3A59%3A59%2B07%3A00";
+        var firstPage = await client.GetFromJsonAsync<OrderStatisticsResponse>(
+            "/api/order-statistics?companyId=1&branchId=10&viewMode=detail&pageNumber=1&pageSize=10&" + timeRange,
+            BranchTestSupport.JsonOptions);
+        var secondPage = await client.GetFromJsonAsync<OrderStatisticsResponse>(
+            "/api/order-statistics?companyId=1&branchId=10&viewMode=detail&pageNumber=2&pageSize=10&" + timeRange,
+            BranchTestSupport.JsonOptions);
+        var total = await client.GetFromJsonAsync<OrderStatisticsResponse>(
+            "/api/order-statistics?companyId=1&branchId=10&viewMode=total&pageNumber=1&pageSize=10&" + timeRange,
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(firstPage);
+        Assert.NotNull(secondPage);
+        Assert.NotNull(total);
+        var layout = Assert.Single(firstPage.Layouts);
+        Assert.Equal("SIKA", layout.Columns.Single(column => column.SlotNumber == 11).MaterialName);
+        Assert.All(firstPage.Items.Concat(secondPage.Items).Concat(total.Items), item =>
+        {
+            Assert.Equal(layout.LayoutKey, item.LayoutKey);
+            Assert.Equal(
+                "SIKA",
+                item.Materials.Single(material => material.SlotNumber == 11).MaterialName);
+        });
+    }
+
+    [SqlE2EFact]
+    [Trait("Category", "SqlE2E")]
+    public async Task DuLieuSql_CongLuongTVaoSaiSoChoCaChiTietVaTong()
+    {
+        var stationConnection = Environment.GetEnvironmentVariable(
+            SqlE2EFactAttribute.StationConnectionEnvironmentVariable)!;
+        await using var factory = new SqlOrderStatisticsApiFactory(stationConnection);
+        using var scope = factory.Services.CreateScope();
+        var dataSource = scope.ServiceProvider.GetRequiredService<IOrderStatisticsDataSource>();
+        var target = new StationDatabaseTarget(10, "QUANLYTAITRAM_Local");
+        var filter = new OrderStatisticsFilter(
+            new DateTime(2024, 1, 1),
+            new DateTime(2026, 1, 1));
+
+        foreach (var viewMode in new[]
+                 {
+                     OrderStatisticsViewMode.Detail,
+                     OrderStatisticsViewMode.Total
+                 })
+        {
+            var page = await dataSource.SearchAllAsync(
+                target,
+                filter,
+                viewMode,
+                CancellationToken.None);
+            var materials = page.Items
+                .SelectMany(item => item.Materials)
+                .ToArray();
+
+            Assert.Contains(materials, material => Math.Abs(material.TQuantity) > 0.001d);
+            Assert.All(materials, material => Assert.Equal(
+                material.ActualQuantity + material.TQuantity - material.DesignQuantity,
+                material.Variance));
+        }
+    }
+
     [SqlE2EFact]
     [Trait("Category", "SqlE2E")]
     public async Task FullHttpE2E_DocDetailTotalFilterVaVatLieuTuDatabaseTram()
@@ -43,7 +117,8 @@ public sealed class OrderStatisticsSqlApiTests
         Assert.Equal(13, detail.TotalCount);
         Assert.Equal(2, detail.TotalPages);
         Assert.Equal(10, detail.Items.Count);
-        Assert.NotEmpty(detail.Layouts);
+        var detailLayout = Assert.Single(detail.Layouts);
+        Assert.All(detail.Items, item => Assert.Equal(detailLayout.LayoutKey, item.LayoutKey));
         Assert.All(detail.Layouts, layout => Assert.Equal(14, layout.Columns.Count));
         Assert.Contains(
             detail.Layouts,
@@ -69,9 +144,9 @@ public sealed class OrderStatisticsSqlApiTests
         Assert.Equal(2, detailPage2.TotalPages);
         Assert.Equal(3, detailPage2.Items.Count);
         Assert.Equal(Enumerable.Range(11, 3), detailPage2.Items.Select(item => item.RowNumber));
-        Assert.Equal("PG 1", detailPage2.Items[^1].Materials.Single(material => material.SlotNumber == 11).MaterialName);
+        Assert.Equal("SIKA", detailPage2.Items[^1].Materials.Single(material => material.SlotNumber == 11).MaterialName);
         Assert.Equal(24.333m, detail.TotalConcreteVolume);
-        Assert.Equal(58777.457m, detail.TotalMaterialQuantity);
+        Assert.Equal(58777.46m, detail.TotalMaterialQuantity);
         Assert.Equal(
             detail.TotalMaterialQuantity,
             detail.MaterialSummaryRows

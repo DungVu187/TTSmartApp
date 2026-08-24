@@ -59,6 +59,7 @@ class MixDesignItem {
     required this.tulog,
     required this.sikaroad,
     required this.bifi,
+    this.materials = const <MixDesignMaterial>[],
   });
 
   factory MixDesignItem.fromJson(Object? value) {
@@ -83,6 +84,12 @@ class MixDesignItem {
       tulog: _requireNumber(json, 'tulog'),
       sikaroad: _requireNumber(json, 'sikaroad'),
       bifi: _requireNumber(json, 'bifi'),
+      materials: json['materials'] == null
+          ? const <MixDesignMaterial>[]
+          : requireJsonList(
+              json['materials'],
+              'vật liệu cấp phối',
+            ).map(MixDesignMaterial.fromJson).toList(growable: false),
     );
   }
 
@@ -105,6 +112,14 @@ class MixDesignItem {
   final double tulog;
   final double sikaroad;
   final double bifi;
+  final List<MixDesignMaterial> materials;
+
+  double quantityForColumn(String columnKey) {
+    for (final material in materials) {
+      if (material.columnKey == columnKey) return material.quantity;
+    }
+    return 0;
+  }
 
   String get displayConcreteGradeName {
     final normalized = concreteGradeName?.trim();
@@ -114,6 +129,63 @@ class MixDesignItem {
   }
 }
 
+class MixDesignMaterialColumn {
+  const MixDesignMaterialColumn({
+    required this.materialSlotId,
+    required this.slotNumber,
+    required this.materialName,
+    required this.category,
+    required this.categoryCode,
+    required this.typePosition,
+    required this.columnKey,
+  });
+
+  factory MixDesignMaterialColumn.fromJson(Object? value) {
+    final json = requireJsonObject(value, 'cột vật liệu');
+    return MixDesignMaterialColumn(
+      materialSlotId: requireInt(json, 'materialSlotId'),
+      slotNumber: requireInt(json, 'slotNumber'),
+      materialName: requireString(json, 'materialName'),
+      category: requireString(json, 'category'),
+      categoryCode: requireString(json, 'categoryCode'),
+      typePosition: requireInt(json, 'typePosition'),
+      columnKey: requireString(json, 'columnKey'),
+    );
+  }
+
+  final int materialSlotId;
+  final int slotNumber;
+  final String materialName;
+  final String category;
+  final String categoryCode;
+  final int typePosition;
+  final String columnKey;
+}
+
+class MixDesignMaterial {
+  const MixDesignMaterial({
+    required this.materialSlotId,
+    required this.slotNumber,
+    required this.columnKey,
+    required this.quantity,
+  });
+
+  factory MixDesignMaterial.fromJson(Object? value) {
+    final json = requireJsonObject(value, 'giá trị vật liệu');
+    return MixDesignMaterial(
+      materialSlotId: requireInt(json, 'materialSlotId'),
+      slotNumber: requireInt(json, 'slotNumber'),
+      columnKey: requireString(json, 'columnKey'),
+      quantity: _requireNumber(json, 'quantity'),
+    );
+  }
+
+  final int materialSlotId;
+  final int slotNumber;
+  final String columnKey;
+  final double quantity;
+}
+
 class MixDesignPage {
   const MixDesignPage({
     required this.items,
@@ -121,6 +193,7 @@ class MixDesignPage {
     required this.pageSize,
     required this.totalCount,
     required this.totalPages,
+    this.materialColumns = const <MixDesignMaterialColumn>[],
   });
 
   factory MixDesignPage.fromJson(Object? value) {
@@ -134,6 +207,12 @@ class MixDesignPage {
       pageSize: requireInt(json, 'pageSize'),
       totalCount: requireInt(json, 'totalCount'),
       totalPages: requireInt(json, 'totalPages'),
+      materialColumns: json['materialColumns'] == null
+          ? const <MixDesignMaterialColumn>[]
+          : requireJsonList(
+              json['materialColumns'],
+              'cột vật liệu',
+            ).map(MixDesignMaterialColumn.fromJson).toList(growable: false),
     );
   }
 
@@ -142,6 +221,7 @@ class MixDesignPage {
   final int pageSize;
   final int totalCount;
   final int totalPages;
+  final List<MixDesignMaterialColumn> materialColumns;
 }
 
 double _requireNumber(Map<String, dynamic> json, String key) {

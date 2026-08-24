@@ -7,6 +7,7 @@ import '../../../../core/widgets/error_panel.dart';
 import '../../../access_management/data/models/permission_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../data/models/station_models.dart';
+import '../../data/repositories/station_repository.dart';
 import '../controllers/stations_controller.dart';
 import '../widgets/station_widgets.dart';
 import 'station_form_screen.dart';
@@ -87,6 +88,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     }
   }
 
+  // ignore: unused_element, mobile station management is read-only.
   Future<void> _edit() async {
     final station = _station;
     if (station == null || !_canUpdate) return;
@@ -108,6 +110,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     }
   }
 
+  // ignore: unused_element, mobile station management is read-only.
   Future<void> _delete() async {
     final station = _station;
     if (station == null || !_canDelete || _actionInProgress) return;
@@ -136,6 +139,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     }
   }
 
+  // ignore: unused_element, mobile station management is read-only.
   Future<void> _restore() async {
     final station = _station;
     if (station == null || !_canDelete || _actionInProgress) return;
@@ -226,7 +230,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                   child: LinearProgressIndicator(minHeight: 2),
                 )
               : null,
-          actions: [
+          /* actions: [
             if (_canUpdate && station != null && !station.isDeleted)
               TextButton.icon(
                 onPressed: _actionInProgress ? null : _edit,
@@ -262,7 +266,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                     ),
                 ],
               ),
-          ],
+          ], */
         ),
         body: _buildBody(station),
       ),
@@ -411,6 +415,15 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
 
   Widget _buildHeader(StationResponse station) {
     final theme = Theme.of(context);
+    final avatarValue = station.avatar?.trim();
+    final resolvedAvatar = widget.controller.repository is ApiStationRepository
+        ? (widget.controller.repository as ApiStationRepository)
+              .resolveMediaUrl(avatarValue)
+        : avatarValue;
+    final avatarUri = resolvedAvatar == null || resolvedAvatar.isEmpty
+        ? null
+        : Uri.tryParse(resolvedAvatar);
+    final hasAvatarUrl = avatarUri?.hasScheme == true;
     final metadata = <String>[
       if (station.code?.trim().isNotEmpty == true) 'Mã ${station.code!.trim()}',
       if (station.companyName?.trim().isNotEmpty == true)
@@ -433,11 +446,30 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(17),
               ),
-              child: Icon(
-                stationTypeIcon(station.type),
-                color: theme.colorScheme.primary,
-                size: 30,
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: hasAvatarUrl
+                  ? Image.network(
+                      avatarUri.toString(),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(
+                        stationTypeIcon(station.type),
+                        color: theme.colorScheme.primary,
+                        size: 30,
+                      ),
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null
+                          ? child
+                          : Icon(
+                              stationTypeIcon(station.type),
+                              color: theme.colorScheme.primary,
+                              size: 30,
+                            ),
+                    )
+                  : Icon(
+                      stationTypeIcon(station.type),
+                      color: theme.colorScheme.primary,
+                      size: 30,
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -481,4 +513,5 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 }
 
+// ignore: unused_element, unused_field, retained for the web/admin flow.
 enum _StationAction { delete, restore }

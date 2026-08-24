@@ -30,6 +30,7 @@ public sealed record BranchResponse(
     string? CompanyName,
     string? Code,
     string? Name,
+    string? Avatar,
     string? Email,
     string? Phone,
     string? Address,

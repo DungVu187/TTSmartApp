@@ -250,17 +250,17 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Function gán',
+                                  label: 'Số chức năng',
                                   value: '${role.functions.length}',
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Có quyền',
+                                  label: 'Số quyền đang bật',
                                   value: '${role.grantedFunctionCount}',
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Cấp vai trò',
+                                  label: 'Cấp quản lý',
                                   value:
                                       role.levelRole?.toString() ?? 'Chưa đặt',
                                 ),
@@ -277,8 +277,8 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
                               icon: const Icon(Icons.rule_folder_outlined),
                               label: Text(
                                 canUpdate
-                                    ? 'Mở ma trận quyền'
-                                    : 'Xem ma trận quyền',
+                                    ? 'Chỉnh quyền chức năng'
+                                    : 'Xem quyền chức năng',
                               ),
                             ),
                           ),

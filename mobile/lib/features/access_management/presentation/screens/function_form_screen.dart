@@ -123,7 +123,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Cập nhật function' : 'Tạo function'),
+        title: Text(widget.isEditing ? 'Sửa chức năng' : 'Tạo chức năng'),
       ),
       body: SafeArea(
         child: Form(
@@ -141,7 +141,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                       const SizedBox(height: 16),
                     ],
                     AccessSection(
-                      title: 'Cấu trúc function',
+                      title: 'Thông tin chức năng',
                       icon: Icons.account_tree_outlined,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -163,15 +163,15 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                                   ? _parentFunctionId
                                   : null,
                               decoration: const InputDecoration(
-                                labelText: 'Function cha',
+                                labelText: 'Chức năng cha',
                                 helperText:
-                                    'Không thể chọn chính nó hoặc function con làm cha.',
+                                    'Không thể chọn chính nó hoặc mục con làm mục chứa.',
                                 prefixIcon: Icon(Icons.account_tree_outlined),
                               ),
                               items: [
                                 const DropdownMenuItem<int?>(
                                   value: null,
-                                  child: Text('Không có function cha'),
+                                  child: Text('Không có chức năng cha'),
                                 ),
                                 ...options.map(
                                   (item) => DropdownMenuItem<int?>(
@@ -195,7 +195,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                     ),
                     const SizedBox(height: 20),
                     AccessSection(
-                      title: 'Thông tin function',
+                      title: 'Thông tin chức năng',
                       icon: Icons.webhook_outlined,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -206,13 +206,13 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                               maxLength: 100,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                labelText: 'Mã function *',
+                                labelText: 'Mã chức năng *',
                                 counterText: '',
                                 errorText: _error?.fieldMessage('code'),
                               ),
                               validator: (value) =>
                                   (value?.trim().isEmpty ?? true)
-                                  ? 'Mã function là bắt buộc.'
+                                  ? 'Mã chức năng là bắt buộc.'
                                   : null,
                             ),
                             const SizedBox(height: 14),
@@ -221,13 +221,13 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                               maxLength: 200,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                labelText: 'Tên function *',
+                                labelText: 'Tên chức năng *',
                                 counterText: '',
                                 errorText: _error?.fieldMessage('name'),
                               ),
                               validator: (value) =>
                                   (value?.trim().isEmpty ?? true)
-                                  ? 'Tên function là bắt buộc.'
+                                  ? 'Tên chức năng là bắt buộc.'
                                   : null,
                             ),
                             const SizedBox(height: 14),
@@ -237,7 +237,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                               keyboardType: TextInputType.url,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                labelText: 'URL',
+                                labelText: 'Đường dẫn',
                                 counterText: '',
                                 errorText: _error?.fieldMessage('url'),
                               ),
@@ -249,7 +249,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                               maxLines: 4,
                               textInputAction: TextInputAction.newline,
                               decoration: InputDecoration(
-                                labelText: 'Ghi chú',
+                                labelText: 'Chú thích',
                                 alignLabelWithHint: true,
                                 counterText: '',
                                 errorText: _error?.fieldMessage('note'),
@@ -263,7 +263,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                                     controller: _locationController,
                                     keyboardType: TextInputType.number,
                                     decoration: InputDecoration(
-                                      labelText: 'Thứ tự',
+                                      labelText: 'Vị trí',
                                       errorText: _error?.fieldMessage(
                                         'location',
                                       ),
@@ -310,7 +310,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                               )
                             : const Icon(Icons.save_outlined),
                         label: Text(
-                          _submitting ? 'Đang lưu...' : 'Lưu function',
+                          _submitting ? 'Đang lưu...' : 'Lưu thông tin',
                         ),
                       ),
                     ),

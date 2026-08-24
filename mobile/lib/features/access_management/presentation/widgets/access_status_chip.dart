@@ -21,7 +21,7 @@ class AccessStatusChip extends StatelessWidget {
         size: 18,
         color: foreground,
       ),
-      label: Text(isActive ? 'Hiệu lực' : 'Ngừng hiệu lực'),
+      label: Text(isActive ? 'Đang dùng' : 'Đang tắt'),
       labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
       backgroundColor: background,
       side: BorderSide.none,

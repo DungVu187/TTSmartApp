@@ -256,6 +256,7 @@ class _StationsScreenState extends State<StationsScreen> {
     await _controller.load();
   }
 
+  // ignore: unused_element, retained for the web/admin flow.
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<StationResponse>(
       MaterialPageRoute(
@@ -308,13 +309,13 @@ class _StationsScreenState extends State<StationsScreen> {
           ],
         ),
       ),
-      floatingActionButton: isAdmin
+      /* floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
               onPressed: _openCreate,
               icon: const Icon(Icons.add_business_outlined),
               label: const Text('Thêm trạm'),
             )
-          : null,
+          : null, */
     );
   }
 

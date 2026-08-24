@@ -28,6 +28,14 @@ class ApiStationRepository implements StationRepository {
 
   final ApiClient _apiClient;
 
+  String? resolveMediaUrl(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    final parsed = Uri.tryParse(normalized);
+    if (parsed?.hasScheme == true) return parsed.toString();
+    return _apiClient.baseUri.resolve(normalized).toString();
+  }
+
   @override
   Future<StationPage> getStations({
     int pageNumber = 1,

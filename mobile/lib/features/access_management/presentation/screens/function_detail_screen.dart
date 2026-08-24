@@ -62,11 +62,11 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(nextActive ? 'Kích hoạt function?' : 'Ngừng function?'),
+        title: Text(nextActive ? 'Bật chức năng?' : 'Tắt chức năng?'),
         content: Text(
           nextActive
-              ? 'Function sẽ xuất hiện trong cấu trúc hiệu lực.'
-              : 'Function sẽ ngừng hiệu lực; backend sẽ kiểm tra các function con.',
+              ? 'Chức năng sẽ được dùng trong menu.'
+              : 'Chức năng sẽ bị tắt; các mục con vẫn được giữ lại.',
         ),
         actions: [
           TextButton(
@@ -106,11 +106,11 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa function?'),
+        title: const Text('Xóa chức năng?'),
         content: Text(
           function.isContainer
-              ? 'Function này còn ${function.childCount} function con. Backend có thể từ chối thao tác xóa.'
-              : 'Xóa ${function.name} khỏi cấu trúc function.',
+              ? 'Mục này còn ${function.childCount} mục con. Khi xóa, các mục con sẽ chuyển lên cấp cao hơn.'
+              : 'Xóa ${function.name} khỏi menu.',
         ),
         actions: [
           TextButton(
@@ -167,7 +167,7 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
         if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Chi tiết function')),
+        appBar: AppBar(title: const Text('Chi tiết chức năng')),
         body: FutureBuilder<FunctionResponse>(
           future: _future,
           builder: (context, snapshot) {
@@ -258,37 +258,37 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
                             child: Column(
                               children: [
                                 AccessInfoRow(
-                                  label: 'Function con',
+                                  label: 'Số chức năng con',
                                   value: '${function.childCount}',
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Vai trò gán',
+                                  label: 'Số vai trò áp dụng',
                                   value: '${function.assignedRoleCount}',
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Vai trò có quyền',
+                                  label: 'Số người được cấp quyền',
                                   value: '${function.grantedRoleCount}',
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Function cha',
+                                  label: 'Chức năng cha',
                                   value:
                                       function.parentFunctionId?.toString() ??
-                                      'Function gốc',
+                                      'Chức năng gốc',
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 20),
                           AccessSection(
-                            title: 'Thông tin hiển thị',
+                            title: 'Thông tin chức năng',
                             icon: Icons.open_in_new_outlined,
                             child: Column(
                               children: [
                                 AccessInfoRow(
-                                  label: 'URL',
+                                  label: 'Đường dẫn',
                                   value: _display(function.url),
                                 ),
                                 const Divider(height: 1),
@@ -298,7 +298,7 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
                                 ),
                                 const Divider(height: 1),
                                 AccessInfoRow(
-                                  label: 'Ghi chú',
+                                  label: 'Chú thích',
                                   value: _display(function.note),
                                 ),
                               ],

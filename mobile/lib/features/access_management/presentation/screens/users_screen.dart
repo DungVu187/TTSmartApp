@@ -254,7 +254,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 960),
-                  child: _UserListItem(
+                  child: _ModernUserListItem(
                     user: user,
                     onTap: canView ? () => _openDetail(user) : null,
                   ),
@@ -266,6 +266,145 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
   }
+}
+
+class _ModernUserListItem extends StatelessWidget {
+  const _ModernUserListItem({required this.user, required this.onTap});
+
+  final UserResponse user;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final contact = _firstNonEmpty(<String?>[user.email, user.phone]);
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surface,
+                Color.alphaBlend(
+                  accent.withValues(alpha: 0.08),
+                  theme.colorScheme.surface,
+                ),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: accent.withValues(alpha: 0.20)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 27,
+                backgroundColor: accent.withValues(alpha: 0.15),
+                foregroundColor: accent,
+                child: Text(
+                  _initial(user.displayName),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            user.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (onTap != null)
+                          Icon(Icons.arrow_forward_rounded, color: accent),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      user.userName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (contact != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        contact,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        AccessStatusChip(isActive: user.isActive),
+                        _UserRoleMetric(value: '${user.roles.length} vai tro'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _initial(String value) {
+    final normalized = value.trim();
+    return normalized.isEmpty ? '?' : normalized[0].toUpperCase();
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      final normalized = value?.trim();
+      if (normalized != null && normalized.isNotEmpty) return normalized;
+    }
+    return null;
+  }
+}
+
+class _UserRoleMetric extends StatelessWidget {
+  const _UserRoleMetric({required this.value});
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.badge_outlined, size: 16),
+        const SizedBox(width: 5),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    ),
+  );
 }
 
 class _UserScopeFilters {
@@ -479,6 +618,7 @@ class _UserFilterOptions {
   }
 }
 
+// ignore: unused_element, retained for reference during the legacy UI migration.
 class _UserListItem extends StatelessWidget {
   const _UserListItem({required this.user, required this.onTap});
 
@@ -490,7 +630,9 @@ class _UserListItem extends StatelessWidget {
     final theme = Theme.of(context);
     final contact = _firstNonEmpty(<String?>[user.email, user.phone]);
     return Material(
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerLow,
+      elevation: 1,
+      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -502,7 +644,12 @@ class _UserListItem extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              CircleAvatar(radius: 24, child: Text(_initial(user.displayName))),
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                foregroundColor: theme.colorScheme.onPrimaryContainer,
+                child: Text(_initial(user.displayName)),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

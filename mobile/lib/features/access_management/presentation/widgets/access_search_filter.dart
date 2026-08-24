@@ -32,6 +32,29 @@ class AccessSearchFilter extends StatelessWidget {
             decoration: InputDecoration(
               hintText: hintText,
               prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 15,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
               suffixIcon: value.text.isEmpty
                   ? null
                   : IconButton(
@@ -57,13 +80,13 @@ class AccessSearchFilter extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _StatusChoice(
-                label: 'Hiệu lực',
+                label: 'Đang dùng',
                 selected: selectedStatus == AccessStatus.active,
                 onSelected: () => onStatusChanged(AccessStatus.active),
               ),
               const SizedBox(width: 8),
               _StatusChoice(
-                label: 'Ngừng hiệu lực',
+                label: 'Đang tắt',
                 selected: selectedStatus == AccessStatus.inactive,
                 onSelected: () => onStatusChanged(AccessStatus.inactive),
               ),
@@ -88,10 +111,19 @@ class _StatusChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
+      selectedColor: colors.primaryContainer,
+      side: BorderSide(
+        color: selected ? colors.primaryContainer : colors.outlineVariant,
+      ),
+      labelStyle: TextStyle(
+        color: selected ? colors.onPrimaryContainer : colors.onSurface,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      ),
     );
   }
 }

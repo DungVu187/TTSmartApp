@@ -90,7 +90,7 @@ class _RolesScreenState extends State<RolesScreen> {
       AccessPermission.view,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('Vai trò & quyền')),
+      appBar: AppBar(title: const Text('Vai trò')),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => Column(
@@ -100,7 +100,7 @@ class _RolesScreenState extends State<RolesScreen> {
                 padding: accessPagePadding(context, top: 12, bottom: 8),
                 child: AccessSearchFilter(
                   controller: _searchController,
-                  hintText: 'Tìm theo mã, tên hoặc ghi chú vai trò',
+                  hintText: 'Tìm theo tên hoặc mã vai trò',
                   selectedStatus: _controller.status,
                   onSearchChanged: _onSearchChanged,
                   onStatusChanged: _onStatusChanged,
@@ -197,7 +197,7 @@ class _RolesScreenState extends State<RolesScreen> {
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 960),
-                child: _RoleListItem(
+                child: _ModernRoleListItem(
                   role: role,
                   onTap: canView ? () => _openDetail(role) : null,
                 ),
@@ -210,6 +210,142 @@ class _RolesScreenState extends State<RolesScreen> {
   }
 }
 
+class _ModernRoleListItem extends StatelessWidget {
+  const _ModernRoleListItem({required this.role, required this.onTap});
+
+  final RoleListItemResponse role;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.tertiary;
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surface,
+                Color.alphaBlend(
+                  accent.withValues(alpha: 0.09),
+                  theme.colorScheme.surface,
+                ),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: accent.withValues(alpha: 0.16),
+                    foregroundColor: accent,
+                    child: Text(
+                      role.name.trim().isEmpty ? '?' : role.name[0],
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          role.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          role.code.toUpperCase(),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            letterSpacing: 0.8,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onTap != null)
+                    Icon(Icons.arrow_forward_rounded, color: accent),
+                ],
+              ),
+              if (role.note?.trim().isNotEmpty == true) ...[
+                const SizedBox(height: 12),
+                Text(
+                  role.note!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  AccessStatusChip(isActive: role.isActive),
+                  _RoleMetric(
+                    icon: Icons.people_alt_outlined,
+                    value: '${role.userCount}',
+                  ),
+                  _RoleMetric(
+                    icon: Icons.account_tree_outlined,
+                    value: '${role.functionCount}',
+                  ),
+                  _RoleMetric(
+                    icon: Icons.verified_outlined,
+                    value: '${role.grantedFunctionCount}',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleMetric extends StatelessWidget {
+  const _RoleMetric({required this.icon, required this.value});
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16),
+        const SizedBox(width: 5),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+      ],
+    ),
+  );
+}
+
+// ignore: unused_element, retained for reference during the legacy UI migration.
 class _RoleListItem extends StatelessWidget {
   const _RoleListItem({required this.role, required this.onTap});
 
@@ -220,7 +356,9 @@ class _RoleListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerLow,
+      elevation: 1,
+      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -236,6 +374,8 @@ class _RoleListItem extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
+                    backgroundColor: theme.colorScheme.tertiaryContainer,
+                    foregroundColor: theme.colorScheme.onTertiaryContainer,
                     child: Text(role.name.trim().isEmpty ? '?' : role.name[0]),
                   ),
                   const SizedBox(width: 12),
@@ -275,8 +415,10 @@ class _RoleListItem extends StatelessWidget {
                 children: [
                   AccessStatusChip(isActive: role.isActive),
                   Chip(label: Text('${role.userCount} người dùng')),
-                  Chip(label: Text('${role.functionCount} function đã gán')),
-                  Chip(label: Text('${role.grantedFunctionCount} có quyền')),
+                  Chip(label: Text('${role.functionCount} chức năng')),
+                  Chip(
+                    label: Text('${role.grantedFunctionCount} quyền đang bật'),
+                  ),
                 ],
               ),
             ],
