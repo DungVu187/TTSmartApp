@@ -76,7 +76,7 @@ public sealed class UsersController(IUserAdministrationService service) : Contro
         CancellationToken cancellationToken) =>
         Ok(await service.SetRolesAsync(id, User.GetRequiredUserId(), request, cancellationToken));
 
-    [Authorize(Policy = AccessPolicies.UsersUpdate)]
+    [Authorize(Policy = AccessPolicies.UsersResetPassword)]
     [HttpPost("{id:int}/reset-password")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ResetPassword(

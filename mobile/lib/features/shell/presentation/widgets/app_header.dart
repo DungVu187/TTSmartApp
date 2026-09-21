@@ -7,12 +7,14 @@ class AppHeader extends StatelessWidget {
     required this.onOpenAccount,
     required this.onOpenSettings,
     this.onOpenNotifications,
+    this.unreadNotificationCount = 0,
   });
 
   final String displayName;
   final VoidCallback onOpenAccount;
   final VoidCallback onOpenSettings;
   final VoidCallback? onOpenNotifications;
+  final int unreadNotificationCount;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +58,15 @@ class AppHeader extends StatelessWidget {
                     ? 'Thông báo chưa được triển khai'
                     : 'Thông báo',
                 onPressed: onOpenNotifications,
-                icon: const Icon(Icons.notifications_none),
+                icon: Badge(
+                  isLabelVisible: unreadNotificationCount > 0,
+                  label: Text(
+                    unreadNotificationCount > 99
+                        ? '99+'
+                        : '$unreadNotificationCount',
+                  ),
+                  child: const Icon(Icons.notifications_none),
+                ),
               ),
               IconButton(
                 tooltip: 'Cài đặt',

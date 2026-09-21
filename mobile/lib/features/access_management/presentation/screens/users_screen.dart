@@ -69,6 +69,8 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Future<void> _openFilters() async {
+    final app = AppScope.read(context);
+    final isAdmin = app.hasRole('ADMIN');
     final filters = await showModalBottomSheet<_UserScopeFilters>(
       context: context,
       isScrollControlled: true,
@@ -76,6 +78,8 @@ class _UsersScreenState extends State<UsersScreen> {
         companyRepository: widget.companyRepository,
         stationRepository: widget.stationRepository,
         controller: _controller,
+        isAdmin: isAdmin,
+        fixedCompanyId: isAdmin ? null : app.session?.user.companyId,
       ),
     );
     if (filters == null) return;
@@ -138,7 +142,7 @@ class _UsersScreenState extends State<UsersScreen> {
             onPressed: _openFilters,
             icon: Badge(
               isLabelVisible:
-                  _controller.companyId != null ||
+                  (app.hasRole('ADMIN') && _controller.companyId != null) ||
                   _controller.branchId != null ||
                   _controller.roleId != null ||
                   _controller.withoutRole,
@@ -426,24 +430,31 @@ class _UserScopeFilterSheet extends StatefulWidget {
     required this.companyRepository,
     required this.stationRepository,
     required this.controller,
+    required this.isAdmin,
+    required this.fixedCompanyId,
   });
 
   final CompanyRepository companyRepository;
   final StationRepository stationRepository;
   final UsersController controller;
+  final bool isAdmin;
+  final int? fixedCompanyId;
 
   @override
   State<_UserScopeFilterSheet> createState() => _UserScopeFilterSheetState();
 }
 
 class _UserScopeFilterSheetState extends State<_UserScopeFilterSheet> {
-  late int? _companyId = widget.controller.companyId;
+  late int? _companyId = widget.isAdmin
+      ? widget.controller.companyId
+      : widget.fixedCompanyId;
   late int? _branchId = widget.controller.branchId;
   late int? _roleId = widget.controller.roleId;
   late bool _withoutRole = widget.controller.withoutRole;
   late final Future<_UserFilterOptions> _options = _UserFilterOptions.load(
     widget.companyRepository,
     widget.controller,
+    widget.isAdmin,
   );
   late Future<StationPage> _stationsFuture = widget.stationRepository
       .getStations(pageSize: 100, companyId: _companyId);
@@ -488,31 +499,35 @@ class _UserScopeFilterSheetState extends State<_UserScopeFilterSheet> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<int>(
-                        key: ValueKey<String>(
-                          'user-filter-company-$_companyId',
-                        ),
-                        initialValue: _companyId,
-                        decoration: const InputDecoration(labelText: 'Công ty'),
-                        items: [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('Tất cả công ty'),
+                      if (widget.isAdmin) ...[
+                        DropdownButtonFormField<int>(
+                          key: ValueKey<String>(
+                            'user-filter-company-$_companyId',
                           ),
-                          for (final company in options.companies)
-                            DropdownMenuItem(
-                              value: company.id,
-                              child: Text(company.displayName),
+                          initialValue: _companyId,
+                          decoration: const InputDecoration(
+                            labelText: 'Công ty',
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('Tất cả công ty'),
                             ),
-                        ],
-                        onChanged: (value) => setState(() {
-                          _companyId = value;
-                          _branchId = null;
-                          _stationsFuture = widget.stationRepository
-                              .getStations(pageSize: 100, companyId: value);
-                        }),
-                      ),
-                      const SizedBox(height: 12),
+                            for (final company in options.companies)
+                              DropdownMenuItem(
+                                value: company.id,
+                                child: Text(company.displayName),
+                              ),
+                          ],
+                          onChanged: (value) => setState(() {
+                            _companyId = value;
+                            _branchId = null;
+                            _stationsFuture = widget.stationRepository
+                                .getStations(pageSize: 100, companyId: value);
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       DropdownButtonFormField<int>(
                         key: ValueKey<String>('user-filter-branch-$_branchId'),
                         initialValue: _branchId,
@@ -561,8 +576,10 @@ class _UserScopeFilterSheetState extends State<_UserScopeFilterSheet> {
                           TextButton(
                             onPressed: () => Navigator.pop(
                               context,
-                              const _UserScopeFilters(
-                                companyId: null,
+                              _UserScopeFilters(
+                                companyId: widget.isAdmin
+                                    ? null
+                                    : widget.fixedCompanyId,
                                 branchId: null,
                                 roleId: null,
                                 withoutRole: false,
@@ -606,14 +623,15 @@ class _UserFilterOptions {
   static Future<_UserFilterOptions> load(
     CompanyRepository companies,
     UsersController controller,
+    bool isAdmin,
   ) async {
-    final results = await Future.wait<Object>([
-      companies.getCompanies(pageSize: 100),
-      controller.getAvailableRoles(),
-    ]);
+    final roles = controller.getAvailableRoles();
+    final companyPage = isAdmin
+        ? await companies.getCompanies(pageSize: 100)
+        : null;
     return _UserFilterOptions(
-      (results[0] as CompanyPage).items,
-      results[1] as List<RoleListItemResponse>,
+      companyPage?.items ?? const <CompanyResponse>[],
+      await roles,
     );
   }
 }

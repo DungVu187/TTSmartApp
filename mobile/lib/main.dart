@@ -13,6 +13,7 @@ import 'features/home/data/repositories/home_repository.dart';
 import 'features/mix_design_management/data/repositories/mix_design_repository.dart';
 import 'features/material_reporting/data/repositories/material_report_repository.dart';
 import 'features/order_reporting/data/repositories/order_report_repository.dart';
+import 'features/notifications/data/repositories/notification_repository.dart';
 import 'features/reports/data/repositories/reports_repository.dart';
 import 'features/station_management/data/repositories/station_repository.dart';
 import 'features/weigh_station_management/data/repositories/weigh_station_repository.dart';
@@ -35,6 +36,7 @@ void main() {
     mixDesigns: ApiMixDesignRepository(apiClient),
     materialReports: ApiMaterialReportRepository(apiClient),
     orderReports: ApiOrderReportRepository(apiClient),
+    notifications: ApiNotificationRepository(apiClient),
     reports: ApiReportsRepository(apiClient),
     companies: ApiCompanyRepository(apiClient),
     stations: ApiStationRepository(apiClient),

@@ -42,13 +42,15 @@ class _MemoryTokenStorage implements TokenStorage {
 }
 
 class _AuthorizedAppController extends AppController {
-  _AuthorizedAppController(ApiClient apiClient)
+  _AuthorizedAppController(ApiClient apiClient, {this.isAdmin = true})
     : super(
         apiClient: apiClient,
         authRepository: AuthRepository(apiClient),
         accessManagementRepository: AccessManagementRepository(apiClient),
         tokenStorage: _MemoryTokenStorage(),
       );
+
+  final bool isAdmin;
 
   @override
   CurrentSession? get session => const CurrentSession(
@@ -91,7 +93,7 @@ class _AuthorizedAppController extends AppController {
   }
 
   @override
-  bool hasRole(String roleCode) => roleCode == 'ADMIN';
+  bool hasRole(String roleCode) => isAdmin && roleCode == 'ADMIN';
 }
 
 class _ShellHomeRepository implements HomeRepository {
@@ -166,6 +168,61 @@ class _ShellHomeRepository implements HomeRepository {
 }
 
 void main() {
+  testWidgets('hides company filter on dashboard for non-admin accounts', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(_surfaceSize);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final apiClient = ApiClient(
+      baseUri: Uri.parse('http://localhost:5052'),
+      timeout: const Duration(seconds: 1),
+      httpClient: MockClient(
+        (_) async => throw StateError('Không được gọi API thật trong test.'),
+      ),
+    );
+    final appController = _AuthorizedAppController(apiClient, isAdmin: false);
+    addTearDown(appController.dispose);
+    final homeRepository = _ShellHomeRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AppScope(
+          controller: appController,
+          child: AppShell(
+            repositories: AppFeatureRepositories(
+              home: homeRepository,
+              mixDesigns: ApiMixDesignRepository(apiClient),
+              materialReports: ApiMaterialReportRepository(apiClient),
+              orderReports: ApiOrderReportRepository(apiClient),
+              reports: const EmptyReportsRepository(),
+              companies: ApiCompanyRepository(apiClient),
+              stations: ApiStationRepository(apiClient),
+              weighStations: ApiWeighStationRepository(apiClient),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-company-filter')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-station-filter-all')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('dashboard-time-range-today')),
+      findsOneWidget,
+    );
+    expect(homeRepository.dashboardCallCount, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows five navigation items and opens shell panels', (
     tester,
   ) async {

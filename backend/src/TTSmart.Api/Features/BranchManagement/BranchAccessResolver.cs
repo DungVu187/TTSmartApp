@@ -22,9 +22,17 @@ public sealed record BranchAccessScope(
 
         if (IsCompany)
         {
-            return CompanyId.HasValue
-                ? branches.Where(branch => branch.CompanyId == CompanyId.Value)
-                : branches.Where(_ => false);
+            if (!CompanyId.HasValue)
+            {
+                return branches.Where(_ => false);
+            }
+
+            var companyBranches = branches.Where(branch => branch.CompanyId == CompanyId.Value);
+            return BranchIds.Length == 0
+                ? companyBranches
+                : companyBranches.Where(branch =>
+                    branch.BranchId > 0 &&
+                    BranchIds.Contains(branch.BranchId));
         }
 
         return !CompanyId.HasValue || BranchIds.Length == 0

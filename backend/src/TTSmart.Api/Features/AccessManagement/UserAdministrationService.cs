@@ -193,6 +193,7 @@ public sealed class UserAdministrationService(
                     });
                 }
 
+                await ApplyRoleMetadataAsync(user, roleIds, cancellationToken);
                 await dbContext.SaveChangesAsync(cancellationToken);
                 return user.UserId;
             },
@@ -267,6 +268,7 @@ public sealed class UserAdministrationService(
                 {
                     await ReplaceRolesAsync(id, roleIds, DateTime.Now, cancellationToken);
                 }
+                await ApplyRoleMetadataAsync(user, effectiveRoleIds, cancellationToken);
 
                 await dbContext.SaveChangesAsync(cancellationToken);
             },
@@ -360,6 +362,7 @@ public sealed class UserAdministrationService(
                 await ReplaceRolesAsync(id, roleIds, now, cancellationToken);
                 var user = await GetTrackedUserAsync(id, scope, cancellationToken);
                 user.BranchId = normalizedBranchId;
+                await ApplyRoleMetadataAsync(user, roleIds, cancellationToken);
                 user.UpdatedAt = now;
                 user.UserEditId = currentUserId;
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -394,6 +397,10 @@ public sealed class UserAdministrationService(
     public async Task DeleteAsync(int id, int currentUserId, CancellationToken cancellationToken)
     {
         var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        if (!scope.IsSuperAdmin)
+        {
+            throw new ForbiddenException("Chỉ quản trị viên hệ thống mới được xóa người dùng.");
+        }
         if (id == currentUserId)
         {
             throw new ConflictException("Không thể tự xóa tài khoản đang đăng nhập.");
@@ -471,6 +478,22 @@ public sealed class UserAdministrationService(
                 Status = WebDataStatus.Active
             });
         }
+    }
+
+    private async Task ApplyRoleMetadataAsync(
+        WebUser user,
+        IReadOnlyCollection<int> roleIds,
+        CancellationToken cancellationToken)
+    {
+        var primaryRole = await dbContext.Roles.AsNoTracking()
+            .Where(role => roleIds.Contains(role.RoleId) && role.Status == WebDataStatus.Active)
+            .OrderBy(role => role.LevelRole == null)
+            .ThenBy(role => role.LevelRole)
+            .ThenBy(role => role.RoleId)
+            .Select(role => new { role.RoleId, role.LevelRole })
+            .FirstAsync(cancellationToken);
+        user.RoleMax = primaryRole.RoleId;
+        user.RoleLevel = primaryRole.LevelRole;
     }
 
     private async Task ValidateActiveRolesAsync(IReadOnlyCollection<int> roleIds, CancellationToken cancellationToken)
@@ -901,8 +924,6 @@ public sealed class UserAdministrationService(
         user.PositionId = request.PositionId;
         user.DepartmentId = request.DepartmentId;
         user.CompanyId = request.CompanyId;
-        user.RoleMax = request.RoleMax;
-        user.RoleLevel = request.RoleLevel;
         user.IsRoleGroup = request.IsRoleGroup;
         user.BranchId = AccessManagementSupport.TrimOrNull(request.BranchId);
     }

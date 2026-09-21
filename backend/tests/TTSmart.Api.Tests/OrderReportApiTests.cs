@@ -380,7 +380,7 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
     }
 
     [Fact]
-    public async Task ADMIN_CoTheXemTatCaHoacLocCongTy_VaCONGTYChiThayTramCuaMinh()
+    public async Task ADMIN_CoTheXemTatCaHoacLocCongTy_VaCONGTYChiThayTramDuocGan()
     {
         BranchTestIdentity admin = null!;
         await factory.ResetDatabaseAsync(async (services, authDbContext) =>
@@ -421,7 +421,7 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
                 authDbContext,
                 SystemRoleCodes.Company,
                 1,
-                null,
+                "10",
                 ActiveKeyPermission.DSach);
             var companyDbContext = services.GetRequiredService<CompanyDbContext>();
             companyDbContext.Companies.AddRange(
@@ -429,6 +429,7 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
                 BranchTestSupport.CreateCompany(2, "CT_2", "Công ty 2"));
             companyDbContext.Branches.AddRange(
                 BranchTestSupport.CreateBranch(10, 1, "ONE", "Trạm 1"),
+                BranchTestSupport.CreateBranch(11, 1, "ONE_NOT_ASSIGNED", "Trạm 1 chưa được gán"),
                 BranchTestSupport.CreateBranch(20, 2, "TWO", "Trạm 2"));
             await companyDbContext.SaveChangesAsync();
         });
@@ -439,6 +440,11 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
             BranchTestSupport.JsonOptions);
         Assert.NotNull(ownStations);
         Assert.Equal([10], ownStations.Select(item => item.Id).ToArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await companyClient.GetAsync(
+            "/api/order-reports/employees?branchId=11&from=2026-07-31T00%3A00%3A00%2B07%3A00&to=2026-08-01T00%3A00%3A00%2B07%3A00")).StatusCode);
+        Assert.DoesNotContain(
+            factory.OrderReportDataSource.SeenTargets,
+            target => target.BranchId == 11);
         Assert.Equal(HttpStatusCode.Forbidden, (await companyClient.GetAsync(
             "/api/order-reports/stations?companyId=2")).StatusCode);
     }

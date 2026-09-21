@@ -287,6 +287,62 @@ public sealed class AccessManagementServiceTests
     }
 
     [Fact]
+    public async Task UserRoleMetadata_LayRoleCoCapThapNhatVaKhongTinGiaTriClientGuiLen()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Roles.AddRange(
+            new WebRole { RoleId = 3, Code = "ROLE_HIGH", Name = "Cấp cao", LevelRole = 5, Status = WebDataStatus.Active },
+            new WebRole { RoleId = 4, Code = "ROLE_LOW", Name = "Cấp thấp", LevelRole = 2, Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var service = CreateUserService(dbContext, CreatePasswordService());
+
+        var created = await service.CreateAsync(new CreateUserRequest
+        {
+            UserName = "role-metadata",
+            Password = "Password@123",
+            RoleIds = [3, 4],
+            RoleMax = 999,
+            RoleLevel = 99
+        }, 900, CancellationToken.None);
+
+        var afterCreate = await dbContext.Users.SingleAsync(item => item.UserId == created.Id);
+        Assert.Equal(4, afterCreate.RoleMax);
+        Assert.Equal((byte)2, afterCreate.RoleLevel);
+
+        await service.SetRolesAsync(
+            created.Id,
+            900,
+            new SetUserRolesRequest { RoleIds = [3] },
+            CancellationToken.None);
+
+        var afterSetRoles = await dbContext.Users.SingleAsync(item => item.UserId == created.Id);
+        Assert.Equal(3, afterSetRoles.RoleMax);
+        Assert.Equal((byte)5, afterSetRoles.RoleLevel);
+    }
+
+    [Fact]
+    public async Task DeleteUser_ChiSuperAdminDuocPhepXoa()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Users.AddRange(
+            new WebUser { UserId = 900, UserName = "company-owner", CompanyId = 10, Status = WebDataStatus.Active },
+            new WebUser { UserId = 901, UserName = "company-child", CompanyId = 10, Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var service = new UserAdministrationService(
+            dbContext,
+            CreateCompanyDbContext(),
+            CreatePasswordService(),
+            new TestSystemRoleEvaluator(false));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteAsync(901, 900, CancellationToken.None));
+
+        Assert.Equal(WebDataStatus.Active, await dbContext.Users
+            .Where(item => item.UserId == 901)
+            .Select(item => item.Status)
+            .SingleAsync());
+    }
+
+    [Fact]
     public async Task FunctionCrud_ChoPhepTrungTenNhungKhongTrungCode()
     {
         await using var dbContext = CreateDbContext();

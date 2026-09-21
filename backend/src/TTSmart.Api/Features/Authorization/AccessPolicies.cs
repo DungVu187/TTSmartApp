@@ -6,6 +6,7 @@ public static class AccessPolicies
     public const string UsersRead = "access.users.read";
     public const string UsersCreate = "access.users.create";
     public const string UsersUpdate = "access.users.update";
+    public const string UsersResetPassword = "access.users.reset-password";
     public const string UsersDelete = "access.users.delete";
     public const string RolesList = "access.roles.list";
     public const string RolesRead = "access.roles.read";

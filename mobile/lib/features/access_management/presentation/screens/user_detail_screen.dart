@@ -86,46 +86,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     });
   }
 
-  Future<void> _toggleStatus(UserResponse user) async {
-    final nextActive = !user.isActive;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(nextActive ? 'Mở lại tài khoản?' : 'Khóa tài khoản?'),
-        content: Text(
-          nextActive
-              ? 'Người dùng sẽ có thể đăng nhập lại theo quyền hiện tại.'
-              : 'Người dùng sẽ không thể tiếp tục đăng nhập.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(nextActive ? 'Mở lại' : 'Khóa'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted || _busy) return;
-    setState(() => _busy = true);
-    try {
-      final updated = await widget.controller.setActive(user.id, nextActive);
-      if (mounted) {
-        _setUser(updated);
-        _showMessage(
-          nextActive ? 'Đã mở lại tài khoản.' : 'Đã khóa tài khoản.',
-        );
-      }
-    } on ApiException catch (error) {
-      if (mounted) _showMessage(error.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
   Future<void> _resetPassword(UserResponse user) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -208,10 +168,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       AccessFunctionCodes.users,
       AccessPermission.update,
     );
-    final canDelete = app.hasPermission(
+    final canResetPassword = app.hasPermission(
       AccessFunctionCodes.users,
       AccessPermission.delete,
     );
+    final canDelete = app.hasRole('ADMIN') && canResetPassword;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -243,7 +204,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               );
             }
             final user = snapshot.data!;
-            final isCurrentUser = app.session?.user.id == user.id;
             return Stack(
               children: [
                 ListView(
@@ -359,18 +319,16 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                                     ),
                             ),
                           ),
-                          if (canUpdate || canDelete) ...[
+                          if (canUpdate || canResetPassword) ...[
                             const SizedBox(height: 24),
                             _UserActions(
-                              user: user,
                               busy: _busy,
                               canUpdate: canUpdate,
                               canDelete: canDelete,
-                              canToggleStatus: !isCurrentUser || !user.isActive,
+                              canResetPassword: canResetPassword,
                               onEdit: () => _edit(user),
                               onRoles: () => _manageRoles(user),
                               onResetPassword: () => _resetPassword(user),
-                              onToggleStatus: () => _toggleStatus(user),
                               onDelete: () => _delete(user),
                             ),
                           ],
@@ -450,27 +408,23 @@ class _ProfileHeader extends StatelessWidget {
 
 class _UserActions extends StatelessWidget {
   const _UserActions({
-    required this.user,
     required this.busy,
     required this.canUpdate,
     required this.canDelete,
-    required this.canToggleStatus,
+    required this.canResetPassword,
     required this.onEdit,
     required this.onRoles,
     required this.onResetPassword,
-    required this.onToggleStatus,
     required this.onDelete,
   });
 
-  final UserResponse user;
   final bool busy;
   final bool canUpdate;
   final bool canDelete;
-  final bool canToggleStatus;
+  final bool canResetPassword;
   final VoidCallback onEdit;
   final VoidCallback onRoles;
   final VoidCallback onResetPassword;
-  final VoidCallback onToggleStatus;
   final VoidCallback onDelete;
 
   @override
@@ -491,24 +445,11 @@ class _UserActions extends StatelessWidget {
             icon: const Icon(Icons.badge_outlined),
             label: const Text('Gán vai trò'),
           ),
-        if (canUpdate)
+        if (canResetPassword)
           OutlinedButton.icon(
             onPressed: busy ? null : onResetPassword,
             icon: const Icon(Icons.password_outlined),
             label: const Text('Đặt lại mật khẩu'),
-          ),
-        if (canUpdate)
-          Tooltip(
-            message: canToggleStatus
-                ? ''
-                : 'Không thể tự khóa tài khoản đang đăng nhập.',
-            child: FilledButton.tonalIcon(
-              onPressed: busy || !canToggleStatus ? null : onToggleStatus,
-              icon: Icon(
-                user.isActive ? Icons.lock_outline : Icons.lock_open_outlined,
-              ),
-              label: Text(user.isActive ? 'Khóa tài khoản' : 'Mở lại'),
-            ),
           ),
         if (canDelete)
           TextButton.icon(

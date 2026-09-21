@@ -31,11 +31,13 @@ class OrderReportsScreen extends StatefulWidget {
     required this.repository,
     required this.companyRepository,
     this.now,
+    this.initialStationId,
   });
 
   final OrderReportRepository repository;
   final CompanyRepository companyRepository;
   final DateTime Function()? now;
+  final int? initialStationId;
 
   @override
   State<OrderReportsScreen> createState() => _OrderReportsScreenState();
@@ -61,6 +63,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       companyRepository: widget.companyRepository,
       isAdmin: app.hasRole('ADMIN'),
       initialCompanyId: session.user.companyId,
+      initialStationId: widget.initialStationId,
       now: widget.now,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {

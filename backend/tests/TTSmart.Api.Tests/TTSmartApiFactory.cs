@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using TTSmart.Api.Data.Company;
+using TTSmart.Api.Data.Notifications;
 using TTSmart.Api.Data.StationOperations;
 using TTSmart.Api.Data.WebAuth;
 using TTSmart.Api.Features.OrderReporting;
@@ -23,6 +24,7 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
 {
     private readonly string authDatabaseName = $"ttsmart-auth-http-tests-{Guid.NewGuid():N}";
     private readonly string companyDatabaseName = $"ttsmart-company-http-tests-{Guid.NewGuid():N}";
+    private readonly string notificationDatabaseName = $"ttsmart-notification-http-tests-{Guid.NewGuid():N}";
     private readonly string signingKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
     internal TestOrderReportDataSource OrderReportDataSource { get; } = new();
     internal TestOrderStatisticsDataSource OrderStatisticsDataSource { get; } = new();
@@ -45,6 +47,8 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:AuthConnection"] = "Server=(local);Database=unused;Trusted_Connection=True;",
+                ["ConnectionStrings:NotificationConnection"] = "Server=(local);Database=unused;Trusted_Connection=True;",
+                ["Notifications:Enabled"] = "false",
                 ["Jwt:Issuer"] = "TTSmart.Api.Tests",
                 ["Jwt:Audience"] = "TTSmart.Api.Tests.Client",
                 ["Jwt:SigningKey"] = signingKey,
@@ -64,6 +68,11 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IDbContextOptionsConfiguration<CompanyDbContext>>();
             services.AddDbContext<CompanyDbContext>(options =>
                 options.UseInMemoryDatabase(companyDatabaseName));
+            services.RemoveAll<NotificationDbContext>();
+            services.RemoveAll<DbContextOptions<NotificationDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<NotificationDbContext>>();
+            services.AddDbContext<NotificationDbContext>(options =>
+                options.UseInMemoryDatabase(notificationDatabaseName));
             services.RemoveAll<IOrderReportDataSource>();
             services.AddSingleton<IOrderReportDataSource>(OrderReportDataSource);
             services.RemoveAll<IOrderStatisticsDataSource>();
@@ -90,10 +99,13 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
         using var scope = Services.CreateScope();
         var authDbContext = scope.ServiceProvider.GetRequiredService<WebAuthDbContext>();
         var companyDbContext = scope.ServiceProvider.GetRequiredService<CompanyDbContext>();
+        var notificationDbContext = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
         await authDbContext.Database.EnsureDeletedAsync();
         await companyDbContext.Database.EnsureDeletedAsync();
         await authDbContext.Database.EnsureCreatedAsync();
         await companyDbContext.Database.EnsureCreatedAsync();
+        await notificationDbContext.Database.EnsureDeletedAsync();
+        await notificationDbContext.Database.EnsureCreatedAsync();
         OrderReportDataSource.Reset();
         OrderStatisticsDataSource.Reset();
         MixDesignDataSource.Reset();
@@ -118,6 +130,13 @@ public class TTSmartApiFactory : WebApplicationFactory<Program>
     {
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CompanyDbContext>();
+        await operation(dbContext);
+    }
+
+    public async Task ExecuteNotificationDatabaseAsync(Func<NotificationDbContext, Task> operation)
+    {
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
         await operation(dbContext);
     }
 

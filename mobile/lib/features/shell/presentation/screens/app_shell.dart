@@ -9,6 +9,9 @@ import '../../../home/presentation/screens/home_screen.dart';
 import '../../../more/presentation/screens/more_screen.dart';
 import '../../../more/presentation/screens/system_screen.dart';
 import '../../../order_reporting/presentation/screens/order_reports_screen.dart';
+import '../../../notifications/data/models/notification_models.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
+import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../widgets/app_header.dart';
@@ -47,6 +50,7 @@ class _AppShellState extends State<AppShell>
   _ShellTabKey _contentTab = _ShellTabKey.home;
   _ShellTabKey? _panelTab;
   late final HomeController _homeController;
+  late final NotificationsController _notificationsController;
   late final AnimationController _panelController;
   late final Animation<Offset> _panelSlideAnimation;
   late final Animation<double> _panelScrimAnimation;
@@ -73,6 +77,9 @@ class _AppShellState extends State<AppShell>
       reverseCurve: Curves.easeIn,
     );
     _homeController = HomeController(widget.repositories.home);
+    _notificationsController = NotificationsController(
+      widget.repositories.notifications,
+    )..initialize();
   }
 
   @override
@@ -81,6 +88,7 @@ class _AppShellState extends State<AppShell>
       ..removeStatusListener(_handlePanelAnimationStatus)
       ..dispose();
     _homeController.dispose();
+    _notificationsController.dispose();
     super.dispose();
   }
 
@@ -134,6 +142,35 @@ class _AppShellState extends State<AppShell>
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          controller: _notificationsController,
+          onOpenOrder: _openNotificationOrder,
+        ),
+      ),
+    );
+  }
+
+  void _openNotificationOrder(AppNotification notification) {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Orders')),
+          body: SafeArea(
+            child: OrderReportsScreen(
+              repository: widget.repositories.orderReports,
+              companyRepository: widget.repositories.companies,
+              initialStationId: notification.stationId,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -228,10 +265,16 @@ class _AppShellState extends State<AppShell>
           Positioned.fill(
             child: Column(
               children: [
-                AppHeader(
-                  displayName: session.user.displayName,
-                  onOpenAccount: _openAccount,
-                  onOpenSettings: _openSettings,
+                AnimatedBuilder(
+                  animation: _notificationsController,
+                  builder: (context, _) => AppHeader(
+                    displayName: session.user.displayName,
+                    onOpenAccount: _openAccount,
+                    onOpenSettings: _openSettings,
+                    onOpenNotifications: _openNotifications,
+                    unreadNotificationCount:
+                        _notificationsController.unreadCount,
+                  ),
                 ),
                 Expanded(
                   child: RepaintBoundary(

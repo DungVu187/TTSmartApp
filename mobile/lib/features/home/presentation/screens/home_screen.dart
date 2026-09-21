@@ -37,7 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = AppScope.of(context).session!.user.displayName;
+    final app = AppScope.of(context);
+    final displayName = app.session!.user.displayName;
+    final canSelectCompany = app.hasRole('ADMIN');
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {
@@ -58,7 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       updatedAt: snapshot?.updatedAt,
                     ),
                     const SizedBox(height: 16),
-                    _DashboardFilters(controller: widget.controller),
+                    _DashboardFilters(
+                      controller: widget.controller,
+                      canSelectCompany: canSelectCompany,
+                    ),
                     const SizedBox(height: 16),
                     if (widget.controller.errorMessage != null) ...[
                       ErrorPanel(
@@ -174,9 +179,13 @@ class _DashboardHeading extends StatelessWidget {
 }
 
 class _DashboardFilters extends StatelessWidget {
-  const _DashboardFilters({required this.controller});
+  const _DashboardFilters({
+    required this.controller,
+    required this.canSelectCompany,
+  });
 
   final HomeController controller;
+  final bool canSelectCompany;
 
   @override
   Widget build(BuildContext context) {
@@ -272,8 +281,10 @@ class _DashboardFilters extends StatelessWidget {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(flex: 3, child: companyField),
-                const SizedBox(width: 12),
+                if (canSelectCompany) ...[
+                  Expanded(flex: 3, child: companyField),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(flex: 3, child: stationField),
                 const SizedBox(width: 12),
                 Expanded(flex: 2, child: timeRangeField),
@@ -282,8 +293,10 @@ class _DashboardFilters extends StatelessWidget {
           }
           return Column(
             children: [
-              companyField,
-              const SizedBox(height: 10),
+              if (canSelectCompany) ...[
+                companyField,
+                const SizedBox(height: 10),
+              ],
               stationField,
               const SizedBox(height: 10),
               timeRangeField,

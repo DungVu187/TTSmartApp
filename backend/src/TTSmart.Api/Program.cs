@@ -7,6 +7,7 @@ using TTSmart.Api.Common.OpenApi;
 using TTSmart.Api.Common.Security;
 using TTSmart.Api.Common.Time;
 using TTSmart.Api.Data.Company;
+using TTSmart.Api.Data.Notifications;
 using TTSmart.Api.Data.StationOperations;
 using TTSmart.Api.Data.WebAuth;
 using TTSmart.Api.Features.AccessManagement;
@@ -20,6 +21,7 @@ using TTSmart.Api.Features.OrderStatistics;
 using TTSmart.Api.Features.MixDesignManagement;
 using TTSmart.Api.Features.WeighStationManagement;
 using TTSmart.Api.Features.MaterialReporting;
+using TTSmart.Api.Features.Notifications;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -47,6 +49,7 @@ builder.Services
         "WeighStationManagement:MaterialValueTimeoutMilliseconds phải từ 100 đến 30000.")
     .ValidateOnStart();
 builder.Services.AddSingleton<DatabaseCommandPerformanceInterceptor>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -78,6 +81,14 @@ builder.Services.AddDbContext<CompanyDbContext>((serviceProvider, options) =>
     });
     options.AddInterceptors(
         serviceProvider.GetRequiredService<DatabaseCommandPerformanceInterceptor>());
+});
+builder.Services.AddDbContext<NotificationDbContext>((serviceProvider, options) =>
+{
+    var connectionString = serviceProvider.GetRequiredService<IConfiguration>()
+        .GetConnectionString("NotificationConnection")
+        ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:NotificationConnection.");
+    options.UseSqlServer(connectionString, sqlServerOptions => sqlServerOptions.UseCompatibilityLevel(120));
+    options.AddInterceptors(serviceProvider.GetRequiredService<DatabaseCommandPerformanceInterceptor>());
 });
 builder.Services
     .AddOptions<JwtOptions>()
@@ -121,6 +132,26 @@ builder.Services
     .Validate(options => options.CommandTimeoutSeconds is > 0 and <= 300,
         "MaterialReporting:CommandTimeoutSeconds phải từ 1 đến 300.")
     .ValidateOnStart();
+builder.Services
+    .AddOptions<NotificationOptions>()
+    .Bind(builder.Configuration.GetSection(NotificationOptions.SectionName))
+    .Validate(options => options.PollingIntervalSeconds is >= 5 and <= 3600,
+        "Notifications:PollingIntervalSeconds phải từ 5 đến 3600.")
+    .Validate(options => options.MaxParallelStations is >= 1 and <= 32,
+        "Notifications:MaxParallelStations phải từ 1 đến 32.")
+    .Validate(options => options.StationRosterRefreshSeconds is >= 5 and <= 3600,
+        "Notifications station roster refresh interval is invalid.")
+    .Validate(options => options.StationScanTimeoutSeconds is >= 1 and <= 300,
+        "Notifications station scan timeout is invalid.")
+    .Validate(options => options.FailedStationInitialBackoffSeconds is >= 5 and <= 3600,
+        "Notifications initial failure backoff is invalid.")
+    .Validate(options => options.FailedStationMaxBackoffSeconds >= options.FailedStationInitialBackoffSeconds && options.FailedStationMaxBackoffSeconds <= 86400,
+        "Notifications maximum failure backoff is invalid.")
+    .Validate(options => options.StationIds.All(stationId => stationId > 0) && options.StationIds.Distinct().Count() == options.StationIds.Count,
+        "Notifications station IDs must be unique positive values.")
+    .Validate(options => options.OrderIdOverlap is >= 1 and <= 100000,
+        "Notifications:OrderIdOverlap phải từ 1 đến 100000.")
+    .ValidateOnStart();
 builder.Services.AddScoped<IDatabasePasswordService, DatabasePasswordService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserAdministrationService, UserAdministrationService>();
@@ -145,6 +176,12 @@ builder.Services.AddScoped<IWeighStationService, WeighStationService>();
 builder.Services.AddScoped<IWeighStationExportService, WeighStationExportService>();
 builder.Services.AddScoped<IMaterialReportDataSource, SqlMaterialReportDataSource>();
 builder.Services.AddScoped<IMaterialReportService, MaterialReportService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<INotificationStationSource, NotificationStationSource>();
+builder.Services.AddScoped<IOrderCreatedDataSource, SqlOrderCreatedDataSource>();
+builder.Services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();
+builder.Services.AddScoped<IOrderCreatedDetector, OrderCreatedDetector>();
+builder.Services.AddHostedService<NotificationWorker>();
 builder.Services.AddScoped<ICompanyAccessEvaluator, CompanyAccessEvaluator>();
 builder.Services.AddScoped<ISystemRoleEvaluator, SystemRoleEvaluator>();
 builder.Services.AddSingleton<ICompanyLogoStorage, LocalCompanyLogoStorage>();
@@ -263,6 +300,7 @@ builder.Services.AddAuthorization(options =>
     AddPolicy(options, AccessPolicies.UsersRead, ActiveKeyPermission.View, ManagementFunctionCodes.Users);
     AddPolicy(options, AccessPolicies.UsersCreate, ActiveKeyPermission.Create, ManagementFunctionCodes.Users);
     AddPolicy(options, AccessPolicies.UsersUpdate, ActiveKeyPermission.Update, ManagementFunctionCodes.Users);
+    AddPolicy(options, AccessPolicies.UsersResetPassword, ActiveKeyPermission.Delete, ManagementFunctionCodes.Users);
     AddPolicy(options, AccessPolicies.UsersDelete, ActiveKeyPermission.Delete, ManagementFunctionCodes.Users);
     AddPolicy(options, AccessPolicies.RolesList, ActiveKeyPermission.DSach, ManagementFunctionCodes.Roles);
     AddPolicy(options, AccessPolicies.RolesRead, ActiveKeyPermission.View, ManagementFunctionCodes.Roles);
