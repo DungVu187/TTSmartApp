@@ -62,8 +62,12 @@ public interface INotificationRecipientResolver
     Task<IReadOnlyList<int>> GetOrderRecipientsAsync(int? companyId, int stationId, CancellationToken cancellationToken);
 }
 
-public sealed class NotificationRecipientResolver(WebAuthDbContext authDbContext) : INotificationRecipientResolver
+public sealed class NotificationRecipientResolver(
+    WebAuthDbContext authDbContext,
+    ISystemRoleCatalog? systemRoleCatalog = null) : INotificationRecipientResolver
 {
+    private readonly ISystemRoleCatalog _systemRoleCatalog = systemRoleCatalog ?? SystemRoleCatalog.Default;
+
     public async Task<IReadOnlyList<int>> GetOrderRecipientsAsync(int? companyId, int stationId, CancellationToken cancellationToken)
     {
         var grants = await (
@@ -76,7 +80,7 @@ public sealed class NotificationRecipientResolver(WebAuthDbContext authDbContext
                   role.Status == WebDataStatus.Active && functionRole.Status == WebDataStatus.Active &&
                   functionRole.Type == WebFunctionRoleType.Role && function.Status == WebDataStatus.Active &&
                   function.Code == OperationalFunctionCodes.OrderReports
-            select new RecipientGrant(user.UserId, user.CompanyId, user.BranchId, role.Code, functionRole.ActiveKey))
+            select new RecipientGrant(user.UserId, user.CompanyId, user.BranchId, role.RoleId, role.Code, functionRole.ActiveKey))
             .ToArrayAsync(cancellationToken);
 
         return grants.GroupBy(item => item.UserId).Where(group =>
@@ -85,9 +89,9 @@ public sealed class NotificationRecipientResolver(WebAuthDbContext authDbContext
             .Select(group => group.Key).OrderBy(item => item).ToArray();
     }
 
-    private static bool IsInScope(IGrouping<int, RecipientGrant> grants, int? companyId, int stationId)
+    private bool IsInScope(IGrouping<int, RecipientGrant> grants, int? companyId, int stationId)
     {
-        if (grants.Any(item => item.RoleCode == SystemRoleCodes.Admin)) return true;
+        if (grants.Any(item => _systemRoleCatalog.IsAdmin(item.RoleId, item.RoleCode))) return true;
         if (!companyId.HasValue) return false;
         var user = grants.First();
         if (user.CompanyId != companyId) return false;
@@ -95,11 +99,17 @@ public sealed class NotificationRecipientResolver(WebAuthDbContext authDbContext
             .Where(value => int.TryParse(value, out _))
             .Select(int.Parse)
             .ToHashSet();
-        if (grants.Any(item => item.RoleCode == SystemRoleCodes.Company) && branchIds.Count == 0) return true;
+        if (grants.Any(item => _systemRoleCatalog.IsCompany(item.RoleId, item.RoleCode)) && branchIds.Count == 0) return true;
         return branchIds.Contains(stationId);
     }
 
-    private sealed record RecipientGrant(int UserId, int? CompanyId, string? BranchIds, string RoleCode, string? ActiveKey);
+    private sealed record RecipientGrant(
+        int UserId,
+        int? CompanyId,
+        string? BranchIds,
+        int RoleId,
+        string RoleCode,
+        string? ActiveKey);
 }
 
 public sealed record OrderDetectionResult(bool WasBaseline, int ObservedCount, int CreatedEventCount);

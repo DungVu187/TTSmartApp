@@ -152,6 +152,15 @@ builder.Services
     .Validate(options => options.OrderIdOverlap is >= 1 and <= 100000,
         "Notifications:OrderIdOverlap phải từ 1 đến 100000.")
     .ValidateOnStart();
+builder.Services
+    .AddOptions<SystemRoleOptions>()
+    .Bind(builder.Configuration.GetSection(SystemRoleOptions.SectionName))
+    .Validate(options => options.AdminRoleIds.All(roleId => roleId > 0),
+        "SystemRoles:AdminRoleIds chỉ nhận RoleId dương.")
+    .Validate(options => options.CompanyRoleIds.All(roleId => roleId > 0),
+        "SystemRoles:CompanyRoleIds chỉ nhận RoleId dương.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<ISystemRoleCatalog, SystemRoleCatalog>();
 builder.Services.AddScoped<IDatabasePasswordService, DatabasePasswordService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserAdministrationService, UserAdministrationService>();

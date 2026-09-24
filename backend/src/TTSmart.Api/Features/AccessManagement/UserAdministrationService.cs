@@ -17,8 +17,11 @@ public sealed class UserAdministrationService(
     CompanyDbContext companyDbContext,
     IDatabasePasswordService passwordService,
     ISystemRoleEvaluator systemRoleEvaluator,
-    Microsoft.Extensions.Options.IOptions<UserAccountStatusOptions>? userAccountStatusOptions = null) : IUserAdministrationService
+    Microsoft.Extensions.Options.IOptions<UserAccountStatusOptions>? userAccountStatusOptions = null,
+    ISystemRoleCatalog? systemRoleCatalog = null) : IUserAdministrationService
 {
+    private readonly ISystemRoleCatalog systemRoleCatalog = systemRoleCatalog ?? SystemRoleCatalog.Default;
+
     private const string ResetPasswordValue = "123456";
     private const string UserAccountStatusChangesDisabledMessage =
         "Tính năng khóa/mở khóa tài khoản trên mobile đang tạm tắt. Vui lòng thực hiện trên website.";
@@ -110,9 +113,11 @@ public sealed class UserAdministrationService(
             .Where(role => role.Status == WebDataStatus.Active);
         if (!scope.IsSuperAdmin)
         {
+            var privilegedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+            var privilegedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
             rolesQuery = rolesQuery.Where(role =>
-                role.Code != SystemRoleCodes.Admin &&
-                role.Code != SystemRoleCodes.Company);
+                !privilegedRoleIds.Contains(role.RoleId) &&
+                !privilegedRoleCodes.Contains(role.Code));
         }
 
         return await rolesQuery
@@ -529,10 +534,12 @@ public sealed class UserAdministrationService(
             throw new ValidationException("Tài khoản do công ty quản lý phải được gán đúng một vai trò.");
         }
 
+        var protectedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+        var protectedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
         var containsProtectedRole = await dbContext.Roles.AsNoTracking().AnyAsync(
             role => roleIds.Contains(role.RoleId) &&
                     role.Status == WebDataStatus.Active &&
-                    (role.Code == SystemRoleCodes.Admin || role.Code == SystemRoleCodes.Company),
+                    (protectedRoleIds.Contains(role.RoleId) || protectedRoleCodes.Contains(role.Code)),
             cancellationToken);
         if (containsProtectedRole)
         {
@@ -549,6 +556,8 @@ public sealed class UserAdministrationService(
             .Select(item => new { item.CountUser })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new ForbiddenException("Công ty không còn hiệu lực hoặc không tồn tại.");
+        var privilegedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+        var privilegedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
         var activeChildAccountCount = await dbContext.Users.AsNoTracking()
             .Where(user => user.CompanyId == companyId && user.Status == WebDataStatus.Active)
             .Where(user => !(
@@ -557,7 +566,7 @@ public sealed class UserAdministrationService(
                 where userRole.UserId == user.UserId &&
                       userRole.Status == WebDataStatus.Active &&
                       role.Status == WebDataStatus.Active &&
-                      (role.Code == SystemRoleCodes.Admin || role.Code == SystemRoleCodes.Company)
+                      (privilegedRoleIds.Contains(role.RoleId) || privilegedRoleCodes.Contains(role.Code))
                 select role.RoleId)
                 .Any())
             .CountAsync(cancellationToken);
@@ -570,14 +579,14 @@ public sealed class UserAdministrationService(
 
     private async Task<bool> IsChildAccountAsync(int userId, CancellationToken cancellationToken)
     {
-        var latestRoleCode = await (
+        var latestRole = await (
             from userRole in dbContext.UserRoles.AsNoTracking()
             join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
             where userRole.UserId == userId && role.Status == WebDataStatus.Active
             orderby userRole.UserRoleId descending
-            select role.Code)
+            select new { role.RoleId, role.Code })
             .FirstOrDefaultAsync(cancellationToken);
-        return latestRoleCode is not SystemRoleCodes.Admin and not SystemRoleCodes.Company;
+        return latestRole is null || !systemRoleCatalog.IsPrivileged(latestRole.RoleId, latestRole.Code);
     }
 
     private async Task EnsureDeletableTargetAsync(
@@ -591,13 +600,15 @@ public sealed class UserAdministrationService(
             return;
         }
 
+        var privilegedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+        var privilegedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
         var hasSameOrHigherRole = await (
             from userRole in dbContext.UserRoles.AsNoTracking()
             join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
             where userRole.UserId == id &&
                   userRole.Status == WebDataStatus.Active &&
                   role.Status == WebDataStatus.Active &&
-                  (role.Code == SystemRoleCodes.Admin || role.Code == SystemRoleCodes.Company)
+                  (privilegedRoleIds.Contains(role.RoleId) || privilegedRoleCodes.Contains(role.Code))
             select role.RoleId)
             .AnyAsync(cancellationToken);
         if (hasSameOrHigherRole)
@@ -687,21 +698,18 @@ public sealed class UserAdministrationService(
         CancellationToken cancellationToken)
     {
         var branchIds = ParseBranchIdsStrict(branchValue);
-        var roleCodes = await dbContext.Roles.AsNoTracking()
+        var roles = await dbContext.Roles.AsNoTracking()
             .Where(role => roleIds.Contains(role.RoleId) && role.Status == WebDataStatus.Active)
-            .Select(role => role.Code)
+            .Select(role => new { role.RoleId, role.Code })
             .ToListAsync(cancellationToken);
 
-        var requiresCompany = roleCodes.Any(code =>
-            !string.Equals(code, SystemRoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
+        var requiresCompany = roles.Any(role => !systemRoleCatalog.IsAdmin(role.RoleId, role.Code));
         if (enforceScopedAssignment && requiresCompany && !companyId.HasValue)
         {
             throw new ValidationException("Tài khoản thuộc công ty phải được gán CompanyId.");
         }
 
-        var requiresBranch = roleCodes.Any(code =>
-            !string.Equals(code, SystemRoleCodes.Admin, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(code, SystemRoleCodes.Company, StringComparison.OrdinalIgnoreCase));
+        var requiresBranch = roles.Any(role => !systemRoleCatalog.IsPrivileged(role.RoleId, role.Code));
         if (!requiresBranch)
         {
             return null;

@@ -223,6 +223,10 @@ class _UserFormScreenState extends State<UserFormScreen> {
     }
   }
 
+  String _stationErrorMessage(Object error) => error is ApiException
+      ? 'Không thể tải danh sách trạm: ${error.message}'
+      : 'Không thể tải danh sách trạm.';
+
   List<int> _parseBranchIds(String? value) => (value ?? '')
       .split(',')
       .map(int.tryParse)
@@ -276,9 +280,16 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 final stationById = {
                   for (final station in stations) station.id: station,
                 };
-                final staleIds = _selectedBranchIds
-                    .where((id) => !stationById.containsKey(id))
-                    .toList(growable: false);
+                // Chỉ kết luận "trạm cũ" khi danh sách đã tải xong; nếu request lỗi
+                // thì list rỗng không có nghĩa là các trạm đã gán không hợp lệ.
+                final stationsLoaded =
+                    stationSnapshot.connectionState == ConnectionState.done &&
+                    !stationSnapshot.hasError;
+                final staleIds = stationsLoaded
+                    ? _selectedBranchIds
+                          .where((id) => !stationById.containsKey(id))
+                          .toList(growable: false)
+                    : const <int>[];
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -314,11 +325,22 @@ class _UserFormScreenState extends State<UserFormScreen> {
                         padding: EdgeInsets.only(top: 8),
                         child: LinearProgressIndicator(),
                       ),
+                    if (stationSnapshot.hasError) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _stationErrorMessage(stationSnapshot.error!),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
                     if (staleIds.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
                         'Có trạm cũ không thuộc công ty hiện tại. Hãy gỡ trước khi lưu.',
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ],
                     if (_selectedBranchIds.isNotEmpty) ...[
@@ -331,7 +353,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             InputChip(
                               label: Text(
                                 stationById[id]?.displayName ??
-                                    'Trạm #$id (không hợp lệ)',
+                                    (stationsLoaded
+                                        ? 'Trạm #$id (không hợp lệ)'
+                                        : 'Trạm #$id'),
                               ),
                               onDeleted: () =>
                                   setState(() => _selectedBranchIds.remove(id)),
