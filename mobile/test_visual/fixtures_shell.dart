@@ -8,6 +8,8 @@ import 'package:ttsmart_mobile/features/notifications/data/repositories/notifica
 import 'package:ttsmart_mobile/features/order_reporting/data/models/order_report_models.dart';
 import 'package:ttsmart_mobile/features/order_reporting/data/repositories/order_report_repository.dart';
 
+import 'fixtures_access.dart';
+
 class VisualHomeRepository implements HomeRepository {
   static const _scopes = <DashboardScope>[
     DashboardScope(
@@ -37,75 +39,79 @@ class VisualHomeRepository implements HomeRepository {
   @override
   Future<List<DashboardScope>> getAvailableScopes() async => _scopes;
 
+  /// Goes through [ApiHomeRepository] (labels, number parsing) with a JSON
+  /// body shaped like the server's; "Hôm nay" comes back per hour like on the
+  /// phone (00H…23H).
   @override
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
-  }) async => DashboardSnapshot(
-    scope: scope,
-    timeRange: timeRange,
-    updatedAt: DateTime.utc(2026, 9, 21, 2, 40),
-    totalMixedVolume: 12480,
-    metrics: const <DashboardMetric>[
-      DashboardMetric(
-        type: DashboardMetricType.orders,
-        label: 'Đơn hàng',
-        value: '128',
-        caption: 'Hôm nay',
-      ),
-      DashboardMetric(
-        type: DashboardMetricType.concreteGrades,
-        label: 'Mác bê tông',
-        value: '14',
-        caption: 'Hôm nay',
-      ),
-      DashboardMetric(
-        type: DashboardMetricType.mixerTrucks,
-        label: 'Xe bồn hoạt động',
-        value: '36',
-        caption: 'Hôm nay',
-      ),
-      DashboardMetric(
-        type: DashboardMetricType.salesWithOrders,
-        label: 'NV KD có đơn',
-        value: '9',
-        caption: 'Hôm nay',
-      ),
-    ],
-    chartLabels: [for (var day = 1; day <= 30; day++) '$day'.padLeft(2, '0')],
-    chartValues: const [
+  }) {
+    final hourly = timeRange.usesHourlyBuckets;
+    const dayValues = [
       300, 320, 340, 360, 380, 400, 420, 440, 430, 420, //
       410, 420, 440, 460, 450, 440, 450, 470, 490, 500, //
       510, 505, 500, 505, 510, 515, 520, 522, 520, 518,
-    ],
-    stations: const <StationOverview>[
-      StationOverview(
-        id: '10',
-        name: 'Trạm Hà Nam',
-        isAvailable: true,
-        orderCount: 96,
-        mixedVolume: 9800,
-        mixerTruckCount: 28,
-      ),
-      StationOverview(
-        id: '11',
-        name: 'Trạm Ninh Bình',
-        isAvailable: false,
-        orderCount: 0,
-        mixedVolume: 0,
-        mixerTruckCount: 0,
-      ),
-      StationOverview(
-        id: '12',
-        name: 'Trạm Phủ Lý 2',
-        isAvailable: false,
-        orderCount: 0,
-        mixedVolume: 0,
-        mixerTruckCount: 0,
-      ),
-    ],
-    unavailableStationCount: 2,
-  );
+    ];
+    const hourValues = [
+      120, 118, 110, 96, 90, 160, 780, 1450, 1380, 1260, 1190, 520, //
+      60, 40, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+    ];
+    final body = <String, Object?>{
+      'updatedAt': '2026-09-21T02:40:00Z',
+      'totalMixedVolume': 12480,
+      'orderCount': 128,
+      'concreteGradeCount': 14,
+      'mixerTruckCount': 36,
+      'salesEmployeeCount': 9,
+      'volumePoints': [
+        if (hourly)
+          for (var hour = 0; hour < 24; hour++)
+            {
+              'label': '${hour.toString().padLeft(2, '0')}H',
+              'mixedVolume': hourValues[hour],
+            }
+        else
+          for (var day = 1; day <= 30; day++)
+            {
+              'label': day.toString().padLeft(2, '0'),
+              'mixedVolume': dayValues[day - 1],
+            },
+      ],
+      'stations': [
+        {
+          'branchId': 10,
+          'stationName': 'Trạm Hà Nam',
+          'isAvailable': true,
+          'orderCount': 96,
+          'mixedVolume': 9800,
+          'mixerTruckCount': 28,
+        },
+        {
+          'branchId': 11,
+          'stationName': 'Trạm Ninh Bình',
+          'isAvailable': false,
+          'orderCount': 0,
+          'mixedVolume': 0,
+          'mixerTruckCount': 0,
+        },
+        {
+          'branchId': 12,
+          'stationName': 'Trạm Phủ Lý 2',
+          'isAvailable': false,
+          'orderCount': 0,
+          'mixedVolume': 0,
+          'mixerTruckCount': 0,
+        },
+      ],
+      'unavailableStationCount': 2,
+    };
+    final api = visualApiClient({r'GET /api/dashboard': (_) => body});
+    return ApiHomeRepository(
+      api,
+      now: () => DateTime(2026, 9, 21, 9, 40),
+    ).getDashboard(scope: scope, timeRange: timeRange);
+  }
 }
 
 class VisualNotificationRepository implements NotificationRepository {

@@ -101,13 +101,13 @@ class ApiHomeRepository implements HomeRepository {
         ),
         DashboardMetric(
           type: DashboardMetricType.mixerTrucks,
-          label: 'Xe trộn',
+          label: 'Xe bồn hoạt động',
           value: requireInt(json, 'mixerTruckCount').toString(),
           caption: timeRange.label,
         ),
         DashboardMetric(
           type: DashboardMetricType.salesWithOrders,
-          label: 'Kinh doanh có đơn',
+          label: 'NV kinh doanh có đơn',
           value: requireInt(json, 'salesEmployeeCount').toString(),
           caption: timeRange.label,
         ),

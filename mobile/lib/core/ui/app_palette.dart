@@ -15,6 +15,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.surfaceMuted,
     required this.border,
     required this.fieldBorder,
+    required this.inputBorder,
     required this.text1,
     required this.text2,
     required this.text3,
@@ -42,6 +43,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Input outline of the wide (web-parity) filter bars.
   final Color fieldBorder;
+
+  /// Outline of text fields, selects, search boxes and unselected options
+  /// (Figma `color/input-border`, ≥3:1 against surface and canvas).
+  final Color inputBorder;
   final Color text1;
   final Color text2;
   final Color text3;
@@ -67,6 +72,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     surfaceMuted: Color(0xFFF1F4F9),
     border: Color(0xFFE6EAF0),
     fieldBorder: Color(0xFFCBD5E1),
+    inputBorder: Color(0xFF7C8AA0),
     text1: Color(0xFF0F172A),
     text2: Color(0xFF64748B),
     text3: Color(0xFF94A3B8),
@@ -93,6 +99,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     surfaceMuted: Color(0xFF1B2538),
     border: Color(0xFF253049),
     fieldBorder: Color(0xFF334155),
+    inputBorder: Color(0xFF5B6B85),
     text1: Color(0xFFE5EAF3),
     text2: Color(0xFF94A3B8),
     text3: Color(0xFF64748B),
@@ -137,6 +144,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surfaceMuted: mix(surfaceMuted, other.surfaceMuted),
       border: mix(border, other.border),
       fieldBorder: mix(fieldBorder, other.fieldBorder),
+      inputBorder: mix(inputBorder, other.inputBorder),
       text1: mix(text1, other.text1),
       text2: mix(text2, other.text2),
       text3: mix(text3, other.text3),

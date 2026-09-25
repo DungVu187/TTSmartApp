@@ -238,7 +238,14 @@ class NavRow extends StatelessWidget {
     this.showChevron,
     this.titleStyle,
     this.background,
+    this.titleMaxLines = 1,
+    this.subtitleMaxLines = 1,
   });
+
+  /// Data rows on narrow phones (360dp) wrap instead of hiding the time or
+  /// the amount behind "…"; wide phones still show one line.
+  final int titleMaxLines;
+  final int subtitleMaxLines;
 
   final String title;
   final String? subtitle;
@@ -268,7 +275,7 @@ class NavRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  maxLines: 1,
+                  maxLines: titleMaxLines,
                   overflow: TextOverflow.ellipsis,
                   style:
                       titleStyle ??
@@ -286,7 +293,7 @@ class NavRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    maxLines: 1,
+                    maxLines: subtitleMaxLines,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: subtitleColor ?? p.text2,

@@ -868,9 +868,11 @@ class _TransactionRow extends StatelessWidget {
         background: transaction.isSummary ? p.surface : null,
       ),
       title: transaction.content,
+      titleMaxLines: 2,
       subtitle: occurredAt == null
           ? transaction.id
-          : '${formatShortVietnamDateTime(occurredAt)} · ${transaction.id}',
+          : '${formatShortVietnamDateTime(occurredAt).replaceAll(' ', ' ')} · ${transaction.id}',
+      subtitleMaxLines: 2,
       showChevron: false,
       trailing: Column(
         mainAxisSize: MainAxisSize.min,

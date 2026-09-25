@@ -1376,7 +1376,9 @@ class _TicketRow extends StatelessWidget {
       ),
       subtitle:
           '${goods?.isNotEmpty == true ? goods : 'Số phiếu ${item.ticketNumber}'}'
-          ' · ${formatWeighShortDateTime(item.weighingAt)}',
+          // Date and time stay together when the line wraps on 360dp.
+          ' · ${formatWeighShortDateTime(item.weighingAt).replaceAll(' ', ' ')}',
+      subtitleMaxLines: 2,
       showChevron: false,
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1434,15 +1436,16 @@ class _SummaryGoodsRow extends StatelessWidget {
     final name = item.goodsName?.trim();
     final details = <String>[
       if (item.convertedQuantities.isNotEmpty)
-        'Quy đổi ${item.convertedQuantities.map((value) => '${formatWeighNumber(value.quantity)} ${value.unit}').join(' · ')}'
+        'Quy đổi ${item.convertedQuantities.map((value) => '${formatWeighNumber(value.quantity)} ${value.unit}').join(' · ')}'
       else if (item.conversionMessage != null)
         item.conversionMessage!,
       if (showValue && item.materialValueVnd != null)
-        formatWeighCurrency(item.materialValueVnd),
+        formatWeighCurrency(item.materialValueVnd).replaceAll(' ', ' '),
     ];
     return NavRow(
       title: name?.isNotEmpty == true ? name! : 'Loại hàng #${item.stt}',
       subtitle: details.isEmpty ? null : details.join(' · '),
+      subtitleMaxLines: 2,
       showChevron: false,
       trailing: Column(
         mainAxisSize: MainAxisSize.min,

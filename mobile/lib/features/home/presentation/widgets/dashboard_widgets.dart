@@ -67,8 +67,10 @@ class DashboardMetricCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        metric.label,
-                        maxLines: 1,
+                        // Last two words stay together when the label wraps
+                        // ("Xe bồn / hoạt động", not "Xe bồn hoạt / động").
+                        _keepLastWords(metric.label),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: p.text2,
@@ -86,6 +88,13 @@ class DashboardMetricCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _keepLastWords(String label) {
+    final last = label.lastIndexOf(' ');
+    return last <= 0
+        ? label
+        : '${label.substring(0, last)} ${label.substring(last + 1)}';
   }
 
   static IconData _iconFor(DashboardMetricType type) => switch (type) {
@@ -182,10 +191,34 @@ class AreaTrendChart extends StatelessWidget {
   final List<String> labels;
   final double height;
 
-  /// Indices that get an x-axis label: the first, every ~n/6th and the last
-  /// (30 days → 01 05 10 15 20 25 30).
-  static List<int> labelIndices(int count) {
+  /// Indices that get an x-axis label, ~6 evenly spaced. Numeric labels are
+  /// picked on round values: 24 hours → 00H 04H 08H 12H 16H 20H, 30 days →
+  /// 01 05 10 15 20 25 30. Other labels: the first, every ~n/6th, the last.
+  static List<int> labelIndices(List<String> labels) {
+    final count = labels.length;
     if (count <= 0) return const [];
+    if (count > 7) {
+      final step = math.max(1, (count / 6).round());
+      // Only plain hour / day numbers ("07H", "15"), not dates ("15/09").
+      final single = RegExp(r'^\D*(\d{1,2})\D*$');
+      final numbers = [
+        for (final label in labels)
+          int.tryParse(single.firstMatch(label)?.group(1) ?? ''),
+      ];
+      if (numbers.every((number) => number != null)) {
+        final picked = <int>[
+          for (var index = 0; index < count; index++)
+            if (numbers[index]! % step == 0) index,
+        ];
+        // Days start at 01: keep the first one as the left anchor.
+        if (picked.isEmpty || picked.first != 0) picked.insert(0, 0);
+        if (picked.length >= 3) return picked;
+      }
+    }
+    return _evenIndices(count);
+  }
+
+  static List<int> _evenIndices(int count) {
     if (count <= 7) return [for (var index = 0; index < count; index++) index];
     final step = math.max(1, (count / 6).round());
     final indices = <int>{0};
@@ -215,7 +248,7 @@ class AreaTrendChart extends StatelessWidget {
         ),
       );
     }
-    final indices = labelIndices(values.length);
+    final indices = labelIndices(labels);
     return Column(
       children: [
         SizedBox(

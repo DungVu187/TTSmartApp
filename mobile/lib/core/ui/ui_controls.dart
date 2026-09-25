@@ -272,7 +272,7 @@ class OptionChip extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: selected ? p.primary : p.border,
+            color: selected ? p.primary : p.inputBorder,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -376,7 +376,7 @@ class SelectFieldButton extends StatelessWidget {
         ? p.danger
         : highlighted
         ? p.primary
-        : p.border;
+        : p.inputBorder;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -893,7 +893,7 @@ class AppSearchField extends StatelessWidget {
     final p = context.palette;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide.none,
+      borderSide: BorderSide(color: p.inputBorder),
     );
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
@@ -906,7 +906,7 @@ class AppSearchField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hintText,
           filled: true,
-          fillColor: p.surfaceMuted,
+          fillColor: p.surface,
           border: border,
           enabledBorder: border,
           focusedBorder: border.copyWith(

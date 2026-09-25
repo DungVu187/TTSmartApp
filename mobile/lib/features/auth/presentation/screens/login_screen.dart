@@ -53,13 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     return InputDecoration(
       filled: true,
-      fillColor: WidgetStateColor.resolveWith(
-        (states) =>
-            states.contains(WidgetState.focused) ||
-                states.contains(WidgetState.error)
-            ? p.surface
-            : p.surfaceMuted,
-      ),
+      // Figma 01 Login: white box with a visible outline, blue when focused.
+      fillColor: p.surface,
       contentPadding: const EdgeInsets.symmetric(vertical: 16),
       prefixIcon: Icon(icon, size: 20, color: p.text3),
       prefixIconConstraints: const BoxConstraints(minWidth: 46),
@@ -67,8 +62,8 @@ class _LoginScreenState extends State<LoginScreen> {
       errorText: errorText,
       errorMaxLines: 2,
       counterText: '',
-      border: border(Colors.transparent, 1),
-      enabledBorder: border(Colors.transparent, 1),
+      border: border(p.inputBorder, 1),
+      enabledBorder: border(p.inputBorder, 1),
       focusedBorder: border(p.primary, 1.5),
       errorBorder: border(p.danger, 1.5),
       focusedErrorBorder: border(p.danger, 1.5),

@@ -117,7 +117,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Thay đổi sẽ ghi đè quyền hiện tại của ${_items.length} chức năng. Chỉ lưu lên máy chủ khi bấm Lưu phân quyền.',
+            'Thay đổi sẽ ghi đè quyền hiện tại của ${_items.length} chức năng.',
             style: TextStyle(color: sheetContext.palette.text2),
           ),
           const SizedBox(height: 16),

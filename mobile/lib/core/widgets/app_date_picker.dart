@@ -557,25 +557,30 @@ class _TimeSelector extends StatelessWidget {
       children: [
         Icon(LucideIcons.clock, size: 20, color: p.text2),
         const SizedBox(width: 8),
-        Text(
-          'Chọn giờ',
-          style: TextStyle(
-            color: p.text1,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(width: 4),
         Expanded(
-          child: Text(
-            '· $fieldLabel',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: p.text3,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Chọn giờ',
+                style: TextStyle(
+                  color: p.text1,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                fieldLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: p.text3,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
         _TimeDropdown(

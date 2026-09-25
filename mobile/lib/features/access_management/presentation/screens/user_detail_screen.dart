@@ -116,8 +116,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       context,
       icon: LucideIcons.trash2,
       title: 'Xóa người dùng?',
-      message:
-          'Xóa ${user.displayName} khỏi danh sách hiệu lực. Thao tác này cần được backend xác nhận.',
+      message: '${user.displayName} sẽ bị gỡ khỏi danh sách người dùng.',
       confirmLabel: 'Xóa',
     );
     if (!confirmed || !mounted || _busy) return;

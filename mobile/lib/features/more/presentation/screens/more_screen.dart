@@ -236,7 +236,7 @@ class _ModuleTile {
   final VoidCallback open;
 }
 
-/// Four columns of 58px tinted icon tiles with a two-line label.
+/// Four columns of 58px tinted icon tiles with a label of up to two lines.
 class _ModuleGrid extends StatelessWidget {
   const _ModuleGrid({required this.tiles});
 
@@ -246,56 +246,67 @@ class _ModuleGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final sheet = context.findAncestorWidgetOfExactType<MoreSheet>()!;
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      crossAxisCount: 4,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 12,
-      childAspectRatio: 80 / 94,
-      children: [
-        for (final tile in tiles)
-          Semantics(
-            button: true,
-            label: tile.label,
-            child: InkWell(
-              key: ValueKey<String>('more-tile-${tile.label}'),
-              borderRadius: BorderRadius.circular(18),
-              onTap: sheet._launch(context, tile.open),
-              child: Column(
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final (fg, bg) = p.tone(tile.tone);
-                      return Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: bg,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Icon(tile.icon, size: 26, color: fg),
-                      );
-                    },
+    // Rows of four with their natural height: two-line labels ("Quản lý cân
+    // ô tô") and larger system fonts never overflow a fixed grid cell, which
+    // happened on 360dp phones.
+    Widget cell(_ModuleTile tile) => Semantics(
+      button: true,
+      label: tile.label,
+      child: InkWell(
+        key: ValueKey<String>('more-tile-${tile.label}'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: sheet._launch(context, tile.open),
+        child: Column(
+          children: [
+            Builder(
+              builder: (context) {
+                final (fg, bg) = p.tone(tile.tone);
+                return Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    tile.label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: p.text1,
-                      fontSize: 11,
-                      height: 14 / 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                  child: Icon(tile.icon, size: 26, color: fg),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tile.label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: p.text1,
+                fontSize: 11,
+                height: 14 / 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+    return Column(
+      children: [
+        for (var start = 0; start < tiles.length; start += 4) ...[
+          if (start > 0) const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var index = start; index < start + 4; index++) ...[
+                if (index > start) const SizedBox(width: 10),
+                Expanded(
+                  child: index < tiles.length
+                      ? cell(tiles[index])
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ],
           ),
+        ],
       ],
     );
   }

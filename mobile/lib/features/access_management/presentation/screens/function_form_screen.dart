@@ -275,14 +275,10 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                   ? null
                   : () => setState(() => _parentFunctionId = null),
             ),
-            const SizedBox(height: 6),
-            if (snapshot.hasError)
-              const FieldError('Không thể tải danh sách chức năng.')
-            else
-              Text(
-                'Không thể chọn chính nó hoặc mục con làm mục chứa.',
-                style: TextStyle(color: context.palette.text3, fontSize: 13),
-              ),
+            if (snapshot.hasError) ...[
+              const SizedBox(height: 6),
+              const FieldError('Không thể tải danh sách chức năng.'),
+            ],
           ],
         );
       },

@@ -24,7 +24,8 @@ class ApiException implements Exception {
 
   factory ApiException.invalidResponse([String? detail]) => ApiException(
     type: ApiFailureType.invalidResponse,
-    message: detail ?? 'Dữ liệu máy chủ trả về không đúng định dạng mong đợi.',
+    message: 'Dữ liệu nhận về chưa đúng. Hãy thử lại sau ít phút.',
+    title: detail,
   );
 
   factory ApiException.storage([String? detail]) => ApiException(

@@ -17,6 +17,7 @@ import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../widgets/app_header.dart';
 import '../module_registry.dart';
+import '../../../../core/theme/app_system_ui.dart';
 
 enum _ShellTabKey { home, orders, statistics, system, more }
 
@@ -178,7 +179,7 @@ class _AppShellState extends State<AppShell> {
       if (canViewOrderReports)
         _ShellTabDefinition(
           keyName: _ShellTabKey.orders,
-          label: orderReportsModule.label,
+          label: 'Đơn hàng',
           icon: LucideIcons.receiptText,
           selectedIcon: LucideIcons.receiptText,
           child: OrderReportsScreen(
@@ -190,7 +191,7 @@ class _AppShellState extends State<AppShell> {
       if (canViewOrderStatistics)
         _ShellTabDefinition(
           keyName: _ShellTabKey.statistics,
-          label: orderStatisticsModule.label,
+          label: 'Thống kê',
           icon: LucideIcons.chartNoAxesColumnIncreasing,
           selectedIcon: LucideIcons.chartNoAxesColumnIncreasing,
           child: ReportsScreen(
@@ -263,30 +264,33 @@ class _ShellBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return DecoratedBox(
-      key: const ValueKey<String>('shell-bottom-navigation'),
-      decoration: BoxDecoration(
-        color: p.surface,
-        border: Border(top: BorderSide(color: p.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 54,
-          child: Row(
-            children: [
-              for (var index = 0; index < tabs.length; index++)
-                Expanded(
-                  child: _ShellNavigationItem(
-                    key: ValueKey<String>(
-                      'shell-nav-${tabs[index].keyName.name}',
+    return AppSystemUi(
+      navigationBar: p.surface,
+      child: DecoratedBox(
+        key: const ValueKey<String>('shell-bottom-navigation'),
+        decoration: BoxDecoration(
+          color: p.surface,
+          border: Border(top: BorderSide(color: p.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 54,
+            child: Row(
+              children: [
+                for (var index = 0; index < tabs.length; index++)
+                  Expanded(
+                    child: _ShellNavigationItem(
+                      key: ValueKey<String>(
+                        'shell-nav-${tabs[index].keyName.name}',
+                      ),
+                      tab: tabs[index],
+                      selected: index == selectedIndex,
+                      onTap: () => onSelected(index),
                     ),
-                    tab: tabs[index],
-                    selected: index == selectedIndex,
-                    onTap: () => onSelected(index),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

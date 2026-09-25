@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -358,7 +360,14 @@ class _MetricGrid extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
-            mainAxisExtent: 64,
+            // 24pt number + two 13pt label lines, grown with the phone's font
+            // size so "NV kinh doanh có đơn" never overflows.
+            mainAxisExtent: math.max(
+              64,
+              MediaQuery.textScalerOf(context).scale(24) +
+                  MediaQuery.textScalerOf(context).scale(26) +
+                  14,
+            ),
           ),
           itemBuilder: (context, index) {
             final metric = metrics[index];

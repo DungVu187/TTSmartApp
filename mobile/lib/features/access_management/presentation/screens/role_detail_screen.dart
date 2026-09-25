@@ -84,7 +84,7 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
       title: nextActive ? 'Kích hoạt vai trò?' : 'Ngừng vai trò?',
       message: nextActive
           ? 'Vai trò sẽ có hiệu lực trở lại.'
-          : 'Vai trò sẽ ngừng hiệu lực sau khi backend xác nhận.',
+          : 'Người dùng có vai trò này sẽ tạm mất các quyền của nó. Có thể kích hoạt lại sau.',
       confirmLabel: nextActive ? 'Kích hoạt' : 'Ngừng',
       destructive: !nextActive,
     );
@@ -111,7 +111,7 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
       icon: LucideIcons.trash2,
       title: 'Xóa vai trò?',
       message:
-          'Xóa vai trò ${role.name}. Backend có thể từ chối nếu vai trò đang bảo vệ quyền quản trị cuối cùng.',
+          'Vai trò ${role.name} sẽ bị xóa. Hệ thống không cho xóa nếu đây là vai trò quản trị cuối cùng.',
       confirmLabel: 'Xóa',
     );
     if (!confirmed || !mounted || _busy) return;

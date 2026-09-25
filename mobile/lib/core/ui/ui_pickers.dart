@@ -288,7 +288,7 @@ class _PickerRow extends StatelessWidget {
                 height: 20,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: p.border, width: 1.5),
+                  border: Border.all(color: p.inputBorder, width: 1.5),
                 ),
               ),
         onTap: onTap,

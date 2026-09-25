@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'app_palette.dart';
 import 'ui_controls.dart';
 import 'ui_list.dart';
+import '../theme/app_system_ui.dart';
 
 /// Centred empty / error / no-access state: tinted ring, title, message and
 /// optional actions.
@@ -437,7 +440,12 @@ Future<bool> showAppConfirmDialog(
           ? p.tone(AppTone.danger)
           : p.tone(AppTone.primary);
       return Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 38),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: math.max(
+            20,
+            (MediaQuery.sizeOf(context).width - 314) / 2,
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
           child: Column(
@@ -565,88 +573,101 @@ class AppSheetFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final media = MediaQuery.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: media.size.height * maxHeightFactor,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 10),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: p.border,
-                  borderRadius: BorderRadius.circular(2),
+    // Keep controls clear of the iPhone home indicator / Android 3-button bar
+    // (the modal route only avoids the top and the sides).
+    final systemBottom = media.viewInsets.bottom > 0
+        ? 0.0
+        : media.viewPadding.bottom;
+    return AppSystemUi(
+      navigationBar: p.surface,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: media.size.height * maxHeightFactor,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: p.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: showClose
-                  ? const EdgeInsets.fromLTRB(16, 6, 6, 0)
-                  : const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: p.text1,
-                        fontSize: 19,
-                        height: 24 / 19,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
+              Padding(
+                padding: showClose
+                    ? const EdgeInsets.fromLTRB(16, 6, 6, 0)
+                    : const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          color: p.text1,
+                          fontSize: 19,
+                          height: 24 / 19,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
                       ),
                     ),
-                  ),
-                  if (showClose)
-                    AppIconButton(
-                      key: closeKey,
-                      icon: LucideIcons.x,
-                      tooltip: 'Đóng',
+                    if (showClose)
+                      AppIconButton(
+                        key: closeKey,
+                        icon: LucideIcons.x,
+                        tooltip: 'Đóng',
+                        color: p.text2,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                  ],
+                ),
+              ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: Text(
+                    subtitle!,
+                    style: TextStyle(
                       color: p.text2,
-                      onPressed: () => Navigator.of(context).pop(),
+                      fontSize: 14,
+                      height: 19 / 14,
+                      fontWeight: FontWeight.w500,
                     ),
-                ],
-              ),
-            ),
-            if (subtitle != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                child: Text(
-                  subtitle!,
-                  style: TextStyle(
-                    color: p.text2,
-                    fontSize: 14,
-                    height: 19 / 14,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            SizedBox(height: subtitle != null ? 20 : 8),
-            Flexible(
-              child: SingleChildScrollView(
-                key: scrollKey,
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  0,
-                  16,
-                  footer == null ? 28 : 16,
+              SizedBox(height: subtitle != null ? 20 : 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  key: scrollKey,
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    footer == null ? 28 + systemBottom : 16,
+                  ),
+                  child: child,
                 ),
-                child: child,
               ),
-            ),
-            if (footer != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                child: footer,
-              ),
-          ],
+              if (footer != null)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    4,
+                    16,
+                    systemBottom > 12 ? systemBottom + 8 : 20,
+                  ),
+                  child: footer,
+                ),
+            ],
+          ),
         ),
       ),
     );
