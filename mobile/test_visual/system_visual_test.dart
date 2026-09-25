@@ -44,6 +44,8 @@ void main() {
     await openModule(tester, 'users');
     await tester.tap(find.text('Nguyễn Hoàng Nam'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Sửa thông tin'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sửa thông tin'));
     await tester.pumpAndSettle();
     await snap('S08_user_form');

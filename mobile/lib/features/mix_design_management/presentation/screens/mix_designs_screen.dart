@@ -243,11 +243,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;

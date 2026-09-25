@@ -203,7 +203,6 @@ class _StationsScreenState extends State<StationsScreen> {
                             PickerOption(
                               value: company.id,
                               title: company.displayName,
-                              subtitle: company.code,
                             ),
                         ],
                       );

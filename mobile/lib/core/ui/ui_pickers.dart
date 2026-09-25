@@ -265,6 +265,7 @@ class _PickerRow extends StatelessWidget {
       button: true,
       child: NavRow(
         title: title,
+        titleMaxLines: 2,
         subtitle: subtitle,
         background: selected ? p.primaryContainer : null,
         titleStyle: TextStyle(

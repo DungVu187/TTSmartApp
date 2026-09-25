@@ -359,11 +359,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       selected: _controller.selectedCompanyId,
       options: [
         for (final company in _controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;

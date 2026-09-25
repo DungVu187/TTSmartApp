@@ -49,7 +49,7 @@ CompanyResponse visualCompany(
 );
 
 final visualCompanies = <CompanyResponse>[
-  visualCompany(3, 'TTS', 'Công ty CP Bê tông TTSmart', users: 24),
+  visualCompany(3, 'TTS', 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam', users: 24),
   visualCompany(
     4,
     'HBC',
@@ -185,7 +185,7 @@ class VisualStationRepository implements StationRepository {
   Future<StationResponse> getStation(int id) async => StationResponse(
     id: id,
     companyId: 3,
-    companyName: 'Công ty CP Bê tông TTSmart',
+    companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
     code: 'THN-01',
     name: 'Trạm Hà Nam',
     avatar: null,

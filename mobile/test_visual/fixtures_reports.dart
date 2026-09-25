@@ -177,7 +177,7 @@ class VisualReportsRepository implements ReportsRepository {
           companyId: 3,
           name: 'Trạm Hà Nam',
           typeTram: 1,
-          companyName: 'Công ty CP Bê tông TTSmart',
+          companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
         ),
       ];
 

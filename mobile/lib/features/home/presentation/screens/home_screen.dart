@@ -188,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   trailing: Semantics(
                     button: true,
                     label: 'Cập nhật lại',
-                    child: GestureDetector(
+                    child: TapArea(
                       onTap: busy ? null : _controller.refresh,
                       child: Text(
                         'Cập nhật ${_updatedLabel(snapshot.updatedAt)}',
@@ -326,8 +326,8 @@ class _Pill extends StatelessWidget {
         label,
         style: TextStyle(
           color: p.text2,
-          fontSize: 11,
-          height: 13 / 11,
+          fontSize: 12,
+          height: 15 / 12,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -365,7 +365,10 @@ class _MetricGrid extends StatelessWidget {
             mainAxisExtent: math.max(
               64,
               MediaQuery.textScalerOf(context).scale(24) +
-                  MediaQuery.textScalerOf(context).scale(26) +
+                  MediaQuery.textScalerOf(context).scale(15) *
+                      (MediaQuery.textScalerOf(context).scale(10) > 11.5
+                          ? 3
+                          : 2) +
                   14,
             ),
           ),

@@ -8,6 +8,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
     required this.primary,
     required this.primaryContainer,
+    required this.onPrimaryContainer,
     required this.onPrimary,
     required this.secondary,
     required this.canvas,
@@ -34,6 +35,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   final Color primary;
   final Color primaryContainer;
+
+  /// Text / icons on [primaryContainer] (tags, selected options), ≥4.5:1.
+  final Color onPrimaryContainer;
   final Color onPrimary;
   final Color secondary;
   final Color canvas;
@@ -65,6 +69,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   static const light = AppPalette(
     primary: Color(0xFF2563EB),
     primaryContainer: Color(0xFFDBEAFE),
+    onPrimaryContainer: Color(0xFF1D4ED8),
     onPrimary: Color(0xFFFFFFFF),
     secondary: Color(0xFF0F766E),
     canvas: Color(0xFFF4F6FA),
@@ -74,15 +79,15 @@ class AppPalette extends ThemeExtension<AppPalette> {
     fieldBorder: Color(0xFFCBD5E1),
     inputBorder: Color(0xFF7C8AA0),
     text1: Color(0xFF0F172A),
-    text2: Color(0xFF64748B),
-    text3: Color(0xFF94A3B8),
-    success: Color(0xFF16A34A),
+    text2: Color(0xFF475569),
+    text3: Color(0xFF5B6B80),
+    success: Color(0xFF15803D),
     successBg: Color(0xFFECFDF5),
-    warning: Color(0xFFD97706),
+    warning: Color(0xFFB45309),
     warningBg: Color(0xFFFFFBEB),
-    danger: Color(0xFFDC2626),
+    danger: Color(0xFFB91C1C),
     dangerBg: Color(0xFFFEF2F2),
-    info: Color(0xFF0284C7),
+    info: Color(0xFF0369A1),
     infoBg: Color(0xFFF0F9FF),
     violet: Color(0xFF7C3AED),
     violetBg: Color(0xFFF3E8FF),
@@ -91,7 +96,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   static const dark = AppPalette(
     primary: Color(0xFF60A5FA),
-    primaryContainer: Color(0xFF1E3A8A),
+    primaryContainer: Color(0xFF1C3272),
+    onPrimaryContainer: Color(0xFF93C5FD),
     onPrimary: Color(0xFF0B1220),
     secondary: Color(0xFF2DD4BF),
     canvas: Color(0xFF0B1220),
@@ -102,7 +108,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     inputBorder: Color(0xFF5B6B85),
     text1: Color(0xFFE5EAF3),
     text2: Color(0xFF94A3B8),
-    text3: Color(0xFF64748B),
+    text3: Color(0xFF8391A7),
     success: Color(0xFF4ADE80),
     successBg: Color(0xFF0F2A1E),
     warning: Color(0xFFFBBF24),
@@ -118,7 +124,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Foreground / background pair for a semantic tone.
   (Color, Color) tone(AppTone tone) => switch (tone) {
-    AppTone.primary => (primary, primaryContainer),
+    AppTone.primary => (onPrimaryContainer, primaryContainer),
     AppTone.success => (success, successBg),
     AppTone.warning => (warning, warningBg),
     AppTone.danger => (danger, dangerBg),
@@ -137,6 +143,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     return AppPalette(
       primary: mix(primary, other.primary),
       primaryContainer: mix(primaryContainer, other.primaryContainer),
+      onPrimaryContainer: mix(onPrimaryContainer, other.onPrimaryContainer),
       onPrimary: mix(onPrimary, other.onPrimary),
       secondary: mix(secondary, other.secondary),
       canvas: mix(canvas, other.canvas),

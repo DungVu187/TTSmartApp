@@ -30,13 +30,14 @@ class AppHeader extends StatelessWidget {
         child: SizedBox(
           height: 50,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            // 44pt tap areas around the 34/36pt buttons: 16 − 5 / 16 − 4.
+            padding: const EdgeInsets.fromLTRB(11, 0, 12, 0),
             child: Row(
               children: [
                 Semantics(
                   button: true,
                   label: 'Thông tin tài khoản',
-                  child: GestureDetector(
+                  child: TapArea(
                     onTap: onOpenAccount,
                     child: Container(
                       width: 34,
@@ -61,7 +62,7 @@ class AppHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 5),
                 const AppLogo.header(),
                 const Spacer(),
                 _HeaderButton(
@@ -72,7 +73,7 @@ class AppHeader extends StatelessWidget {
                   onPressed: onOpenNotifications,
                   badgeCount: unreadNotificationCount,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 2),
                 _HeaderButton(
                   tooltip: 'Cài đặt',
                   icon: LucideIcons.settings,
@@ -110,54 +111,60 @@ class _HeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Tooltip(
-          message: tooltip,
-          child: Material(
-            color: p.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: p.border),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onPressed,
-              child: SizedBox.square(
-                dimension: 36,
-                child: Icon(icon, size: 20, color: p.text1),
+    return TapArea(
+      onTap: onPressed,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Tooltip(
+            message: tooltip,
+            child: Material(
+              color: p.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: p.border),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: onPressed,
+                child: SizedBox.square(
+                  dimension: 36,
+                  child: Icon(icon, size: 20, color: p.text1),
+                ),
               ),
             ),
           ),
-        ),
-        if (badgeCount > 0)
-          Positioned(
-            top: -4,
-            right: -5,
-            child: IgnorePointer(
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: p.danger,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: p.canvas, width: 1.5),
-                ),
-                child: Text(
-                  badgeCount > 99 ? '99+' : '$badgeCount',
-                  style: TextStyle(
-                    color: p.onPrimary,
-                    fontSize: 10,
-                    height: 12 / 10,
-                    fontWeight: FontWeight.w700,
+          if (badgeCount > 0)
+            Positioned(
+              top: -4,
+              right: -5,
+              child: IgnorePointer(
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: p.danger,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: p.canvas, width: 1.5),
+                  ),
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: TextStyle(
+                      color: p.onPrimary,
+                      fontSize: 10,
+                      height: 12 / 10,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

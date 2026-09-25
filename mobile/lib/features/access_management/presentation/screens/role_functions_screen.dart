@@ -443,7 +443,7 @@ class _GroupHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

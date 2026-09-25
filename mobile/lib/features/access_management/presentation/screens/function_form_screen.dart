@@ -37,6 +37,20 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
   int? _parentFunctionId;
   ApiException? _error;
   bool _submitting = false;
+  late final String _initialSnapshot;
+
+  /// Everything the user can change, to tell whether leaving loses edits.
+  String _snapshot() => [
+    _codeController.text,
+    _nameController.text,
+    _urlController.text,
+    _noteController.text,
+    _locationController.text,
+    _iconController.text,
+    '$_parentFunctionId',
+  ].join('\u0001');
+
+  bool _isDirty() => !_submitting && _snapshot() != _initialSnapshot;
 
   @override
   void initState() {
@@ -52,6 +66,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
     _iconController = TextEditingController(text: function?.icon ?? '');
     _parentFunctionId = function?.parentFunctionId;
     _functionsFuture = widget.controller.getAll(status: AccessStatus.active);
+    _initialSnapshot = _snapshot();
   }
 
   @override
@@ -122,115 +137,121 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Đóng',
-          icon: const Icon(LucideIcons.x),
-          onPressed: () => Navigator.maybePop(context),
+    return UnsavedChangesGuard(
+      isDirty: _isDirty,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Đóng',
+            icon: const Icon(LucideIcons.x),
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          title: Text(widget.isEditing ? 'Sửa chức năng' : 'Tạo chức năng'),
+          actions: [
+            AccessSaveAction(submitting: _submitting, onPressed: _submit),
+          ],
         ),
-        title: Text(widget.isEditing ? 'Sửa chức năng' : 'Tạo chức năng'),
-        actions: [
-          AccessSaveAction(submitting: _submitting, onPressed: _submit),
-        ],
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: accessPagePadding(context, top: 8, bottom: 32),
-            children: [
-              AccessConstrainedContent(
-                maxWidth: 820,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_error != null) ...[
-                      ErrorBanner(message: _error!.message),
-                      const SizedBox(height: 16),
+        body: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: accessPagePadding(context, top: 8, bottom: 32),
+              children: [
+                AccessConstrainedContent(
+                  maxWidth: 820,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_error != null) ...[
+                        ErrorBanner(message: _error!.message),
+                        const SizedBox(height: 16),
+                      ],
+                      FormFieldGroup(
+                        label: 'Định danh',
+                        children: [
+                          LabeledTextField(
+                            label: 'Mã chức năng *',
+                            controller: _codeController,
+                            maxLength: 100,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('code'),
+                            validator: (value) =>
+                                (value?.trim().isEmpty ?? true)
+                                ? 'Mã chức năng là bắt buộc.'
+                                : null,
+                          ),
+                          LabeledTextField(
+                            label: 'Tên chức năng *',
+                            controller: _nameController,
+                            maxLength: 200,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('name'),
+                            validator: (value) =>
+                                (value?.trim().isEmpty ?? true)
+                                ? 'Tên chức năng là bắt buộc.'
+                                : null,
+                          ),
+                          _buildParentField(),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      FormFieldGroup(
+                        label: 'Hiển thị trong menu',
+                        children: [
+                          LabeledTextField(
+                            label: 'Đường dẫn',
+                            controller: _urlController,
+                            maxLength: 400,
+                            keyboardType: TextInputType.url,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('url'),
+                          ),
+                          LabeledTextField(
+                            label: 'Vị trí',
+                            controller: _locationController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('location'),
+                            validator: (value) {
+                              final text = value?.trim() ?? '';
+                              if (text.isNotEmpty &&
+                                  int.tryParse(text) == null) {
+                                return 'Phải là số nguyên.';
+                              }
+                              return null;
+                            },
+                          ),
+                          LabeledTextField(
+                            label: 'Icon',
+                            controller: _iconController,
+                            maxLength: 1000,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('icon'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      FormFieldGroup(
+                        label: 'Khác',
+                        children: [
+                          LabeledTextField(
+                            label: 'Chú thích',
+                            controller: _noteController,
+                            maxLength: 4000,
+                            minLines: 3,
+                            maxLines: 6,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            errorText: _error?.fieldMessage('note'),
+                          ),
+                        ],
+                      ),
                     ],
-                    FormFieldGroup(
-                      label: 'Định danh',
-                      children: [
-                        LabeledTextField(
-                          label: 'Mã chức năng *',
-                          controller: _codeController,
-                          maxLength: 100,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('code'),
-                          validator: (value) => (value?.trim().isEmpty ?? true)
-                              ? 'Mã chức năng là bắt buộc.'
-                              : null,
-                        ),
-                        LabeledTextField(
-                          label: 'Tên chức năng *',
-                          controller: _nameController,
-                          maxLength: 200,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('name'),
-                          validator: (value) => (value?.trim().isEmpty ?? true)
-                              ? 'Tên chức năng là bắt buộc.'
-                              : null,
-                        ),
-                        _buildParentField(),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    FormFieldGroup(
-                      label: 'Hiển thị trong menu',
-                      children: [
-                        LabeledTextField(
-                          label: 'Đường dẫn',
-                          controller: _urlController,
-                          maxLength: 400,
-                          keyboardType: TextInputType.url,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('url'),
-                        ),
-                        LabeledTextField(
-                          label: 'Vị trí',
-                          controller: _locationController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('location'),
-                          validator: (value) {
-                            final text = value?.trim() ?? '';
-                            if (text.isNotEmpty && int.tryParse(text) == null) {
-                              return 'Phải là số nguyên.';
-                            }
-                            return null;
-                          },
-                        ),
-                        LabeledTextField(
-                          label: 'Icon',
-                          controller: _iconController,
-                          maxLength: 1000,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('icon'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    FormFieldGroup(
-                      label: 'Khác',
-                      children: [
-                        LabeledTextField(
-                          label: 'Chú thích',
-                          controller: _noteController,
-                          maxLength: 4000,
-                          minLines: 3,
-                          maxLines: 6,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.newline,
-                          errorText: _error?.fieldMessage('note'),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

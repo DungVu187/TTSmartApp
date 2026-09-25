@@ -445,7 +445,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                       Text(
                         'Loại hàng nhiều nhất',
                         style: TextStyle(
-                          color: p.primary,
+                          color: p.onPrimaryContainer,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -469,7 +469,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                 Text(
                   '${formatWeighNumber(top.goodsWeightKg)} kg',
                   style: TextStyle(
-                    color: p.primary,
+                    color: p.onPrimaryContainer,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -540,11 +540,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;

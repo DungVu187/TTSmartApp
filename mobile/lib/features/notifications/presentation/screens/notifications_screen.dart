@@ -229,18 +229,22 @@ class _MarkAllButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           onTap: enabled ? onPressed : null,
           child: SizedBox(
-            height: 40,
+            height: 44,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(LucideIcons.checkCheck, size: 18, color: p.primary),
+                  Icon(
+                    LucideIcons.checkCheck,
+                    size: 18,
+                    color: p.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Đọc tất cả',
                     style: TextStyle(
-                      color: p.primary,
+                      color: p.onPrimaryContainer,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -275,8 +279,8 @@ class _FilterChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+      child: TapArea(
+        onTap: onTap,
         child: Material(
           color: selected ? p.primary : p.surface,
           shape: StadiumBorder(

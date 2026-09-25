@@ -263,6 +263,12 @@ class NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final chevron = (showChevron ?? onTap != null) && value == null;
+    // Larger system fonts: wrap instead of cutting names with "…".
+    final bigText = MediaQuery.textScalerOf(context).scale(10) > 11.5;
+    final titleLines = bigText && titleMaxLines < 2 ? 2 : titleMaxLines;
+    final subtitleLines = bigText && subtitleMaxLines < 2
+        ? 2
+        : subtitleMaxLines;
     final content = Padding(
       padding: EdgeInsets.fromLTRB(13, 13, chevron ? 9 : 13, 13),
       child: Row(
@@ -275,7 +281,7 @@ class NavRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  maxLines: titleMaxLines,
+                  maxLines: titleLines,
                   overflow: TextOverflow.ellipsis,
                   style:
                       titleStyle ??
@@ -293,7 +299,7 @@ class NavRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    maxLines: subtitleMaxLines,
+                    maxLines: subtitleLines,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: subtitleColor ?? p.text2,

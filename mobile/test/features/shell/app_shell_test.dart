@@ -28,7 +28,8 @@ import '../../support/empty_reports_repository.dart';
 const _surfaceSize = Size(411, 914);
 const _selectedBackground = Color(0xFFDBEAFE);
 const _selectedColor = Color(0xFF2563EB);
-const _unselectedColor = Color(0xFF64748B);
+// Figma text-2 after the contrast pass (7.6:1 on white).
+const _unselectedColor = Color(0xFF475569);
 
 class _MemoryTokenStorage implements TokenStorage {
   @override

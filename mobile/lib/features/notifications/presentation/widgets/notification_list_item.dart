@@ -125,7 +125,7 @@ class NotificationListItem extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             notification.body,
-                            maxLines: 2,
+                            maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: p.text2,
@@ -138,8 +138,8 @@ class NotificationListItem extends StatelessWidget {
                             meta,
                             style: TextStyle(
                               color: p.text3,
-                              fontSize: 11,
-                              height: 13 / 11,
+                              fontSize: 12,
+                              height: 15 / 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

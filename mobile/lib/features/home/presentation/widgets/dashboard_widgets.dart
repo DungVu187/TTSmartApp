@@ -70,12 +70,17 @@ class DashboardMetricCard extends StatelessWidget {
                         // Last two words stay together when the label wraps
                         // ("Xe bồn / hoạt động", not "Xe bồn hoạt / động").
                         _keepLastWords(metric.label),
-                        maxLines: 2,
+                        // A third line only with a larger system font; the
+                        // grid cell grows for it (home_screen.dart).
+                        maxLines:
+                            MediaQuery.textScalerOf(context).scale(10) > 11.5
+                            ? 3
+                            : 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: p.text2,
-                          fontSize: 11,
-                          height: 13 / 11,
+                          fontSize: 12,
+                          height: 15 / 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -264,33 +269,37 @@ class AreaTrendChart extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 12,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final style = TextStyle(
-                color: p.text3,
-                fontSize: 10,
-                height: 12 / 10,
-                fontWeight: FontWeight.w600,
-              );
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  for (final index in indices)
-                    if (index < labels.length)
-                      _AxisLabel(
-                        text: labels[index],
-                        x: values.length == 1
-                            ? 0
-                            : width * index / (values.length - 1),
-                        width: width,
-                        style: style,
-                      ),
-                ],
-              );
-            },
+        MediaQuery.withClampedTextScaling(
+          // Axis labels overlap if they grow with the system font.
+          maxScaleFactor: 1.1,
+          child: SizedBox(
+            height: 17,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final style = TextStyle(
+                  color: p.text3,
+                  fontSize: 12,
+                  height: 15 / 12,
+                  fontWeight: FontWeight.w600,
+                );
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    for (final index in indices)
+                      if (index < labels.length)
+                        _AxisLabel(
+                          text: labels[index],
+                          x: values.length == 1
+                              ? 0
+                              : width * index / (values.length - 1),
+                          width: width,
+                          style: style,
+                        ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ],

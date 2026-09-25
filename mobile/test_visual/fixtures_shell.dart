@@ -14,7 +14,7 @@ class VisualHomeRepository implements HomeRepository {
   static const _scopes = <DashboardScope>[
     DashboardScope(
       keyName: 'company-3',
-      label: 'Công ty CP Bê tông TTSmart',
+      label: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
       type: DataScopeType.company,
       companyId: 3,
     ),
@@ -24,7 +24,7 @@ class VisualHomeRepository implements HomeRepository {
       type: DataScopeType.station,
       companyId: 3,
       branchId: 10,
-      description: 'Công ty CP Bê tông TTSmart',
+      description: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
     ),
     DashboardScope(
       keyName: 'station-11',
@@ -32,7 +32,7 @@ class VisualHomeRepository implements HomeRepository {
       type: DataScopeType.station,
       companyId: 3,
       branchId: 11,
-      description: 'Công ty CP Bê tông TTSmart',
+      description: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
     ),
   ];
 
@@ -198,7 +198,7 @@ class VisualOrderReportRepository implements OrderReportRepository {
       companyId: 3,
       name: 'Trạm Hà Nam',
       typeTram: 1,
-      companyName: 'Công ty CP Bê tông TTSmart',
+      companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
       code: null,
     ),
     OrderReportStation(
@@ -206,7 +206,7 @@ class VisualOrderReportRepository implements OrderReportRepository {
       companyId: 3,
       name: 'Trạm Ninh Bình',
       typeTram: 1,
-      companyName: 'Công ty CP Bê tông TTSmart',
+      companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
       code: null,
     ),
   ];

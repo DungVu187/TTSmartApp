@@ -385,11 +385,8 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         ? null
         : Uri.tryParse(resolvedAvatar);
     final hasAvatarUrl = avatarUri?.hasScheme == true;
-    final metadata = <String>[
-      if (station.code?.trim().isNotEmpty == true) 'Mã ${station.code!.trim()}',
-      if (station.companyName?.trim().isNotEmpty == true)
-        station.companyName!.trim(),
-    ].join(' · ');
+    final code = station.code?.trim();
+    final company = station.companyName?.trim();
     final fallbackIcon = Icon(
       stationTypeIcon(station.type),
       color: toneForeground,
@@ -430,11 +427,16 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              if (metadata.isNotEmpty) ...[
-                const SizedBox(height: 4),
+              // The company gets its own lines: long legal names are what
+              // tells stations of different companies apart.
+              for (final line in [
+                if (code != null && code.isNotEmpty) 'Mã $code',
+                if (company != null && company.isNotEmpty) company,
+              ]) ...[
+                const SizedBox(height: 3),
                 Text(
-                  metadata,
-                  maxLines: 2,
+                  line,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: p.text2,

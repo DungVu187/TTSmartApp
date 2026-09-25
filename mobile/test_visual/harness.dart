@@ -5,6 +5,7 @@
 //   flutter test --update-goldens test_visual
 // Output: test_visual/out/*.png (git-ignored).
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -30,6 +31,10 @@ final visualRootKey = GlobalKey(debugLabel: 'visual-root');
 /// `VISUAL_DARK=1 flutter test --update-goldens test_visual` captures the
 /// Figma "Dark" frames instead (files end with `_dark`).
 final visualDark = Platform.environment['VISUAL_DARK'] == '1';
+
+/// `VISUAL_TEXT_SCALE=1.3`: the phone's larger font setting (files `_t130`).
+final visualTextScale =
+    double.tryParse(Platform.environment['VISUAL_TEXT_SCALE'] ?? '') ?? 1;
 
 /// Phone the captures are drawn on (`VISUAL_DEVICE`):
 /// - `iphone` (default): iPhone 13/14, 390×844, notch 47, home indicator 34
@@ -170,7 +175,11 @@ Future<void> snap(String name) async {
   for (final view in RendererBinding.instance.renderViews) {
     clipped(view);
   }
-  final file = 'out/$name${visualDevice.suffix}${visualDark ? '_dark' : ''}';
+  final scale = visualTextScale == 1
+      ? ''
+      : '_t${(visualTextScale * 100).round()}';
+  final file =
+      'out/$name${visualDevice.suffix}$scale${visualDark ? '_dark' : ''}';
   // Every visible text, for the copy check against the Figma frames.
   final texts = <String>{
     for (final element in find.byType(RichText).evaluate())
@@ -179,6 +188,7 @@ Future<void> snap(String name) async {
       (element.widget as EditableText).controller.text.trim(),
   }..removeWhere((text) => text.isEmpty);
   File('test_visual/$file.txt').writeAsStringSync(texts.join('\n'));
+  File('test_visual/$file.audit.tsv').writeAsStringSync(_audit().join('\n'));
   _systemBars.value++;
   await tester?.pump();
   try {
@@ -327,8 +337,12 @@ Widget visualApp(AppController controller, Widget home) => RepaintBoundary(
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: visualDark ? ThemeMode.dark : ThemeMode.light,
-            builder: (context, child) =>
-                AppSystemUi(child: child ?? const SizedBox.shrink()),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(visualTextScale)),
+              child: AppSystemUi(child: child ?? const SizedBox.shrink()),
+            ),
             home: home,
           ),
         ),
@@ -443,4 +457,162 @@ class _FakeSystemBars extends StatelessWidget {
       );
     },
   );
+}
+
+// ---------------------------------------------------------------------------
+// UX audit of the visible screen (ui-ux-pro-max rules):
+// - TAP: interactive areas smaller than 44×44 (Touch Target Size, High).
+// - TEXT: text under 12px, or contrast against the colour right behind it
+//   below 4.5:1 (3:1 for ≥24px or ≥18.7px bold) — WCAG 1.4.3.
+// - ICON: icon glyphs below 3:1 against their background — WCAG 1.4.11.
+// ---------------------------------------------------------------------------
+
+double _luminance(Color c) {
+  double ch(double v) =>
+      v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+  return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+}
+
+double _contrast(Color a, Color b) {
+  final la = _luminance(a), lb = _luminance(b);
+  return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+}
+
+Color _over(Color top, Color bottom) => Color.alphaBlend(top, bottom);
+
+/// First (blended) opaque colour painted behind [element].
+Color _backgroundOf(Element element) {
+  final layers = <Color>[];
+  Color? opaque;
+  element.visitAncestorElements((ancestor) {
+    final w = ancestor.widget;
+    Color? color;
+    if (w is Material && w.type != MaterialType.transparency) {
+      color = w.color ?? Theme.of(ancestor).colorScheme.surface;
+    } else if (w is ColoredBox) {
+      color = w.color;
+    } else if (w is DecoratedBox && w.decoration is BoxDecoration) {
+      color = (w.decoration as BoxDecoration).color;
+    } else if (w is Scaffold) {
+      color = w.backgroundColor ?? Theme.of(ancestor).scaffoldBackgroundColor;
+    }
+    if (color == null || color.a == 0) return true;
+    if (color.a >= 0.98) {
+      opaque = color;
+      return false;
+    }
+    layers.add(color);
+    return true;
+  });
+  var result = opaque ?? Colors.white;
+  for (final layer in layers.reversed) {
+    result = _over(layer, result);
+  }
+  return result;
+}
+
+String _labelOf(Element element) {
+  String? found;
+  void visit(Element e) {
+    if (found != null) return;
+    final w = e.widget;
+    if (w is RichText) {
+      final t = w.text.toPlainText().trim();
+      if (t.isNotEmpty && !_isIconFont(w.text.style?.fontFamily)) found = t;
+    } else if (w is Icon) {
+      found = 'icon';
+    } else if (w is Tooltip && w.message != null) {
+      found = 'tooltip:${w.message}';
+    }
+    e.visitChildren(visit);
+  }
+
+  visit(element);
+  return found ?? '?';
+}
+
+bool _isIconFont(String? family) =>
+    family != null &&
+    (family.contains('Lucide') || family.contains('MaterialIcons'));
+
+List<String> _audit() {
+  final out = <String>[];
+  final taps = find.byWidgetPredicate(
+    (w) =>
+        (w is InkResponse && (w.onTap != null || w.onLongPress != null)) ||
+        (w is GestureDetector && w.onTap != null) ||
+        (w is ButtonStyleButton && w.onPressed != null) ||
+        (w is IconButton && w.onPressed != null),
+  );
+  final seen = <String>{};
+  for (final element in taps.evaluate()) {
+    final box = element.renderObject;
+    if (box is! RenderBox || !box.hasSize || !box.attached) continue;
+    final size = box.size;
+    if (size.width >= 44 && size.height >= 44) continue;
+    // A bigger interactive ancestor (e.g. IconButton around its ink) counts.
+    var coveredByParent = false;
+    element.visitAncestorElements((a) {
+      final w = a.widget;
+      if (w is IconButton ||
+          w is ButtonStyleButton ||
+          (w is GestureDetector && w.onTap != null)) {
+        final r = a.renderObject;
+        if (r is RenderBox &&
+            r.hasSize &&
+            r.size.width >= 44 &&
+            r.size.height >= 44) {
+          coveredByParent = true;
+        }
+        return false;
+      }
+      return true;
+    });
+    if (coveredByParent) continue;
+    final origin = box.localToGlobal(Offset.zero);
+    final key = '${origin.dx.round()},${origin.dy.round()}';
+    if (!seen.add(key)) continue;
+    out.add(
+      'TAP\t${element.widget.runtimeType}\t'
+      '${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}\t'
+      '${_labelOf(element)}',
+    );
+  }
+  for (final element in find.byType(RichText).evaluate()) {
+    final w = element.widget as RichText;
+    final ro = element.renderObject;
+    if (ro is! RenderBox || !ro.hasSize || ro.size.isEmpty) continue;
+    final bg = _backgroundOf(element);
+    void visit(InlineSpan span, TextStyle inherited) {
+      final style = inherited.merge(span.style);
+      if (span is TextSpan) {
+        final text = span.text?.trim() ?? '';
+        if (text.isNotEmpty) {
+          final fg = style.color ?? Colors.black;
+          final size = style.fontSize ?? 14;
+          final bold = (style.fontWeight?.value ?? 400) >= 700;
+          final icon = _isIconFont(style.fontFamily);
+          final ratio = _contrast(_over(fg, bg), bg);
+          final need = icon
+              ? 3.0
+              : (size >= 24 || (size >= 18.66 && bold) ? 3.0 : 4.5);
+          if (ratio < need || (!icon && size < 12)) {
+            out.add(
+              '${icon ? 'ICON' : 'TEXT'}\t${size.toStringAsFixed(0)}px\t'
+              '${ratio.toStringAsFixed(2)}\t'
+              '#${fg.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}\t'
+              '#${bg.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}\t'
+              '${icon ? 'U+${text.runes.first.toRadixString(16)}' : text}',
+            );
+          }
+        }
+        for (final child in span.children ?? const <InlineSpan>[]) {
+          visit(child, style);
+        }
+      }
+    }
+
+    visit(w.text, DefaultTextStyle.of(element).style);
+  }
+  return out;
 }

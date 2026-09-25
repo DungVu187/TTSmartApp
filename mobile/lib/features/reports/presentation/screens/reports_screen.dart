@@ -423,11 +423,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       selected: _controller.selectedCompanyId,
       options: [
         for (final company in _controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;
@@ -1108,7 +1104,8 @@ class _BatchRow extends StatelessWidget {
                     customer?.isNotEmpty == true
                         ? customer!
                         : 'Mẻ #${item.rowNumber}',
-                    maxLines: 1,
+                    // The customer is what users scan for: wrap, don't cut.
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: p.text1,

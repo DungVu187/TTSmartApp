@@ -73,18 +73,21 @@ class MoreSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-                Tooltip(
-                  message: 'Đóng',
-                  child: Material(
-                    key: const ValueKey<String>('more-sheet-close'),
-                    color: p.surfaceMuted,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
+                TapArea(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Tooltip(
+                    message: 'Đóng',
+                    child: Material(
+                      key: const ValueKey<String>('more-sheet-close'),
+                      color: p.surfaceMuted,
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: SizedBox.square(
-                        dimension: 32,
-                        child: Icon(LucideIcons.x, size: 18, color: p.text2),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: SizedBox.square(
+                          dimension: 32,
+                          child: Icon(LucideIcons.x, size: 18, color: p.text2),
+                        ),
                       ),
                     ),
                   ),
@@ -280,8 +283,8 @@ class _ModuleGrid extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: p.text1,
-                fontSize: 11,
-                height: 14 / 11,
+                fontSize: 12,
+                height: 15 / 12,
                 fontWeight: FontWeight.w600,
               ),
             ),

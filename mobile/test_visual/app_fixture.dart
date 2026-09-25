@@ -108,6 +108,14 @@ class _PushedScreenState extends State<_PushedScreen> {
 
 Future<void> tapKey(WidgetTester tester, String key) async {
   final finder = find.byKey(ValueKey<String>(key));
+  // Lazy lists only build what is on screen (large fonts push it below).
+  for (var step = 0; step < 12 && finder.evaluate().isEmpty; step++) {
+    final page = find.byWidgetPredicate(
+      (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+    );
+    await tester.drag(page.first, const Offset(0, -300));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);

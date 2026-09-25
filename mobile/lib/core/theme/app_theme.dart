@@ -27,7 +27,6 @@ class AppTheme {
   static ThemeData get dark => _build(AppPalette.dark, Brightness.dark);
 
   static ThemeData _build(AppPalette p, Brightness brightness) {
-    final isLight = brightness == Brightness.light;
     final colorScheme =
         ColorScheme.fromSeed(
           seedColor: p.primary,
@@ -36,7 +35,7 @@ class AppTheme {
           primary: p.primary,
           onPrimary: p.onPrimary,
           primaryContainer: p.primaryContainer,
-          onPrimaryContainer: isLight ? p.primary : p.text1,
+          onPrimaryContainer: p.onPrimaryContainer,
           secondary: p.secondary,
           secondaryContainer: p.infoBg,
           onSecondaryContainer: p.info,

@@ -56,6 +56,26 @@ class _UserFormScreenState extends State<UserFormScreen> {
   int? _companyId;
   ApiException? _error;
   bool _submitting = false;
+  late final String _initialSnapshot;
+
+  /// Everything the user can change, to tell whether leaving loses edits.
+  String _snapshot() => [
+    _userNameController.text,
+    _fullNameController.text,
+    _codeController.text,
+    _emailController.text,
+    _phoneController.text,
+    _addressController.text,
+    _departmentIdController.text,
+    _positionIdController.text,
+    _unitIdController.text,
+    _passwordController.text,
+    (_selectedRoleIds.toList()..sort()).join(','),
+    (_selectedBranchIds.toList()..sort()).join(','),
+    '$_companyId',
+  ].join('\u0001');
+
+  bool _isDirty() => !_submitting && _snapshot() != _initialSnapshot;
 
   @override
   void initState() {
@@ -84,6 +104,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
         user?.companyId ??
         (_canSelectCompany ? null : app.session?.user.companyId);
     _selectedBranchIds.addAll(_parseBranchIds(user?.branchId));
+    _initialSnapshot = _snapshot();
     _rolesFuture = widget.controller.getAvailableRoles();
     _companiesFuture = _canSelectCompany
         ? _loadCompanies()
@@ -200,11 +221,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
       selected: _companyId,
       options: [
         for (final company in companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     final companyId = picked?.value;
@@ -309,17 +326,18 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        runSpacing: 8,
+                        runSpacing:
+                            0, // chips carry 4pt of tap area above/below
                         children: [
                           for (final id in _selectedBranchIds)
-                            InputChip(
-                              label: Text(
-                                stationById[id]?.displayName ??
-                                    (stationsLoaded
-                                        ? 'Trạm #$id (không hợp lệ)'
-                                        : 'Trạm #$id'),
-                              ),
-                              onDeleted: () =>
+                            RemovableChip(
+                              label:
+                                  stationById[id]?.displayName ??
+                                  (stationsLoaded
+                                      ? 'Trạm #$id (không hợp lệ)'
+                                      : 'Trạm #$id'),
+                              removeTooltip: 'Bỏ trạm',
+                              onRemove: () =>
                                   setState(() => _selectedBranchIds.remove(id)),
                             ),
                         ],
@@ -443,116 +461,119 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Đóng',
-          icon: const Icon(LucideIcons.x),
-          onPressed: () => Navigator.maybePop(context),
+    return UnsavedChangesGuard(
+      isDirty: _isDirty,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Đóng',
+            icon: const Icon(LucideIcons.x),
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          title: Text(widget.isEditing ? 'Sửa người dùng' : 'Thêm người dùng'),
+          actions: [
+            AccessSaveAction(submitting: _submitting, onPressed: _submit),
+          ],
         ),
-        title: Text(widget.isEditing ? 'Sửa người dùng' : 'Thêm người dùng'),
-        actions: [
-          AccessSaveAction(submitting: _submitting, onPressed: _submit),
-        ],
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: accessPagePadding(context, top: 8, bottom: 32),
-            children: [
-              AccessConstrainedContent(
-                maxWidth: 820,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_error != null) ...[
-                      ErrorBanner(message: _error!.message),
-                      const SizedBox(height: 16),
-                    ],
-                    FormFieldGroup(
-                      label: 'Tài khoản',
-                      children: [
-                        LabeledTextField(
-                          label: 'Tên đăng nhập *',
-                          controller: _userNameController,
-                          maxLength: 100,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('userName'),
-                          validator: (value) => value?.trim().isEmpty != false
-                              ? 'Tên đăng nhập là bắt buộc.'
-                              : null,
-                        ),
-                        LabeledTextField(
-                          label: 'Họ và tên',
-                          controller: _fullNameController,
-                          maxLength: 200,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('fullName'),
-                        ),
-                        LabeledTextField(
-                          label: 'Mã người dùng',
-                          controller: _codeController,
-                          maxLength: 100,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('code'),
-                        ),
-                        if (!widget.isEditing)
-                          PasswordField(
-                            controller: _passwordController,
-                            label: 'Mật khẩu *',
-                            labelAbove: true,
-                            errorText: _error?.fieldMessage('password'),
-                            validator: (value) =>
-                                value == null || value.length < 4
-                                ? 'Mật khẩu phải có từ 4 đến 200 ký tự.'
+        body: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: accessPagePadding(context, top: 8, bottom: 32),
+              children: [
+                AccessConstrainedContent(
+                  maxWidth: 820,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_error != null) ...[
+                        ErrorBanner(message: _error!.message),
+                        const SizedBox(height: 16),
+                      ],
+                      FormFieldGroup(
+                        label: 'Tài khoản',
+                        children: [
+                          LabeledTextField(
+                            label: 'Tên đăng nhập *',
+                            controller: _userNameController,
+                            maxLength: 100,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('userName'),
+                            validator: (value) => value?.trim().isEmpty != false
+                                ? 'Tên đăng nhập là bắt buộc.'
                                 : null,
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    FormFieldGroup(
-                      label: 'Tổ chức',
-                      children: [
-                        _buildOrganizationScope(),
-                        if (!widget.isEditing) _buildRolesField(),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    FormFieldGroup(
-                      label: 'Liên hệ',
-                      children: [
-                        LabeledTextField(
-                          label: 'Email',
-                          controller: _emailController,
-                          maxLength: 50,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('email'),
-                        ),
-                        LabeledTextField(
-                          label: 'Số điện thoại',
-                          controller: _phoneController,
-                          maxLength: 50,
-                          keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.next,
-                          errorText: _error?.fieldMessage('phone'),
-                        ),
-                        LabeledTextField(
-                          label: 'Địa chỉ',
-                          controller: _addressController,
-                          maxLength: 200,
-                          minLines: 1,
-                          maxLines: 3,
-                          errorText: _error?.fieldMessage('address'),
-                        ),
-                      ],
-                    ),
-                  ],
+                          LabeledTextField(
+                            label: 'Họ và tên',
+                            controller: _fullNameController,
+                            maxLength: 200,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('fullName'),
+                          ),
+                          LabeledTextField(
+                            label: 'Mã người dùng',
+                            controller: _codeController,
+                            maxLength: 100,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('code'),
+                          ),
+                          if (!widget.isEditing)
+                            PasswordField(
+                              controller: _passwordController,
+                              label: 'Mật khẩu *',
+                              labelAbove: true,
+                              errorText: _error?.fieldMessage('password'),
+                              validator: (value) =>
+                                  value == null || value.length < 4
+                                  ? 'Mật khẩu phải có từ 4 đến 200 ký tự.'
+                                  : null,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      FormFieldGroup(
+                        label: 'Tổ chức',
+                        children: [
+                          _buildOrganizationScope(),
+                          if (!widget.isEditing) _buildRolesField(),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      FormFieldGroup(
+                        label: 'Liên hệ',
+                        children: [
+                          LabeledTextField(
+                            label: 'Email',
+                            controller: _emailController,
+                            maxLength: 50,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('email'),
+                          ),
+                          LabeledTextField(
+                            label: 'Số điện thoại',
+                            controller: _phoneController,
+                            maxLength: 50,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            errorText: _error?.fieldMessage('phone'),
+                          ),
+                          LabeledTextField(
+                            label: 'Địa chỉ',
+                            controller: _addressController,
+                            maxLength: 200,
+                            minLines: 1,
+                            maxLines: 3,
+                            errorText: _error?.fieldMessage('address'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

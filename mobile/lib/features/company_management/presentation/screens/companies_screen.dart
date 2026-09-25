@@ -170,22 +170,25 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                         child: Text('Đang khóa'),
                       ),
                     ],
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Khóa: ${_controller.isLocked == null
-                              ? 'Tất cả'
-                              : _controller.isLocked!
-                              ? 'Đang khóa'
-                              : 'Không khóa'}',
-                          style: TextStyle(
-                            color: context.palette.text2,
-                            fontSize: 13,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Khóa: ${_controller.isLocked == null
+                                ? 'Tất cả'
+                                : _controller.isLocked!
+                                ? 'Đang khóa'
+                                : 'Không khóa'}',
+                            style: TextStyle(
+                              color: context.palette.text2,
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                        const Icon(LucideIcons.chevronDown, size: 18),
-                      ],
+                          const Icon(LucideIcons.chevronDown, size: 18),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -267,11 +270,8 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                             tone: AppTone.info,
                           ),
                           title: company.displayName,
-                          subtitle: [
-                            if (company.code?.trim().isNotEmpty == true)
-                              company.code!.trim(),
-                            company.plan.label,
-                          ].join(' · '),
+                          titleMaxLines: 3,
+                          subtitle: company.plan.label,
                           subtitleWidget: company.isLocked
                               ? _LockedSubtitle(company: company)
                               : null,
@@ -314,7 +314,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
   }
 }
 
-/// "BTHN · Trả phí · Đang khóa" with the lock state in bold red (Figma B01).
+/// "Trả phí · Đang khóa" with the lock state in bold red (Figma B01).
 class _LockedSubtitle extends StatelessWidget {
   const _LockedSubtitle({required this.company});
 
@@ -323,10 +323,7 @@ class _LockedSubtitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final base = [
-      if (company.code?.trim().isNotEmpty == true) company.code!.trim(),
-      company.plan.label,
-    ].join(' · ');
+    final base = company.plan.label;
     return Text.rich(
       TextSpan(
         style: TextStyle(

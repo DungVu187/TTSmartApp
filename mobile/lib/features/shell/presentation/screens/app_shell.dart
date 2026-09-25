@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -274,22 +276,33 @@ class _ShellBottomNavigation extends StatelessWidget {
         ),
         child: SafeArea(
           top: false,
-          child: SizedBox(
-            height: 54,
-            child: Row(
-              children: [
-                for (var index = 0; index < tabs.length; index++)
-                  Expanded(
-                    child: _ShellNavigationItem(
-                      key: ValueKey<String>(
-                        'shell-nav-${tabs[index].keyName.name}',
+          // Tab labels follow the phone's font size up to 1.2× (like the
+          // system tab bars) and the bar grows with them instead of cutting
+          // the label (it overflowed at 1.3×).
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.2,
+            child: Builder(
+              builder: (context) => SizedBox(
+                height: math.max(
+                  54,
+                  39 + MediaQuery.textScalerOf(context).scale(15),
+                ),
+                child: Row(
+                  children: [
+                    for (var index = 0; index < tabs.length; index++)
+                      Expanded(
+                        child: _ShellNavigationItem(
+                          key: ValueKey<String>(
+                            'shell-nav-${tabs[index].keyName.name}',
+                          ),
+                          tab: tabs[index],
+                          selected: index == selectedIndex,
+                          onTap: () => onSelected(index),
+                        ),
                       ),
-                      tab: tabs[index],
-                      selected: index == selectedIndex,
-                      onTap: () => onSelected(index),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -342,16 +355,18 @@ class _ShellNavigationItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 3),
-              Text(
-                tab.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: foregroundColor,
-                  fontSize: 11,
-                  height: 13 / 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  tab.label,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: foregroundColor,
+                    fontSize: 12,
+                    height: 15 / 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  ),
                 ),
               ),
             ],

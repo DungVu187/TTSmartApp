@@ -51,12 +51,15 @@ class StatTile extends StatelessWidget {
                   Flexible(
                     child: Text(
                       label,
-                      maxLines: 1,
+                      maxLines:
+                          MediaQuery.textScalerOf(context).scale(10) > 11.5
+                          ? 2
+                          : 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: p.text2,
-                        fontSize: compact ? 11 : 12,
-                        height: compact ? 13 / 11 : 15 / 12,
+                        fontSize: 12,
+                        height: 15 / 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -88,7 +91,7 @@ class StatTile extends StatelessWidget {
                           text: ' $unit',
                           style: TextStyle(
                             color: p.text2,
-                            fontSize: compact ? 11 : 12,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -160,8 +163,8 @@ class VolumeBox extends StatelessWidget {
             label,
             style: TextStyle(
               color: fg,
-              fontSize: compact ? 11 : 12,
-              height: compact ? 13 / 11 : 15 / 12,
+              fontSize: 12,
+              height: 15 / 12,
               fontWeight: FontWeight.w600,
             ),
           ),

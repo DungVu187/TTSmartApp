@@ -257,7 +257,7 @@ class _ComparisonBar extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 36,
+          width: MediaQuery.textScalerOf(context).scale(36),
           child: Text(
             label,
             style: TextStyle(
@@ -283,16 +283,20 @@ class _ComparisonBar extends StatelessWidget {
         const SizedBox(width: 8),
         SizedBox(
           width: 100,
-          child: Text(
-            displayValue,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: fg,
-              fontSize: 13,
-              height: 17 / 13,
-              fontWeight: FontWeight.w700,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              displayValue,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: fg,
+                fontSize: 13,
+                height: 17 / 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),

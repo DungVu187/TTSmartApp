@@ -431,6 +431,7 @@ Future<bool> showAppConfirmDialog(
   required String confirmLabel,
   String cancelLabel = 'Hủy',
   bool destructive = true,
+  bool showCancel = true,
 }) async {
   final result = await showDialog<bool>(
     context: context,
@@ -483,14 +484,16 @@ Future<bool> showAppConfirmDialog(
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Expanded(
-                    child: AppButton(
-                      label: cancelLabel,
-                      variant: AppButtonVariant.ghost,
-                      onPressed: () => Navigator.pop(dialogContext, false),
+                  if (showCancel) ...[
+                    Expanded(
+                      child: AppButton(
+                        label: cancelLabel,
+                        variant: AppButtonVariant.ghost,
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
+                    const SizedBox(width: 10),
+                  ],
                   Expanded(
                     child: AppButton(
                       label: confirmLabel,
@@ -672,4 +675,38 @@ class AppSheetFrame extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Keeps a form from losing what the user typed: back button, back gesture
+/// and the ✕ (via `Navigator.maybePop`) ask "Bỏ thay đổi?" while [isDirty].
+/// Saving still pops normally with `Navigator.pop`.
+class UnsavedChangesGuard extends StatelessWidget {
+  const UnsavedChangesGuard({
+    super.key,
+    required this.isDirty,
+    required this.child,
+  });
+
+  final bool Function() isDirty;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => PopScope<Object?>(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) async {
+      if (didPop) return;
+      final leave =
+          !isDirty() ||
+          await showAppConfirmDialog(
+            context,
+            icon: LucideIcons.triangleAlert,
+            title: 'Bỏ thay đổi?',
+            message: 'Những gì bạn vừa nhập chưa được lưu.',
+            confirmLabel: 'Bỏ thay đổi',
+            cancelLabel: 'Tiếp tục sửa',
+          );
+      if (leave && context.mounted) Navigator.of(context).pop(result);
+    },
+    child: child,
+  );
 }

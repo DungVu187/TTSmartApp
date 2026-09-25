@@ -478,11 +478,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;
@@ -897,7 +893,7 @@ class _OrderCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       _text(item.customerName) ?? 'Chưa có khách hàng',
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: p.text2,
@@ -929,8 +925,8 @@ class _OrderCard extends StatelessWidget {
                       '${_two(orderedAt.hour)}:${_two(orderedAt.minute)}',
                       style: TextStyle(
                         color: p.text2,
-                        fontSize: 11,
-                        height: 13 / 11,
+                        fontSize: 12,
+                        height: 15 / 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1020,7 +1016,7 @@ class _OrderTag extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: p.text2,
-                fontSize: 11.5,
+                fontSize: 12,
                 height: 14 / 11.5,
                 fontWeight: FontWeight.w600,
               ),

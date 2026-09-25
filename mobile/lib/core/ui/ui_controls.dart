@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../utils/organization_name.dart';
 import 'app_palette.dart';
 import 'ui_list.dart';
 
@@ -69,14 +72,13 @@ class SegmentedTabs<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Container(
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: p.surfaceMuted,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
         children: [
-          for (final (value, label) in segments)
+          for (final (index, (value, label)) in segments.indexed)
             Expanded(
               child: Semantics(
                 button: true,
@@ -86,33 +88,43 @@ class SegmentedTabs<T> extends StatelessWidget {
                   onTap: () {
                     if (value != selected) onChanged(value);
                   },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: value == selected ? p.surface : null,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: value == selected
-                          ? [
-                              BoxShadow(
-                                color: p.scrim.withValues(alpha: 0.10),
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
-                              ),
-                            ]
-                          : null,
+                  // The track padding belongs to the segment, so the full
+                  // 46pt height is tappable, not only the 38pt pill.
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      index == 0 ? 4 : 2,
+                      4,
+                      index == segments.length - 1 ? 4 : 2,
+                      4,
                     ),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: value == selected ? p.text1 : p.text2,
-                        fontSize: 15,
-                        fontWeight: value == selected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: value == selected ? p.surface : null,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: value == selected
+                            ? [
+                                BoxShadow(
+                                  color: p.scrim.withValues(alpha: 0.10),
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: value == selected ? p.text1 : p.text2,
+                          fontSize: 15,
+                          fontWeight: value == selected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -158,13 +170,21 @@ class FilterChipButton extends StatelessWidget {
       FilterChipSize.medium => (36.0, 13.0, 18.0),
       FilterChipSize.large => (38.0, 14.0, 17.0),
     };
-    return Semantics(
+    // "Công ty CP Xây dựng Hòa Bình" → "Xây dựng Hòa Bình": the legal form
+    // is the same for every company and pushed the distinctive part behind
+    // the "…". Long-press shows the full name; screen readers read it.
+    final shown = compactOrganizationName(label);
+    final chip = Semantics(
       button: true,
+      label: label,
+      excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: EdgeInsets.symmetric(
+            vertical: math.max(4, (44 - height) / 2),
+          ),
           child: Opacity(
             opacity: onTap == null ? 0.55 : 1,
             child: Material(
@@ -189,9 +209,9 @@ class FilterChipButton extends StatelessWidget {
                         SizedBox(width: dense ? 5 : 6),
                       ],
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 190),
+                        constraints: const BoxConstraints(maxWidth: 240),
                         child: Text(
-                          label,
+                          shown,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -219,6 +239,7 @@ class FilterChipButton extends StatelessWidget {
         ),
       ),
     );
+    return shown == label ? chip : Tooltip(message: label, child: chip);
   }
 }
 
@@ -286,7 +307,11 @@ class OptionChip extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (selected) ...[
-                  Icon(LucideIcons.check, size: 16, color: p.primary),
+                  Icon(
+                    LucideIcons.check,
+                    size: 16,
+                    color: p.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 6),
                 ],
                 Flexible(
@@ -295,7 +320,7 @@ class OptionChip extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: selected ? p.primary : p.text1,
+                      color: selected ? p.onPrimaryContainer : p.text1,
                       fontSize: 15,
                       height: 20 / 15,
                       fontWeight: FontWeight.w600,
@@ -396,8 +421,10 @@ class SelectFieldButton extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: enabled ? onTap : null,
-              child: SizedBox(
-                height: 48,
+              // At least 48pt; long values ("Công ty Cổ phần …") wrap to a
+              // second line instead of hiding the distinctive part.
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
                 child: Row(
                   children: [
                     const SizedBox(width: 14),
@@ -406,14 +433,17 @@ class SelectFieldButton extends StatelessWidget {
                       const SizedBox(width: 10),
                     ],
                     Expanded(
-                      child: Text(
-                        hasValue ? value! : placeholder,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: hasValue ? p.text1 : p.text3,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          hasValue ? value! : placeholder,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasValue ? p.text1 : p.text3,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
@@ -616,7 +646,7 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.primary => (p.primary, p.onPrimary),
       AppButtonVariant.ghost => (p.surfaceMuted, p.text1),
       AppButtonVariant.danger => (p.danger, p.onPrimary),
-      AppButtonVariant.tonal => (p.primaryContainer, p.primary),
+      AppButtonVariant.tonal => (p.primaryContainer, p.onPrimaryContainer),
       AppButtonVariant.outline => (Colors.transparent, p.text1),
       AppButtonVariant.text => (Colors.transparent, p.text2),
     };
@@ -632,16 +662,19 @@ class AppButton extends StatelessWidget {
         else if (icon != null)
           Icon(icon, size: 18, color: fg),
         if (loading || icon != null) const SizedBox(width: 8),
+        // A button label is never cut: it shrinks to fit (large fonts).
         Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: fg,
-              fontSize: 16,
-              height: 20 / 16,
-              fontWeight: FontWeight.w700,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: fg,
+                fontSize: 16,
+                height: 20 / 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -739,7 +772,7 @@ class RoundIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final radius = size >= 44 ? 14.0 : 13.0;
-    return Stack(
+    final button = Stack(
       clipBehavior: Clip.none,
       children: [
         Tooltip(
@@ -778,6 +811,10 @@ class RoundIconButton extends StatelessWidget {
           Positioned(top: -4, right: -4, child: CountBadge(count: badgeCount!)),
       ],
     );
+    // 40pt drawn, 44pt tappable.
+    return size >= 44
+        ? button
+        : TapArea(onTap: loading ? null : onPressed, child: button);
   }
 }
 
@@ -849,16 +886,19 @@ class TabTitleBar extends StatelessWidget {
           children: [
             if (leading != null) ...[leading!, const SizedBox(width: 2)],
             Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: p.text1,
-                  fontSize: large ? 25 : 22,
-                  height: large ? 30 / 25 : 27 / 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: p.text1,
+                    fontSize: large ? 25 : 22,
+                    height: large ? 30 / 25 : 27 / 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
                 ),
               ),
             ),
@@ -925,6 +965,107 @@ class AppSearchField extends StatelessWidget {
                   icon: Icon(LucideIcons.x, color: p.text2, size: 18),
                 ),
         ),
+      ),
+    );
+  }
+}
+
+/// Makes the area around a small control tappable up to [minSize] (44×44,
+/// ui-ux-pro-max "Touch Target Size") without changing what is drawn: the
+/// child stays centred and keeps its own ink; taps on the ring around it call
+/// [onTap] too.
+class TapArea extends StatelessWidget {
+  const TapArea({
+    super.key,
+    required this.onTap,
+    required this.child,
+    this.minSize = 44,
+  });
+
+  final VoidCallback? onTap;
+  final Widget child;
+  final double minSize;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    excludeFromSemantics: true,
+    onTap: onTap,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(minWidth: minSize, minHeight: minSize),
+      child: Center(widthFactor: 1, heightFactor: 1, child: child),
+    ),
+  );
+}
+
+/// Selected item with a remove button (stations of the user form). The pill
+/// is 36pt; the ✕ gets a full 44×44 tap area (Flutter's InputChip only
+/// reacts on its 18pt icon).
+class RemovableChip extends StatelessWidget {
+  const RemovableChip({
+    super.key,
+    required this.label,
+    required this.onRemove,
+    this.removeTooltip = 'Bỏ',
+  });
+
+  final String label;
+  final VoidCallback onRemove;
+  final String removeTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return SizedBox(
+      height: 44,
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Container(
+            height: 36,
+            padding: const EdgeInsets.fromLTRB(12, 0, 38, 0),
+            decoration: BoxDecoration(
+              color: p.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: p.inputBorder),
+            ),
+            // Hug the label (an aligned Container would fill the row).
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: p.text1,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -4,
+            top: 0,
+            bottom: 0,
+            child: Semantics(
+              button: true,
+              label: '$removeTooltip $label',
+              child: Tooltip(
+                message: removeTooltip,
+                child: InkResponse(
+                  onTap: onRemove,
+                  radius: 20,
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Icon(LucideIcons.x, size: 16, color: p.text2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

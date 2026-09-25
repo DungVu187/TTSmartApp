@@ -242,25 +242,42 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 18),
-                          Text.rich(
-                            TextSpan(
-                              style: TextStyle(
-                                color: p.text2,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              children: [
-                                const TextSpan(text: 'Quên mật khẩu? Liên hệ '),
-                                TextSpan(
-                                  text: 'quản trị viên',
-                                  style: TextStyle(
-                                    color: p.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                          // Looks like a link, so it answers when tapped.
+                          TapArea(
+                            onTap: () => showAppConfirmDialog(
+                              context,
+                              icon: LucideIcons.keyRound,
+                              title: 'Quên mật khẩu?',
+                              message:
+                                  'Quản trị viên công ty có thể đặt lại mật khẩu '
+                                  'cho bạn trong Hệ thống › Người dùng. Hãy liên '
+                                  'hệ họ để nhận mật khẩu mới.',
+                              confirmLabel: 'Đã hiểu',
+                              destructive: false,
+                              showCancel: false,
                             ),
-                            textAlign: TextAlign.center,
+                            child: Text.rich(
+                              TextSpan(
+                                style: TextStyle(
+                                  color: p.text2,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: 'Quên mật khẩu? Liên hệ ',
+                                  ),
+                                  TextSpan(
+                                    text: 'quản trị viên',
+                                    style: TextStyle(
+                                      color: p.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                       ),
