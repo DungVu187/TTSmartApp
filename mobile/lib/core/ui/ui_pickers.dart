@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'app_palette.dart';
 import 'ui_controls.dart';
 import 'ui_list.dart';
+import '../theme/app_system_ui.dart';
 
 class PickerOption<T> {
   const PickerOption({required this.value, required this.title, this.subtitle});
@@ -145,95 +146,109 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
           onTap: () => Navigator.pop(context, PickerSelection<T>(option.value)),
         ),
     ];
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: media.size.height * 0.85),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 10),
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: p.border,
-                  borderRadius: BorderRadius.circular(2),
+    return AppSystemUi(
+      navigationBar: p.surface,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.85),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: p.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 6, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: TextStyle(
-                        color: p.text1,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 6, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: TextStyle(
+                          color: p.text1,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
                       ),
                     ),
-                  ),
-                  AppIconButton(
-                    icon: LucideIcons.x,
-                    tooltip: 'Đóng',
-                    color: p.text2,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            if (showSearch)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: AppSearchField(
-                  controller: _search,
-                  hintText: widget.searchHint,
-                  onChanged: (value) => setState(() => _query = value),
+                    AppIconButton(
+                      icon: LucideIcons.x,
+                      tooltip: 'Đóng',
+                      color: p.text2,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 8),
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                child: rows.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 28),
-                        child: Text(
-                          widget.emptyMessage,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: p.text2, fontSize: 15),
-                        ),
-                      )
-                    : Material(
-                        color: p.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: p.border),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          // No automatic safe-area inset inside the card.
-                          padding: EdgeInsets.zero,
-                          itemCount: rows.length,
-                          separatorBuilder: (_, _) => Divider(
-                            height: 1,
-                            indent: widget.icon == null
-                                ? kTextDividerIndent
-                                : kLeadingDividerIndent,
+              if (showSearch)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: AppSearchField(
+                    controller: _search,
+                    hintText: widget.searchHint,
+                    onChanged: (value) => setState(() => _query = value),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: Padding(
+                  // Clear of the iPhone home indicator / Android 3-button bar
+                  // (the modal route only avoids the top): the last option
+                  // was hidden under it.
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    20 +
+                        (media.viewInsets.bottom > 0
+                            ? 0
+                            : media.viewPadding.bottom),
+                  ),
+                  child: rows.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 28),
+                          child: Text(
+                            widget.emptyMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: p.text2, fontSize: 15),
                           ),
-                          itemBuilder: (_, index) => rows[index],
+                        )
+                      : Material(
+                          color: p.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: p.border),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            // No automatic safe-area inset inside the card.
+                            padding: EdgeInsets.zero,
+                            itemCount: rows.length,
+                            separatorBuilder: (_, _) => Divider(
+                              height: 1,
+                              indent: widget.icon == null
+                                  ? kTextDividerIndent
+                                  : kLeadingDividerIndent,
+                            ),
+                            itemBuilder: (_, index) => rows[index],
+                          ),
                         ),
-                      ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,23 +1,23 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
-
 import '../../../../core/widgets/app_date_picker.dart';
-import '../../../../core/widgets/app_empty_state.dart';
-import '../../../../core/widgets/error_panel.dart';
-import '../../../../core/widgets/searchable_autocomplete_field.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
-import '../../../company_management/presentation/widgets/company_autocomplete_field.dart';
 import '../../data/models/material_report_models.dart';
 import '../../data/repositories/material_report_repository.dart';
 import '../controllers/material_report_controller.dart';
 import '../widgets/material_report_widgets.dart';
+import '../widgets/material_units.dart';
 
-enum _ReportSection { overview, transactions }
+enum _Section { stock, chart, vouchers }
 
+/// "Quản lý vật liệu" (Figma C05–C07), view only: the web page of the same
+/// name with its stock per material door, the import / export / stock chart
+/// and the vouchers with the "Xuất tổng" of the period.
 class MaterialReportScreen extends StatefulWidget {
   const MaterialReportScreen({
     super.key,
@@ -36,7 +36,7 @@ class MaterialReportScreen extends StatefulWidget {
 
 class _MaterialReportScreenState extends State<MaterialReportScreen> {
   late final MaterialReportController _controller;
-  var _section = _ReportSection.overview;
+  var _section = _Section.stock;
 
   @override
   void initState() {
@@ -49,26 +49,15 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
   }
 
+  /// The only station in scope is picked and its report loads by itself.
   Future<void> _initialize() async {
     await _controller.initialize();
-    // Phones have no "Tìm kiếm" button: the only station in scope is picked
-    // and its report loads straight away.
-    if (!mounted || !_isCompact || _controller.selectedStationId != null) {
-      return;
-    }
+    if (!mounted || _controller.selectedStationId != null) return;
     if (_controller.stations.length == 1) {
       _controller.selectStation(_controller.stations.single.id);
       await _controller.loadReport();
     }
   }
-
-  bool get _isCompact => MediaQuery.sizeOf(context).width < 600;
-
-  int get _activeFilterCount => [
-    _controller.materialGroup != MaterialGroupFilter.all,
-    _controller.viewMode != MaterialViewMode.all,
-    _controller.valueMode != MaterialValueMode.quantity,
-  ].where((active) => active).length;
 
   @override
   void dispose() {
@@ -84,59 +73,42 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
         actions: [
           AnimatedBuilder(
             animation: _controller,
-            builder: (context, _) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppIconButton(
-                  key: const ValueKey<String>('material-refresh'),
-                  tooltip: 'Làm mới',
-                  icon: LucideIcons.refreshCw,
-                  onPressed:
-                      _controller.report == null || _controller.isLoadingReport
-                      ? null
-                      : _controller.refresh,
-                ),
-                AppIconButton(
-                  key: const ValueKey<String>('material-filters'),
-                  tooltip: 'Bộ lọc',
-                  icon: LucideIcons.slidersHorizontal,
-                  badgeCount: _activeFilterCount,
-                  onPressed: () => _showFilters(context),
-                ),
-                const SizedBox(width: 4),
-              ],
+            builder: (context, _) => AppIconButton(
+              key: const ValueKey<String>('material-refresh'),
+              tooltip: 'Làm mới',
+              icon: LucideIcons.refreshCw,
+              onPressed:
+                  _controller.report == null || _controller.isLoadingReport
+                  ? null
+                  : _controller.refresh,
             ),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
         top: false,
         child: AnimatedBuilder(
           animation: _controller,
-          builder: (context, _) =>
-              _isCompact ? _buildMobileBody(context) : _buildBody(context),
+          builder: (context, _) => _buildBody(context),
         ),
       ),
     );
   }
 
-  // ---------------------------------------------------------------- mobile
-
-  /// Phone layout (Figma C05/C06): date and station chips that reload on
-  /// change, overview / transactions tabs, infinite transaction list.
-  Widget _buildMobileBody(BuildContext context) {
+  Widget _buildBody(BuildContext context) {
     final controller = _controller;
     final report = controller.report;
-    final p = context.palette;
+    // Tablets keep the phone layout, centred at a readable width.
+    final side = math.max(
+      kPagePadding,
+      (MediaQuery.sizeOf(context).width - 720) / 2,
+    );
     return InfiniteListView(
-      storageKey: 'material-report-mobile-scroll',
-      onLoadMore: () {
-        if (_section == _ReportSection.transactions) {
-          unawaited(controller.loadMore());
-        }
-      },
-      onRefresh: report == null ? () async {} : controller.refresh,
-      padding: const EdgeInsets.fromLTRB(kPagePadding, 4, kPagePadding, 28),
+      storageKey: 'material-report-scroll',
+      onLoadMore: () {},
+      onRefresh: report == null ? null : controller.refresh,
+      padding: EdgeInsets.fromLTRB(side, 4, side, 32),
       children: [
         FilterChipBar(
           children: [
@@ -173,16 +145,24 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             onRetry: controller.retryScope,
           ),
         ],
-        if (controller.reportError != null && report == null) ...[
+        if (controller.validationMessage != null) ...[
+          const SizedBox(height: 10),
+          ErrorBanner(message: controller.validationMessage!),
+        ],
+        if (controller.reportError != null) ...[
           const SizedBox(height: 10),
           ErrorBanner(
             message: controller.reportError!.message,
-            onRetry: controller.loadReport,
+            onRetry: report == null
+                ? controller.loadReport
+                : controller.refresh,
           ),
         ],
         const SizedBox(height: 12),
         if (report == null) ...[
-          if (controller.isLoadingReport || controller.isLoadingScope)
+          if (controller.isLoadingReport)
+            const MaterialLoadingCard()
+          else if (controller.isLoadingScope)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 64),
               child: Center(child: CircularProgressIndicator()),
@@ -205,149 +185,311 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
               ),
             ),
         ] else ...[
-          Text(
-            'Tồn kho tính đến ${formatVietnamDateTime(report.inventoryAsOf)}',
-            style: TextStyle(
-              color: p.text3,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (report.warnings.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            WarningBanner(title: 'Dữ liệu cần lưu ý', items: report.warnings),
-          ],
-          const SizedBox(height: 14),
-          SegmentedTabs<_ReportSection>(
+          SegmentedTabs<_Section>(
             key: const ValueKey<String>('material-report-section'),
             segments: const [
-              (_ReportSection.overview, 'Tổng quan'),
-              (_ReportSection.transactions, 'Giao dịch'),
+              (_Section.stock, 'Tồn kho'),
+              (_Section.chart, 'Biểu đồ'),
+              (_Section.vouchers, 'Phiếu'),
             ],
             selected: _section,
             onChanged: (selection) => setState(() => _section = selection),
           ),
-          const SizedBox(height: 16),
-          if (_section == _ReportSection.overview)
-            _buildMobileOverview(report)
-          else
-            _buildMobileTransactions(report),
+          if (controller.isRefreshing) ...[
+            const SizedBox(height: 10),
+            const LinearProgressIndicator(minHeight: 3),
+          ],
+          const SizedBox(height: 14),
+          ...switch (_section) {
+            _Section.stock => _stockTab(report),
+            _Section.chart => _chartTab(report),
+            _Section.vouchers => _vouchersTab(report),
+          },
         ],
       ],
     );
   }
 
-  Widget _buildMobileOverview(MaterialReport report) {
-    final p = context.palette;
-    final quantity = _controller.valueMode == MaterialValueMode.quantity;
-    final totals = report.totals;
-    String show(double value) =>
-        quantity ? formatWeight(value) : formatCurrency(value);
-    Widget total(IconData icon, AppTone tone, String label, double value) {
-      final (fg, _) = p.tone(tone);
-      return NavRow(
-        leading: IconTile(icon: icon, tone: tone),
-        title: label,
-        showChevron: false,
-        trailing: Text(
-          show(value),
-          style: TextStyle(
-            color: value < 0 ? p.danger : fg,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
-      );
-    }
+  // ------------------------------------------------------------ Tồn kho
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InsetCard(
-          dividerIndent: kLeadingDividerIndent,
-          children: [
-            total(
-              LucideIcons.arrowDownLeft,
-              AppTone.success,
-              quantity ? 'Tổng nhập' : 'Giá trị nhập',
-              quantity ? totals.importQuantityKg : totals.importValueVnd,
-            ),
-            total(
-              LucideIcons.arrowUpRight,
-              AppTone.danger,
-              quantity ? 'Tổng xuất' : 'Giá trị xuất',
-              quantity ? totals.exportQuantityKg : totals.exportValueVnd,
-            ),
-            total(
-              quantity ? LucideIcons.package : LucideIcons.wallet,
-              AppTone.primary,
-              quantity ? 'Tồn hiện tại' : 'Giá trị tồn',
-              quantity ? totals.inventoryQuantityKg : totals.inventoryValueVnd,
-            ),
-          ],
-        ),
-        const SizedBox(height: 22),
-        Text(
-          'So sánh theo vật liệu',
-          style: TextStyle(
-            color: p.text1,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          quantity
-              ? 'Khối lượng nhập, xuất và tồn lũy kế đến cuối kỳ.'
-              : 'Giá trị FIFO nhập, xuất và tồn lũy kế đến cuối kỳ.',
-          style: TextStyle(color: p.text2, fontSize: 13),
-        ),
-        const SizedBox(height: 10),
-        MaterialComparisonList(
-          items: report.chartItems,
-          valueMode: _controller.valueMode,
-        ),
+  List<Widget> _stockTab(MaterialReport report) {
+    final controller = _controller;
+    final valueMode = controller.valueMode == MaterialValueMode.value;
+    final materials = controller.materials;
+    final notice = negativeStockNotice(materials, valueMode: valueMode);
+    final warnings = materialWarningsFor(report.warnings, valueMode: valueMode);
+    final groups = report.groups.where((group) => group.materials.isNotEmpty);
+    return [
+      _AsOfLine(
+        'Tồn lũy kế đến ${formatVietnamDateTime(report.inventoryAsOf)}',
+      ),
+      if (notice != null) ...[const SizedBox(height: 12), notice],
+      if (warnings.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        WarningBanner(title: 'Dữ liệu cần lưu ý', items: warnings),
       ],
-    );
+      const SizedBox(height: 16),
+      _LabeledSwitch<MaterialValueMode>(
+        key: const ValueKey<String>('material-value-mode'),
+        label: 'Xem theo',
+        maxWidth: 240,
+        segments: [
+          for (final mode in MaterialValueMode.values) (mode, mode.label),
+        ],
+        selected: controller.valueMode,
+        onChanged: controller.setValueMode,
+      ),
+      const SizedBox(height: 18),
+      if (materials.isEmpty)
+        const StateView(
+          icon: LucideIcons.package,
+          title: 'Chưa có cửa vật liệu',
+          message: 'Trạm chưa khai báo cửa vật liệu nên chưa có tồn kho.',
+        )
+      else
+        for (final group in groups) ...[
+          MaterialStockGroup(
+            key: ValueKey<String>('material-group-${group.code}'),
+            group: group,
+            unit: controller.unitFor(group.code),
+            valueMode: valueMode,
+            onUnitTap: () => _pickUnit(group.code),
+            onMaterialTap: (item) => _openMaterial(report, item),
+          ),
+          const SizedBox(height: 18),
+        ],
+    ];
   }
 
-  Widget _buildMobileTransactions(MaterialReport report) {
+  // ------------------------------------------------------------ Biểu đồ
+
+  List<Widget> _chartTab(MaterialReport report) {
     final controller = _controller;
-    if (controller.loadedTransactions.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 24),
-        child: StateView(
-          icon: LucideIcons.receiptText,
-          title: 'Chưa có giao dịch',
-          message:
-              'Không tìm thấy giao dịch phù hợp với bộ lọc và khoảng thời gian.',
+    final p = context.palette;
+    final group = controller.chartGroup;
+    final items = controller.materials
+        .where(
+          (item) =>
+              group == MaterialGroupFilter.all || item.groupCode == group.code,
+        )
+        .toList(growable: false);
+    return [
+      MaterialInlineSelect(
+        key: const ValueKey<String>('material-chart-group'),
+        label: 'Nhóm vật liệu',
+        value: group.label,
+        onTap: () async {
+          final picked = await _pickGroup(group);
+          if (picked != null) controller.setChartGroup(picked);
+        },
+      ),
+      const SizedBox(height: 18),
+      Text(
+        'Nhập – xuất – tồn theo vật liệu',
+        style: TextStyle(
+          color: p.text1,
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
         ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        GroupLabel('${report.totalCount} giao dịch'),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        'Lũy kế đến ${formatVietnamDateTime(report.inventoryAsOf)} · '
+        'lớn nhất xếp trước',
+        style: TextStyle(color: p.text2, fontSize: 13, height: 18 / 13),
+      ),
+      const SizedBox(height: 10),
+      const MaterialChartLegend(),
+      const SizedBox(height: 10),
+      if (items.isEmpty)
+        const StateView(
+          icon: LucideIcons.chartColumn,
+          title: 'Không có vật liệu trong nhóm',
+          message: 'Chọn nhóm khác để xem biểu đồ.',
+        )
+      else
+        MaterialChartList(
+          items: items,
+          onTap: (item) => _openMaterial(report, item),
+        ),
+    ];
+  }
+
+  // ------------------------------------------------------------ Phiếu
+
+  List<Widget> _vouchersTab(MaterialReport report) {
+    final controller = _controller;
+    final summary = _summaryFor(controller.voucherGroup);
+    return [
+      _LabeledSwitch<MaterialViewMode>(
+        key: const ValueKey<String>('material-voucher-type'),
+        label: 'Loại',
+        segments: const [
+          (MaterialViewMode.all, 'Tất cả'),
+          (MaterialViewMode.importData, 'Nhập'),
+          (MaterialViewMode.exportData, 'Xuất'),
+          (MaterialViewMode.stocktake, 'Kiểm kê'),
+        ],
+        selected: controller.voucherType,
+        onChanged: (type) => controller.setVoucherFilters(type: type),
+      ),
+      const SizedBox(height: 10),
+      MaterialInlineSelect(
+        key: const ValueKey<String>('material-voucher-group'),
+        label: 'Nhóm vật liệu',
+        value: controller.voucherGroup.label,
+        onTap: () async {
+          final picked = await _pickGroup(controller.voucherGroup);
+          if (picked != null) {
+            await controller.setVoucherFilters(group: picked);
+          }
+        },
+      ),
+      const SizedBox(height: 16),
+      _AsOfLine(
+        'Phiếu từ ${formatShortVietnamDateTime(report.from)} đến '
+        '${formatShortVietnamDateTime(report.to)}',
+      ),
+      const SizedBox(height: 12),
+      if (summary != null) ...[
+        MaterialSummaryExportCard(
+          key: const ValueKey<String>('material-summary-export'),
+          summary: summary,
+          onTap: () => showMaterialTransactionDetails(context, summary),
+        ),
+        const SizedBox(height: 18),
+      ],
+      if (controller.isLoadingVouchers)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator()),
+        )
+      else if (controller.voucherError != null && controller.vouchers.isEmpty)
+        ErrorBanner(
+          message: controller.voucherError!.message,
+          onRetry: () => controller.setVoucherFilters(),
+        )
+      else if (controller.vouchers.isEmpty)
+        const _VouchersEmpty()
+      else ...[
+        GroupLabel('${controller.voucherCount} phiếu'),
         const SizedBox(height: 8),
         InsetCard(
           dividerIndent: kLeadingDividerIndent,
           children: [
-            for (final transaction in controller.loadedTransactions)
-              _TransactionRow(
-                transaction: transaction,
-                onTap: () =>
-                    showMaterialTransactionDetails(context, transaction),
+            for (final voucher in controller.vouchers)
+              MaterialVoucherRow(
+                voucher: voucher,
+                onTap: () => showMaterialTransactionDetails(context, voucher),
               ),
           ],
         ),
-        LoadMoreFooter(
-          loading: controller.isRefreshing,
-          errorMessage: controller.reportError?.message,
-          onRetry: controller.loadMore,
-        ),
+        if (controller.voucherError != null) ...[
+          const SizedBox(height: 10),
+          ErrorBanner(
+            message: controller.voucherError!.message,
+            onRetry: controller.loadMoreVouchers,
+          ),
+        ] else if (controller.canLoadMoreVouchers ||
+            controller.isLoadingMoreVouchers) ...[
+          const SizedBox(height: 14),
+          AppButton(
+            key: const ValueKey<String>('material-more-vouchers'),
+            label: 'Xem thêm phiếu',
+            variant: AppButtonVariant.outline,
+            loading: controller.isLoadingMoreVouchers,
+            onPressed: controller.isLoadingMoreVouchers
+                ? null
+                : controller.loadMoreVouchers,
+          ),
+        ],
+      ],
+    ];
+  }
+
+  /// "Xuất tổng trong kỳ" of the overview, limited to a group when one is
+  /// picked (the API only sends it for all materials and all types).
+  MaterialTransaction? _summaryFor(MaterialGroupFilter group) {
+    final summary = _controller.summaryExport;
+    if (summary == null || _controller.voucherType != MaterialViewMode.all) {
+      return null;
+    }
+    if (group == MaterialGroupFilter.all) return summary;
+    final codes = {
+      for (final item in _controller.materials)
+        if (item.groupCode == group.code) item.materialCode,
+    };
+    final details = summary.details
+        .where((detail) => codes.contains(detail.materialCode))
+        .toList(growable: false);
+    return MaterialTransaction(
+      rowNumber: summary.rowNumber,
+      id: summary.id,
+      occurredAt: summary.occurredAt,
+      periodFrom: summary.periodFrom,
+      periodTo: summary.periodTo,
+      type: summary.type,
+      content: summary.content,
+      importQuantityKg: 0,
+      exportQuantityKg: details.fold(0, (sum, item) => sum + item.quantityKg),
+      valueVnd: details.fold<double>(
+        0,
+        (sum, item) => sum + (item.valueVnd ?? 0),
+      ),
+      note: summary.note,
+      details: details,
+    );
+  }
+
+  // ------------------------------------------------------------ actions
+
+  void _openMaterial(MaterialReport report, MaterialSummaryItem item) {
+    final summary = _controller.summaryExport;
+    final detail = summary?.details
+        .where((detail) => detail.materialCode == item.materialCode)
+        .firstOrNull;
+    showMaterialDetails(
+      context,
+      item: item,
+      unit: _controller.unitFor(item.groupCode),
+      inventoryAsOf: report.inventoryAsOf,
+      periodLabel: _shortRange(_controller.from, _controller.to),
+      // A material missing from the summary had no export in the period.
+      periodExportKg: summary == null ? null : detail?.quantityKg ?? 0,
+    );
+  }
+
+  Future<void> _pickUnit(String groupCode) async {
+    final picked = await showPickerSheet<MaterialUnit>(
+      context: context,
+      title: 'Đơn vị nhóm ${materialGroupName(groupCode)}',
+      icon: LucideIcons.scale,
+      selected: _controller.unitFor(groupCode),
+      options: [
+        for (final unit in materialUnitsFor(groupCode))
+          PickerOption(
+            value: unit,
+            title: unit.label,
+            subtitle: unit.description,
+          ),
       ],
     );
+    final unit = picked?.value;
+    if (unit != null) _controller.setUnit(groupCode, unit);
+  }
+
+  Future<MaterialGroupFilter?> _pickGroup(MaterialGroupFilter selected) async {
+    final picked = await showPickerSheet<MaterialGroupFilter>(
+      context: context,
+      title: 'Nhóm vật liệu',
+      icon: LucideIcons.layers,
+      selected: selected,
+      options: [
+        for (final group in MaterialGroupFilter.values)
+          PickerOption(value: group, title: group.label),
+      ],
+    );
+    return picked?.value;
   }
 
   Future<void> _pickCompany() async {
@@ -385,7 +527,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             title: station.displayName,
             subtitle: station.companyName?.trim().isNotEmpty == true
                 ? station.companyName
-                : 'Mã trạm ${station.id}',
+                : null,
           ),
       ],
     );
@@ -395,567 +537,110 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
     await _controller.loadReport();
   }
 
-  Widget _buildBody(BuildContext context) {
-    final report = _controller.report;
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (_section == _ReportSection.transactions &&
-            notification.metrics.extentAfter < 300) {
-          _controller.loadMore();
-        }
-        return false;
-      },
-      child: RefreshIndicator(
-        onRefresh: report == null ? () async {} : _controller.refresh,
-        child: ListView(
-          key: const ValueKey<String>('material-report-scroll'),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1040),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildScopeCard(context),
-                    if (_controller.validationMessage != null) ...[
-                      const SizedBox(height: 10),
-                      ErrorPanel(message: _controller.validationMessage!),
-                    ],
-                    if (_controller.scopeError != null) ...[
-                      const SizedBox(height: 10),
-                      ErrorPanel(
-                        message: _controller.scopeError!.message,
-                        onRetry: _controller.retryScope,
-                      ),
-                    ],
-                    if (_controller.reportError != null) ...[
-                      const SizedBox(height: 10),
-                      ErrorPanel(
-                        message: _controller.reportError!.message,
-                        onRetry: _controller.loadReport,
-                      ),
-                    ],
-                    if (_controller.isLoadingReport && report == null) ...[
-                      const SizedBox(height: 36),
-                      const Center(child: CircularProgressIndicator()),
-                    ] else if (report == null) ...[
-                      const SizedBox(height: 20),
-                      AppEmptyState(
-                        icon: LucideIcons.package,
-                        title: 'Chọn trạm để xem báo cáo',
-                        message: widget.isAdmin
-                            ? 'Chọn cụ thể công ty, trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.'
-                            : 'Chọn cụ thể trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.',
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 16),
-                      _buildReportHeader(report),
-                      if (report.warnings.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        _WarningsPanel(warnings: report.warnings),
-                      ],
-                      const SizedBox(height: 14),
-                      SegmentedTabs<_ReportSection>(
-                        key: const ValueKey<String>('material-report-section'),
-                        segments: const [
-                          (_ReportSection.overview, 'Tổng quan'),
-                          (_ReportSection.transactions, 'Giao dịch'),
-                        ],
-                        selected: _section,
-                        onChanged: (selection) => setState(() {
-                          _section = selection;
-                        }),
-                      ),
-                      const SizedBox(height: 14),
-                      if (_section == _ReportSection.overview)
-                        _buildOverview(report)
-                      else
-                        _buildTransactions(report),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScopeCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.palette.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.palette.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Phạm vi báo cáo',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-              ),
-              if (_controller.isLoadingScope)
-                const SizedBox.square(
-                  dimension: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (widget.isAdmin) ...[
-            CompanyAutocompleteField(
-              key: ValueKey<String>(
-                'material-company-${_controller.selectedCompanyId}',
-              ),
-              companies: _controller.companies,
-              selectedCompanyId: _controller.selectedCompanyId,
-              onSelected: (company) => _controller.selectCompany(company.id),
-              onCleared: () => _controller.selectCompany(null),
-              enabled: !_controller.isLoadingScope,
-              hintText: 'Tìm theo tên hoặc mã công ty',
-            ),
-            const SizedBox(height: 12),
-          ],
-          SearchableAutocompleteField<MaterialReportStation>(
-            key: ValueKey<String>(
-              'material-station-${_controller.selectedCompanyId}-${_controller.selectedStationId}',
-            ),
-            options: _controller.stations,
-            selectedOption: _controller.selectedStation,
-            displayStringForOption: (station) => station.displayName,
-            searchStringForOption: (station) {
-              final company = station.companyName?.trim();
-              return company == null || company.isEmpty
-                  ? '${station.displayName} ${station.id}'
-                  : '${station.displayName} ${station.id} $company';
-            },
-            optionSubtitle: (station) => station.companyName?.trim(),
-            onSelected: (station) {
-              final hadReport = _controller.report != null;
-              _controller.selectStation(station.id);
-              if (hadReport) _controller.loadReport();
-            },
-            onCleared: () => _controller.selectStation(null),
-            enabled:
-                !_controller.isLoadingScope &&
-                (!widget.isAdmin || _controller.selectedCompanyId != null),
-            hintText: 'Tìm trạm trộn',
-            labelText: 'Trạm trộn',
-            prefixIcon: LucideIcons.factory,
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            key: const ValueKey<String>('material-date-range'),
-            onPressed: () => _pickDateRange(context),
-            icon: const Icon(LucideIcons.calendarRange),
-            label: Text(_dateRangeLabel(_controller.from, _controller.to)),
-          ),
-          const SizedBox(height: 10),
-          Material(
-            color: context.palette.surfaceMuted,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              key: const ValueKey<String>('material-filter-button'),
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => _showFilters(context),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      LucideIcons.slidersHorizontal,
-                      size: 20,
-                      color: context.palette.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${_controller.materialGroup.label} • ${_controller.viewMode.label} • ${_controller.valueMode.label}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    Icon(
-                      LucideIcons.chevronRight,
-                      color: context.palette.text2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            key: const ValueKey<String>('material-view-report'),
-            onPressed: _controller.isLoadingReport
-                ? null
-                : _controller.loadReport,
-            icon: const Icon(LucideIcons.chartColumn),
-            label: const Text('Tìm kiếm'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReportHeader(MaterialReport report) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                report.stationName?.trim().isNotEmpty == true
-                    ? report.stationName!
-                    : _controller.selectedStation?.displayName ?? 'Trạm trộn',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'Tồn kho tính đến ${formatVietnamDateTime(report.inventoryAsOf)}',
-                style: TextStyle(color: context.palette.text2, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        if (_controller.isRefreshing)
-          const SizedBox.square(
-            dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildOverview(MaterialReport report) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      MaterialTotalsGrid(
-        totals: report.totals,
-        valueMode: _controller.valueMode,
-      ),
-      const SizedBox(height: 22),
-      const Text(
-        'So sánh theo vật liệu',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        _controller.valueMode == MaterialValueMode.quantity
-            ? 'Khối lượng nhập, xuất và tồn lũy kế đến cuối kỳ.'
-            : 'Giá trị FIFO nhập, xuất và tồn lũy kế đến cuối kỳ.',
-        style: TextStyle(color: context.palette.text2, fontSize: 12),
-      ),
-      const SizedBox(height: 10),
-      MaterialComparisonList(
-        items: report.chartItems,
-        valueMode: _controller.valueMode,
-      ),
-    ],
-  );
-
-  Widget _buildTransactions(MaterialReport report) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          report.totalCount == 0
-              ? 'Không có giao dịch trong kỳ'
-              : 'Giao dịch ${report.fromRowNumber}–${report.toRowNumber} / ${report.totalCount}',
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 10),
-        if (_controller.loadedTransactions.isEmpty)
-          const AppEmptyState(
-            icon: LucideIcons.receiptText,
-            title: 'Chưa có giao dịch',
-            message:
-                'Không tìm thấy giao dịch phù hợp với bộ lọc và khoảng thời gian.',
-          )
-        else
-          for (final transaction in _controller.loadedTransactions) ...[
-            MaterialTransactionCard(
-              transaction: transaction,
-              onTap: () => showMaterialTransactionDetails(context, transaction),
-            ),
-            const SizedBox(height: 10),
-          ],
-        if (report.totalPages > 1 &&
-            MediaQuery.sizeOf(context).width >= 600) ...[
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed:
-                      report.pageNumber <= 1 || _controller.isLoadingReport
-                      ? null
-                      : () => _controller.loadReport(
-                          pageNumber: report.pageNumber - 1,
-                        ),
-                  icon: const Icon(LucideIcons.chevronLeft),
-                  label: const Text('Trang trước'),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  '${report.pageNumber}/${report.totalPages}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed:
-                      report.pageNumber >= report.totalPages ||
-                          _controller.isLoadingReport
-                      ? null
-                      : () => _controller.loadReport(
-                          pageNumber: report.pageNumber + 1,
-                        ),
-                  iconAlignment: IconAlignment.end,
-                  icon: const Icon(LucideIcons.chevronRight),
-                  label: const Text('Trang sau'),
-                ),
-              ),
-            ],
-          ),
-        ],
-        if (MediaQuery.sizeOf(context).width < 600)
-          LoadMoreFooter(
-            loading: _controller.isRefreshing && _controller.canLoadMore,
-            errorMessage: _controller.reportError?.message,
-            onRetry: _controller.loadMore,
-          ),
-      ],
-    );
-  }
-
   Future<void> _pickDateRange(BuildContext context) async {
     final result = await showAppDateRangePicker(
       context: context,
       initialStart: _controller.from,
       initialEnd: _controller.to,
-      title: 'Khoảng giao dịch',
+      title: 'Khoảng thời gian',
       keyPrefix: 'material-date-range-picker',
     );
-    if (result != null) {
-      final shouldLoad = _shouldReloadOnChange;
-      _controller.setDateRange(result.start, result.end);
-      if (shouldLoad) await _controller.loadReport();
-    }
-  }
-
-  /// Wide layouts keep the explicit "Tìm kiếm" flow until a report exists;
-  /// phones reload as soon as a station is chosen.
-  bool get _shouldReloadOnChange =>
-      _controller.report != null || (_isCompact && _controller.canViewReport);
-
-  Future<void> _showFilters(BuildContext context) async {
-    var group = _controller.materialGroup;
-    var view = _controller.viewMode;
-    var value = _controller.valueMode;
-    final applied = await showAppSheet<bool>(
-      context: context,
-      title: 'Bộ lọc báo cáo',
-      footer: (sheetContext) => AppButton(
-        key: const ValueKey<String>('material-apply-filters'),
-        onPressed: () => Navigator.pop(sheetContext, true),
-        icon: LucideIcons.check,
-        label: 'Áp dụng bộ lọc',
-      ),
-      builder: (_) => StatefulBuilder(
-        builder: (context, setSheetState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 6),
-            const GroupLabel('Nhóm vật liệu'),
-            const SizedBox(height: 8),
-            OptionChipGroup<MaterialGroupFilter>(
-              options: [
-                for (final item in MaterialGroupFilter.values)
-                  (item, item.label),
-              ],
-              selected: group,
-              onChanged: (item) => setSheetState(() => group = item),
-            ),
-            const SizedBox(height: 18),
-            const GroupLabel('Loại dữ liệu'),
-            const SizedBox(height: 8),
-            OptionChipGroup<MaterialViewMode>(
-              options: [
-                for (final item in MaterialViewMode.values) (item, item.label),
-              ],
-              selected: view,
-              onChanged: (item) => setSheetState(() => view = item),
-            ),
-            const SizedBox(height: 18),
-            const GroupLabel('Hiển thị theo'),
-            const SizedBox(height: 8),
-            SegmentedTabs<MaterialValueMode>(
-              segments: [
-                for (final item in MaterialValueMode.values) (item, item.label),
-              ],
-              selected: value,
-              onChanged: (selection) => setSheetState(() => value = selection),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (applied == true) {
-      final shouldLoad = _shouldReloadOnChange;
-      _controller
-        ..setMaterialGroup(group)
-        ..setViewMode(view)
-        ..setValueMode(value);
-      if (shouldLoad) await _controller.loadReport();
-    }
+    if (result == null) return;
+    _controller.setDateRange(result.start, result.end);
+    if (_controller.canViewReport) unawaited(_controller.loadReport());
   }
 }
 
-/// One stock movement in the phone list (Figma C06).
-class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({required this.transaction, required this.onTap});
+/// A short label and a compact switch, so it never reads as a second row
+/// of tabs under "Tồn kho · Biểu đồ · Phiếu".
+class _LabeledSwitch<T> extends StatelessWidget {
+  const _LabeledSwitch({
+    super.key,
+    required this.label,
+    required this.segments,
+    required this.selected,
+    required this.onChanged,
+    this.maxWidth = double.infinity,
+  });
 
-  final MaterialTransaction transaction;
-  final VoidCallback onTap;
+  final String label;
+  final List<(T, String)> segments;
+  final T selected;
+  final ValueChanged<T> onChanged;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final isImport = transaction.importQuantityKg > 0;
-    final quantity = isImport
-        ? transaction.importQuantityKg
-        : transaction.exportQuantityKg;
-    final tone = transaction.isSummary
-        ? AppTone.primary
-        : isImport
-        ? AppTone.success
-        : AppTone.danger;
-    final (fg, _) = p.tone(tone);
-    final occurredAt = transaction.occurredAt;
-    return NavRow(
-      background: transaction.isSummary ? p.primaryContainer : null,
-      leading: IconTile(
-        icon: transaction.isSummary
-            ? LucideIcons.sigma
-            : isImport
-            ? LucideIcons.arrowDownLeft
-            : LucideIcons.arrowUpRight,
-        tone: tone,
-        background: transaction.isSummary ? p.surface : null,
-      ),
-      title: transaction.content,
-      titleMaxLines: 2,
-      subtitle: occurredAt == null
-          ? transaction.id
-          : '${formatShortVietnamDateTime(occurredAt).replaceAll(' ', ' ')} · ${transaction.id}',
-      subtitleMaxLines: 2,
-      showChevron: false,
-      trailing: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            formatWeight(quantity),
-            semanticsLabel:
-                '${isImport ? 'Nhập' : 'Xuất'} ${formatWeight(quantity)}',
-            style: TextStyle(
-              color: fg,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: p.text2,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: SegmentedTabs<T>(
+              segments: segments,
+              selected: selected,
+              onChanged: onChanged,
             ),
           ),
-          if (transaction.valueVnd != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              formatCurrency(transaction.valueVnd!),
-              style: TextStyle(
-                color: p.text3,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-      onTap: onTap,
+        ),
+      ],
     );
   }
+}
+
+/// "ⓘ Tồn lũy kế đến …": says which moment the numbers are for.
+class _AsOfLine extends StatelessWidget {
+  const _AsOfLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Row(
+      children: [
+        Icon(LucideIcons.info, size: 15, color: p.text2),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: p.text2,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Figma C07c: no voucher in the period.
+class _VouchersEmpty extends StatelessWidget {
+  const _VouchersEmpty();
+
+  @override
+  Widget build(BuildContext context) => const StateView(
+    icon: LucideIcons.clipboardList,
+    title: 'Không có phiếu nhập, xuất hay kiểm kê trong kỳ',
+    message:
+        'Phiếu kho được tạo trên web Quản lý kho. Thử chọn khoảng ngày dài hơn.',
+  );
 }
 
 String _shortRange(DateTime start, DateTime end) {
   String two(int number) => number.toString().padLeft(2, '0');
   String date(DateTime value) => '${two(value.day)}/${two(value.month)}';
-  return '${date(start)} – ${date(end)}';
-}
-
-class _WarningsPanel extends StatelessWidget {
-  const _WarningsPanel({required this.warnings});
-
-  final List<String> warnings;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: context.palette.warningBg,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: context.palette.warning.withValues(alpha: 0.35),
-      ),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(LucideIcons.triangleAlert, color: context.palette.warning),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Dữ liệu cần lưu ý',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 4),
-              for (final warning in warnings)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    '• $warning',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-String _dateRangeLabel(DateTime start, DateTime end) {
-  String two(int number) => number.toString().padLeft(2, '0');
-  String date(DateTime value) =>
-      '${two(value.day)}/${two(value.month)}/${value.year}';
   return '${date(start)} – ${date(end)}';
 }

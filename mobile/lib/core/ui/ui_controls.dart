@@ -114,16 +114,22 @@ class SegmentedTabs<T> extends StatelessWidget {
                               ]
                             : null,
                       ),
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: value == selected ? p.text1 : p.text2,
-                          fontSize: 15,
-                          fontWeight: value == selected
-                              ? FontWeight.w700
-                              : FontWeight.w600,
+                      // Shrinks with a large phone font instead of "Kiể…".
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: value == selected ? p.text1 : p.text2,
+                              fontSize: 15,
+                              fontWeight: value == selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ),

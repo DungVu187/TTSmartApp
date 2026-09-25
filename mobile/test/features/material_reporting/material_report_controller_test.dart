@@ -5,10 +5,12 @@ import 'package:ttsmart_mobile/features/company_management/data/repositories/com
 import 'package:ttsmart_mobile/features/material_reporting/data/models/material_report_models.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 import 'package:ttsmart_mobile/features/material_reporting/presentation/controllers/material_report_controller.dart';
+import 'package:ttsmart_mobile/features/material_reporting/presentation/widgets/material_units.dart';
 
+/// 12 vouchers for all/all (the API adds the "Xuất tổng" row on each page),
+/// 3 for any other filter.
 class _FakeMaterialReportRepository implements MaterialReportRepository {
-  MaterialReportQuery? lastQuery;
-  var reportCalls = 0;
+  final queries = <MaterialReportQuery>[];
 
   @override
   Future<List<MaterialReportStation>> getStations({int? companyId}) async =>
@@ -24,9 +26,22 @@ class _FakeMaterialReportRepository implements MaterialReportRepository {
 
   @override
   Future<MaterialReport> getReport(MaterialReportQuery query) async {
-    reportCalls++;
-    lastQuery = query;
-    return _report(pageNumber: query.pageNumber);
+    queries.add(query);
+    final all =
+        query.viewMode == MaterialViewMode.all &&
+        query.materialGroup == MaterialGroupFilter.all;
+    final total = all ? 12 : 3;
+    final first = (query.pageNumber - 1) * 10;
+    final rows = [
+      for (var index = first; index < total && index < first + 10; index++)
+        _voucher('PX-$index'),
+      if (all) _summary(),
+    ];
+    return _report(
+      pageNumber: query.pageNumber,
+      transactions: rows,
+      totalCount: total + (all ? 1 : 0),
+    );
   }
 }
 
@@ -64,31 +79,115 @@ void main() {
     expect(controller.selectedStationId, isNull);
     await controller.loadReport();
 
-    expect(repository.reportCalls, 0);
+    expect(repository.queries, isEmpty);
     expect(controller.validationMessage, contains('Chọn trạm trộn'));
   });
 
-  test('loads selected station and forwards filters and page', () async {
+  test('one report for every material and voucher type feeds the tabs; '
+      'quantity/value, chart group and units do not ask again', () async {
     await controller.initialize();
+    controller.selectStation(10);
+    await controller.loadReport();
+
+    final query = repository.queries.single;
+    expect(query.branchId, 10);
+    expect(query.companyId, isNull);
+    expect(query.materialGroup, MaterialGroupFilter.all);
+    expect(query.viewMode, MaterialViewMode.all);
+    expect(query.pageNumber, 1);
+    // The summary row is shown on its own, not as a voucher.
+    expect(controller.summaryExport?.id, 'summary-export');
+    expect(controller.vouchers, hasLength(10));
+    expect(controller.vouchers.any((item) => item.isSummary), isFalse);
+    expect(controller.voucherCount, 12);
+    expect(controller.canLoadMoreVouchers, isTrue);
+
     controller
-      ..selectStation(10)
-      ..setMaterialGroup(MaterialGroupFilter.cement)
-      ..setViewMode(MaterialViewMode.inventory)
-      ..setValueMode(MaterialValueMode.value);
+      ..setValueMode(MaterialValueMode.value)
+      ..setChartGroup(MaterialGroupFilter.cement)
+      ..setUnit('sand', MaterialUnit.ton);
+    expect(repository.queries, hasLength(1));
+    expect(controller.unitFor('sand'), MaterialUnit.ton);
+    expect(controller.unitFor('stone'), MaterialUnit.kg);
+  });
 
-    await controller.loadReport(pageNumber: 2);
+  test('vouchers load more pages and follow their own filters', () async {
+    await controller.initialize();
+    controller.selectStation(10);
+    await controller.loadReport();
 
-    expect(controller.report?.pageNumber, 2);
-    expect(repository.lastQuery?.branchId, 10);
-    expect(repository.lastQuery?.companyId, isNull);
-    expect(repository.lastQuery?.materialGroup, MaterialGroupFilter.cement);
-    expect(repository.lastQuery?.viewMode, MaterialViewMode.inventory);
-    expect(repository.lastQuery?.valueMode, MaterialValueMode.value);
-    expect(repository.lastQuery?.pageNumber, 2);
+    await controller.loadMoreVouchers();
+    expect(repository.queries.last.pageNumber, 2);
+    expect(controller.vouchers, hasLength(12));
+    expect(controller.canLoadMoreVouchers, isFalse);
+
+    await controller.setVoucherFilters(type: MaterialViewMode.exportData);
+    expect(repository.queries.last.viewMode, MaterialViewMode.exportData);
+    expect(repository.queries.last.pageNumber, 1);
+    expect(controller.vouchers, hasLength(3));
+    expect(controller.voucherCount, 3);
+    // The overview (stock, chart, summary) is untouched.
+    expect(controller.summaryExport, isNotNull);
+
+    await controller.setVoucherFilters(
+      type: MaterialViewMode.all,
+      group: MaterialGroupFilter.sand,
+    );
+    expect(repository.queries.last.materialGroup, MaterialGroupFilter.sand);
+
+    // Back to all/all: page 1 of the overview, no new request.
+    final count = repository.queries.length;
+    await controller.setVoucherFilters(group: MaterialGroupFilter.all);
+    expect(repository.queries, hasLength(count));
+    expect(controller.vouchers, hasLength(10));
+  });
+
+  test('a new date range clears the report', () async {
+    await controller.initialize();
+    controller.selectStation(10);
+    await controller.loadReport();
+
+    controller.setDateRange(DateTime(2026, 8, 1), DateTime(2026, 8, 2));
+    expect(controller.report, isNull);
+    expect(controller.vouchers, isEmpty);
   });
 }
 
-MaterialReport _report({required int pageNumber}) => MaterialReport(
+MaterialTransaction _voucher(String id) => MaterialTransaction(
+  rowNumber: 0,
+  id: id,
+  occurredAt: DateTime.utc(2026, 8, 14, 2),
+  periodFrom: null,
+  periodTo: null,
+  type: 'export',
+  content: 'Phiếu xuất $id',
+  importQuantityKg: 0,
+  exportQuantityKg: 120,
+  valueVnd: 400000,
+  note: null,
+  details: const [],
+);
+
+MaterialTransaction _summary() => MaterialTransaction(
+  rowNumber: 13,
+  id: 'summary-export',
+  occurredAt: null,
+  periodFrom: DateTime.utc(2026, 7, 31, 17),
+  periodTo: DateTime.utc(2026, 8, 14, 2),
+  type: 'summary-export',
+  content: 'Xuất tổng trong kỳ',
+  importQuantityKg: 0,
+  exportQuantityKg: 1440,
+  valueVnd: 0,
+  note: null,
+  details: const [],
+);
+
+MaterialReport _report({
+  required int pageNumber,
+  required List<MaterialTransaction> transactions,
+  required int totalCount,
+}) => MaterialReport(
   stationId: 10,
   stationName: 'Trạm A',
   from: DateTime.utc(2026, 7, 31, 17),
@@ -96,9 +195,9 @@ MaterialReport _report({required int pageNumber}) => MaterialReport(
   inventoryAsOf: DateTime.utc(2026, 8, 14, 2),
   groups: const [],
   chartItems: const [],
-  transactions: const [],
-  totalCount: 0,
-  totalPages: 2,
+  transactions: transactions,
+  totalCount: totalCount,
+  totalPages: (totalCount / 10).ceil(),
   pageNumber: pageNumber,
   pageSize: 10,
   fromRowNumber: 0,

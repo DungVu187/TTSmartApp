@@ -1,202 +1,215 @@
-// Material report sample data copied from Figma C05–C07.
+// Material report with the data of a real station (web "Quản lý vật liệu"
+// of Trạm trộn BT số 1.1, 25/09/2026): the station does not enter its
+// import vouchers, so every door is below zero and there are no prices.
+import 'dart:async';
+
 import 'package:ttsmart_mobile/features/material_reporting/data/models/material_report_models.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 
-MaterialChartItem _chart(
+MaterialSummaryItem _material(
   int code,
+  int slot,
   String name,
   String group,
   double imported,
-  double exported,
-  double inventory,
-) => MaterialChartItem(
+  double exported, {
+  bool missingPrice = false,
+}) => MaterialSummaryItem(
   materialCode: code,
   name: name,
   groupCode: group,
   importQuantityKg: imported,
   exportQuantityKg: exported,
-  inventoryQuantityKg: inventory,
-  importValueVnd: imported * 3000,
-  exportValueVnd: exported * 3000,
-  inventoryValueVnd: inventory * 3000,
-);
-
-MaterialSummaryItem _summary(
-  MaterialChartItem item, {
-  bool missingPrice = false,
-}) => MaterialSummaryItem(
-  materialCode: item.materialCode,
-  name: item.name,
-  groupCode: item.groupCode,
-  importQuantityKg: item.importQuantityKg,
-  exportQuantityKg: item.exportQuantityKg,
-  inventoryQuantityKg: item.inventoryQuantityKg,
-  importValueVnd: item.importValueVnd,
-  exportValueVnd: item.exportValueVnd,
-  inventoryValueVnd: item.inventoryValueVnd,
+  inventoryQuantityKg: imported - exported,
+  importValueVnd: 0,
+  exportValueVnd: 0,
+  inventoryValueVnd: 0,
   hasMissingImportPrice: missingPrice,
+  slotNumber: slot,
+  materialTypeId: switch (group) {
+    'sand' => 1,
+    'stone' => 2,
+    'cement' => 3,
+    'water' => 4,
+    _ => 5,
+  },
 );
 
-MaterialTransaction _transaction(
-  int row,
-  String id,
-  DateTime occurredUtc,
-  String type,
-  String content, {
-  double imported = 0,
-  double exported = 0,
-  double? value,
-  String? note,
-  List<MaterialTransactionDetail> details = const [],
-}) => MaterialTransaction(
-  rowNumber: row,
-  id: id,
-  occurredAt: occurredUtc,
-  periodFrom: null,
-  periodTo: null,
-  type: type,
-  content: content,
-  importQuantityKg: imported,
-  exportQuantityKg: exported,
-  valueVnd: value,
-  note: note,
-  details: details,
-);
-
-final _chartItems = <MaterialChartItem>[
-  _chart(1, 'Đá 1×2', 'stone', 1300000, 1236500, 512800),
-  _chart(2, 'Cát vàng', 'sand', 860000, 812400, 356200),
-  _chart(3, 'Xi măng PCB40', 'cement', 420000, 386900, 98400),
-  _chart(4, 'Phụ gia Sika', 'additive', 5600, 4220, 1380),
+final _sand = [
+  _material(1, 1, 'Cát 3.', 'sand', 0, 25280661),
+  _material(2, 2, 'Cát 2.', 'sand', 0, 66690133),
+  _material(3, 3, 'Cát 1.', 'sand', 28708, 113050582, missingPrice: true),
+];
+final _stone = [
+  _material(4, 4, 'Đá 1', 'stone', 0, 219852366),
+  _material(5, 5, 'Đá 2', 'stone', 0, 38823558),
+];
+final _cement = [
+  _material(6, 6, 'Xi măng 1', 'cement', 0, 80386726),
+  _material(7, 7, 'Xi măng 2', 'cement', 0, 4407478),
+];
+final _water = [_material(8, 8, 'Nước', 'water', 0, 36051578)];
+final _additive = [
+  _material(9, 9, 'Phụ gia 1', 'additive', 0, 622808),
+  _material(10, 10, 'Phụ gia 2', 'additive', 0, 12087),
 ];
 
-class VisualMaterialRepository implements MaterialReportRepository {
-  @override
-  Future<List<MaterialReportStation>> getStations({
-    int? companyId,
-  }) async => const [
-    MaterialReportStation(
-      id: 10,
-      companyId: 3,
-      name: 'Trạm Hà Nam',
-      companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
-      typeTram: 1,
-    ),
+/// Export of the period per material ("Xuất tổng trong kỳ").
+const _periodExport = <(int, String, double)>[
+  (1, 'Cát 3.', 120600),
+  (2, 'Cát 2.', 300100),
+  (3, 'Cát 1.', 620300),
+  (4, 'Đá 1', 1020500),
+  (5, 'Đá 2', 180900),
+  (6, 'Xi măng 1', 380200),
+  (7, 'Xi măng 2', 20300),
+  (8, 'Nước', 170400),
+  (9, 'Phụ gia 1', 3000),
+  (10, 'Phụ gia 2', 72),
+];
+
+MaterialTransaction _summary(DateTime from, DateTime to, {bool empty = false}) {
+  final details = [
+    if (!empty)
+      for (final (code, name, kg) in _periodExport)
+        MaterialTransactionDetail(
+          materialCode: code,
+          name: name,
+          quantityKg: kg,
+          valueVnd: 0,
+          unitPriceVndPerKg: null,
+          conversionVolume: null,
+          conversionUnit: null,
+          conversionCoefficientKgPerUnit: null,
+        ),
   ];
+  return MaterialTransaction(
+    rowNumber: 2,
+    id: 'summary-export',
+    occurredAt: null,
+    periodFrom: from,
+    periodTo: to,
+    type: 'summary-export',
+    content: 'Xuất tổng trong kỳ',
+    importQuantityKg: 0,
+    exportQuantityKg: details.fold(0, (sum, item) => sum + item.quantityKg),
+    valueVnd: 0,
+    note: null,
+    details: details,
+  );
+}
+
+final _scaleImport = MaterialTransaction(
+  rowNumber: 1,
+  id: 'scale:1842',
+  occurredAt: DateTime.utc(2026, 9, 21, 1, 15),
+  periodFrom: null,
+  periodTo: null,
+  type: 'import',
+  content: 'Nhập hàng từ trạm cân',
+  importQuantityKg: 28708,
+  exportQuantityKg: 0,
+  valueVnd: 0,
+  note: null,
+  details: const [
+    MaterialTransactionDetail(
+      materialCode: 3,
+      name: 'Cát 1.',
+      quantityKg: 28708,
+      valueVnd: 0,
+      unitPriceVndPerKg: 0,
+      conversionVolume: 19.8,
+      conversionUnit: 'm³',
+      conversionCoefficientKgPerUnit: 1450,
+    ),
+  ],
+);
+
+class VisualMaterialRepository implements MaterialReportRepository {
+  VisualMaterialRepository({this.emptyPeriod = false, this.pending = false});
+
+  /// 25/09 only: no mix finished and no voucher that day.
+  final bool emptyPeriod;
+
+  /// Never answers, to capture the loading state.
+  final bool pending;
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async =>
-      MaterialReport(
-        stationId: 10,
-        stationName: 'Trạm Hà Nam',
-        from: DateTime.utc(2026, 8, 31, 17),
-        to: DateTime.utc(2026, 9, 21, 10, 30),
-        inventoryAsOf: DateTime.utc(2026, 9, 21, 10, 30),
-        groups: [
-          MaterialGroupSummary(
-            code: 'stone',
-            name: 'Đá',
-            materials: [_summary(_chartItems[0])],
-          ),
-          MaterialGroupSummary(
-            code: 'sand',
-            name: 'Cát',
-            materials: [_summary(_chartItems[1])],
-          ),
-          MaterialGroupSummary(
-            code: 'cement',
-            name: 'Xi măng',
-            materials: [_summary(_chartItems[2])],
-          ),
-          MaterialGroupSummary(
-            code: 'additive',
-            name: 'Phụ gia',
-            materials: [_summary(_chartItems[3], missingPrice: true)],
-          ),
-        ],
-        chartItems: _chartItems,
-        transactions: [
-          _transaction(
-            1,
-            'PN-000123',
-            DateTime.utc(2026, 9, 21, 1, 15),
-            'import',
-            'Nhập cát vàng – NCC Minh Phát',
-            imported: 12400,
-            value: 45632000,
-            note: 'Xe 29C-567.89 giao 2 chuyến trong ngày.',
-            details: const [
-              MaterialTransactionDetail(
-                materialCode: 2,
-                name: 'Cát vàng',
-                quantityKg: 12400,
-                valueVnd: 45632000,
-                unitPriceVndPerKg: 3680,
-                conversionVolume: 8.6,
-                conversionUnit: 'm³',
-                conversionCoefficientKgPerUnit: 1442,
-              ),
-            ],
-          ),
-          _transaction(
-            2,
-            'PX-004521',
-            DateTime.utc(2026, 9, 21, 1, 32),
-            'export',
-            'Xuất trộn mẻ #4521',
-            exported: 718,
-            value: 2642240,
-          ),
-          _transaction(
-            3,
-            'PN-000122',
-            DateTime.utc(2026, 9, 20, 8, 10),
-            'import',
-            'Nhập xi măng PCB40 – Vicem Bút Sơn',
-            imported: 30000,
-            value: 46500000,
-          ),
-          _transaction(
-            4,
-            'TH-0920',
-            DateTime.utc(2026, 9, 20, 16, 59),
-            'summary-export',
-            'Tổng hợp xuất trộn ngày 20/09',
-            exported: 38460,
-          ),
-          _transaction(
-            5,
-            'PX-004498',
-            DateTime.utc(2026, 9, 20, 9, 5),
-            'export',
-            'Xuất trộn mẻ #4498',
-            exported: 1083,
-            value: 341145,
-          ),
-          _transaction(
-            6,
-            'PN-000121',
-            DateTime.utc(2026, 9, 20, 2, 40),
-            'import',
-            'Nhập đá 1×2 – Mỏ Kiện Khê',
-            imported: 48200,
-            value: 13978000,
-          ),
-        ],
-        totalCount: 148,
-        totalPages: 1,
-        pageNumber: 1,
-        pageSize: 20,
-        fromRowNumber: 1,
-        toRowNumber: 6,
-        totals: const MaterialReportTotals(
-          importQuantityKg: 2585600,
-          exportQuantityKg: 2440020,
-          inventoryQuantityKg: 968780,
-          importValueVnd: 7756800000,
-          exportValueVnd: 7320060000,
-          inventoryValueVnd: 2906340000,
+  Future<List<MaterialReportStation>> getStations({int? companyId}) async =>
+      const [
+        MaterialReportStation(
+          id: 3227,
+          companyId: 45,
+          name: 'Trạm trộn BT số 1.1 - 90m3 Khoái Châu',
+          companyName: 'Công ty TNHH Bê tông và Xây dựng Petro',
+          typeTram: 1,
         ),
-        warnings: const ['Phụ gia Sika chưa có đơn giá nhập trong kỳ.'],
-      );
+      ];
+
+  @override
+  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+    if (pending) return Completer<MaterialReport>().future;
+    final from = emptyPeriod
+        ? DateTime.utc(2026, 9, 24, 17)
+        : DateTime.utc(2026, 8, 31, 17);
+    final to = DateTime.utc(2026, 9, 25, 16, 59);
+    final all =
+        query.viewMode == MaterialViewMode.all &&
+        query.materialGroup == MaterialGroupFilter.all;
+    final vouchers = [
+      if (!emptyPeriod &&
+          (query.viewMode == MaterialViewMode.all ||
+              query.viewMode == MaterialViewMode.importData))
+        _scaleImport,
+    ];
+    return MaterialReport(
+      stationId: 3227,
+      stationName: 'Trạm trộn BT số 1.1 - 90m3 Khoái Châu',
+      from: from,
+      to: to,
+      inventoryAsOf: to,
+      groups: [
+        MaterialGroupSummary(code: 'sand', name: 'Nhóm Cát', materials: _sand),
+        MaterialGroupSummary(code: 'stone', name: 'Nhóm Đá', materials: _stone),
+        MaterialGroupSummary(
+          code: 'cement',
+          name: 'Nhóm Xi',
+          materials: _cement,
+        ),
+        MaterialGroupSummary(
+          code: 'water',
+          name: 'Nhóm Nước',
+          materials: _water,
+        ),
+        MaterialGroupSummary(
+          code: 'additive',
+          name: 'Nhóm Phụ gia',
+          materials: _additive,
+        ),
+      ],
+      chartItems: const [],
+      transactions: [
+        ...vouchers,
+        if (all) _summary(from, to, empty: emptyPeriod),
+      ],
+      totalCount: vouchers.length + (all ? 1 : 0),
+      totalPages: 1,
+      pageNumber: 1,
+      pageSize: 10,
+      fromRowNumber: 1,
+      toRowNumber: vouchers.length,
+      totals: const MaterialReportTotals(
+        importQuantityKg: 28708,
+        exportQuantityKg: 585179977,
+        inventoryQuantityKg: -585151269,
+        importValueVnd: 0,
+        exportValueVnd: 0,
+        inventoryValueVnd: 0,
+      ),
+      warnings: const [
+        'Một số lô nhập chưa có đơn giá nên phần giá trị tương ứng được tính '
+            'bằng 0.',
+      ],
+    );
+  }
 }

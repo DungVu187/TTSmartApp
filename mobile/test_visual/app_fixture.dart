@@ -69,6 +69,7 @@ Future<void> pumpVisualScreen(
   Widget screen, {
   bool admin = true,
   Map<String, VisualRoute> routes = const {},
+  bool settle = true,
 }) async {
   usePhoneFrame(tester);
   final controller = VisualAppController(
@@ -77,7 +78,14 @@ Future<void> pumpVisualScreen(
   );
   addTearDown(controller.dispose);
   await tester.pumpWidget(visualApp(controller, _PushedScreen(screen)));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    // A spinner never settles: let the route and first frames run.
+    for (var frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
 }
 
 /// Opens [screen] as a pushed route, as the app always does, so its app bar
@@ -116,7 +124,8 @@ Future<void> tapKey(WidgetTester tester, String key) async {
     await tester.drag(page.first, const Offset(0, -300));
     await tester.pumpAndSettle();
   }
-  await tester.ensureVisible(finder);
+  // Centred, so the tap never lands under the fake navigation bar.
+  await Scrollable.ensureVisible(tester.element(finder), alignment: 0.5);
   await tester.pumpAndSettle();
   await tester.tap(finder);
   await tester.pumpAndSettle();
