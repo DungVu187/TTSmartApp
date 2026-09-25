@@ -16,6 +16,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  /// Version line block at the bottom (and the matching space on top).
+  static const double _footerHeight = 56;
+
   final _formKey = GlobalKey<FormState>();
   final _userNameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -95,13 +98,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Same height as the version line at the bottom, so the
+                  // free space splits evenly and the form sits in the middle
+                  // of the screen (it used to hug the top).
+                  const SizedBox(height: _footerHeight),
                   AutofillGroup(
                     child: Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 40),
                           const Center(child: AppLogo.large()),
                           const SizedBox(height: 28),
                           Text(
@@ -283,15 +289,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 32, bottom: 16),
-                    child: Text(
-                      'TTsmart · Phiên bản $kAppVersion',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: p.text3,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                  SizedBox(
+                    height: _footerHeight,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'TTsmart · Phiên bản $kAppVersion',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: p.text3,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),
