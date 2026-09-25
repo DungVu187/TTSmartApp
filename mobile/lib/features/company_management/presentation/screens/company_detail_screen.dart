@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/app_scope.dart';
@@ -294,7 +295,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                   if (canUpdate && !company.isDeleted)
                     TextButton.icon(
                       onPressed: () => _edit(company),
-                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      icon: const Icon(LucideIcons.pencil, size: 18),
                       label: const Text('Sửa'),
                     ),
                   if ((canUpdate && !company.isDeleted) ||
@@ -316,8 +317,8 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                             child: ListTile(
                               leading: Icon(
                                 company.isLocked
-                                    ? Icons.lock_open_outlined
-                                    : Icons.lock_outline,
+                                    ? LucideIcons.lockOpen
+                                    : LucideIcons.lock,
                               ),
                               title: Text(
                                 company.isLocked ? 'Mở khóa' : 'Khóa công ty',
@@ -327,14 +328,14 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           const PopupMenuItem(
                             value: _CompanyAction.expiration,
                             child: ListTile(
-                              leading: Icon(Icons.event_outlined),
+                              leading: Icon(LucideIcons.calendar),
                               title: Text('Cập nhật hạn sử dụng'),
                             ),
                           ),
                           const PopupMenuItem(
                             value: _CompanyAction.logo,
                             child: ListTile(
-                              leading: Icon(Icons.image_outlined),
+                              leading: Icon(LucideIcons.image),
                               title: Text('Đổi logo'),
                             ),
                           ),
@@ -343,7 +344,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           const PopupMenuItem(
                             value: _CompanyAction.delete,
                             child: ListTile(
-                              leading: Icon(Icons.delete_outline),
+                              leading: Icon(LucideIcons.trash2),
                               title: Text('Xóa công ty'),
                             ),
                           ),
@@ -351,7 +352,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           const PopupMenuItem(
                             value: _CompanyAction.restore,
                             child: ListTile(
-                              leading: Icon(Icons.restore_outlined),
+                              leading: Icon(LucideIcons.rotateCcw),
                               title: Text('Khôi phục'),
                             ),
                           ),
@@ -544,7 +545,7 @@ class _CompanyHeaderCard extends StatelessWidget {
               border: Border.all(color: p.border),
             ),
             child: logoFuture == null
-                ? Icon(Icons.apartment_outlined, size: 36, color: p.primary)
+                ? Icon(LucideIcons.building, size: 36, color: p.primary)
                 : FutureBuilder<Uint8List>(
                     future: logoFuture,
                     builder: (context, snapshot) {
@@ -555,7 +556,7 @@ class _CompanyHeaderCard extends StatelessWidget {
                       }
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return Icon(
-                          Icons.apartment_outlined,
+                          LucideIcons.building,
                           size: 36,
                           color: p.primary,
                         );

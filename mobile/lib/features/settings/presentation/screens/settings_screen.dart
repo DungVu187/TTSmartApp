@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -28,7 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _confirmLogout() async {
     final confirmed = await showAppConfirmDialog(
       context,
-      icon: Icons.logout_rounded,
+      icon: LucideIcons.logOut,
       title: 'Đăng xuất?',
       message: 'Phiên đăng nhập trên thiết bị sẽ được xóa.',
       confirmLabel: 'Đăng xuất',
@@ -91,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       NavRow(
                         leading: const IconTile(
-                          icon: Icons.key_outlined,
+                          icon: LucideIcons.keyRound,
                           tone: AppTone.warning,
                         ),
                         title: 'Đổi mật khẩu',
@@ -103,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   InsetCard(
                     children: [
                       ActionRow(
-                        icon: Icons.logout_rounded,
+                        icon: LucideIcons.logOut,
                         label: 'Đăng xuất',
                         destructive: true,
                         onTap: _confirmLogout,
@@ -116,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       NavRow(
                         leading: IconTile(
-                          icon: Icons.info_outline,
+                          icon: LucideIcons.info,
                           tone: AppTone.neutral,
                         ),
                         title: 'Phiên bản',

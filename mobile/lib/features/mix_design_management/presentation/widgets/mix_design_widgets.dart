@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/mix_design_models.dart';
+import '../../../../core/ui/app_palette.dart';
 
 class MixDesignOverviewCard extends StatelessWidget {
   const MixDesignOverviewCard({
@@ -26,24 +28,24 @@ class MixDesignOverviewCard extends StatelessWidget {
           runSpacing: 10,
           children: [
             _OverviewMetric(
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               label: 'Trạm đang xem',
               value: stationName,
-              accent: AppColors.brandBlue,
+              accent: context.palette.primary,
             ),
             _OverviewMetric(
-              icon: Icons.science_outlined,
+              icon: LucideIcons.flaskConical,
               label: 'Tổng cấp phối',
               value: '${page.totalCount}',
-              accent: AppColors.brandTeal,
+              accent: context.palette.secondary,
             ),
             _OverviewMetric(
-              icon: Icons.table_rows_outlined,
+              icon: LucideIcons.rows3,
               label: 'Trang hiện tại',
               value: page.totalPages == 0
                   ? '0 / 0'
                   : '${page.pageNumber} / ${page.totalPages}',
-              accent: const Color(0xFF7C3AED),
+              accent: context.palette.violet,
             ),
           ],
         ),
@@ -390,9 +392,9 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: material
-            ? AppColors.brandTeal.withValues(alpha: 0.1)
-            : AppColors.brandBlue.withValues(alpha: 0.08),
-        border: const Border(right: BorderSide(color: AppColors.border)),
+            ? context.palette.secondary.withValues(alpha: 0.1)
+            : context.palette.primary.withValues(alpha: 0.08),
+        border: Border(right: BorderSide(color: context.palette.border)),
       ),
       child: Tooltip(
         message: tooltip ?? label,
@@ -420,10 +422,12 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
       alignment: alignment,
       padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
-        color: rowIndex.isEven ? Colors.white : const Color(0xFFFAFBFC),
-        border: const Border(
-          right: BorderSide(color: AppColors.border),
-          bottom: BorderSide(color: AppColors.border),
+        color: rowIndex.isEven
+            ? context.palette.surface
+            : context.palette.surfaceMuted,
+        border: Border(
+          right: BorderSide(color: context.palette.border),
+          bottom: BorderSide(color: context.palette.border),
         ),
       ),
       child: Text(
@@ -431,7 +435,7 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: emphasized ? AppColors.brandBlue : const Color(0xFF1F2937),
+          color: emphasized ? context.palette.primary : context.palette.text1,
           fontSize: 12,
           fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
         ),
@@ -479,19 +483,19 @@ class MixDesignPagination extends StatelessWidget {
               key: const ValueKey<String>('mix-design-page-first'),
               tooltip: 'Trang đầu',
               onPressed: canGoFirst ? onFirst : null,
-              icon: const Icon(Icons.first_page),
+              icon: const Icon(LucideIcons.chevronsLeft),
             ),
             IconButton(
               key: const ValueKey<String>('mix-design-page-previous'),
               tooltip: 'Trang trước',
               onPressed: canGoPrevious ? onPrevious : null,
-              icon: const Icon(Icons.chevron_left),
+              icon: const Icon(LucideIcons.chevronLeft),
             ),
             Container(
               constraints: const BoxConstraints(minWidth: 72),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: AppColors.brandBlue.withValues(alpha: 0.08),
+                color: context.palette.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -504,13 +508,13 @@ class MixDesignPagination extends StatelessWidget {
               key: const ValueKey<String>('mix-design-page-next'),
               tooltip: 'Trang sau',
               onPressed: canGoNext ? onNext : null,
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(LucideIcons.chevronRight),
             ),
             IconButton(
               key: const ValueKey<String>('mix-design-page-last'),
               tooltip: 'Trang cuối',
               onPressed: canGoLast ? onLast : null,
-              icon: const Icon(Icons.last_page),
+              icon: const Icon(LucideIcons.chevronsRight),
             ),
           ],
         ),

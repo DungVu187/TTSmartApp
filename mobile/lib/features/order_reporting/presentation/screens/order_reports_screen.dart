@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/app_content.dart';
 import '../../../../core/widgets/app_date_picker.dart';
@@ -17,16 +17,6 @@ import '../../data/models/order_report_models.dart';
 import '../../data/repositories/order_report_repository.dart';
 import '../controllers/order_reports_controller.dart';
 import '../widgets/order_report_widgets.dart';
-
-abstract final class _OrderReportDesign {
-  static const blue = Color(0xFF2563EB);
-  static const border = Color(0xFFE5E7EB);
-  static const fieldBorder = Color(0xFFCBD5E1);
-  static const fieldBorderWidth = 1.25;
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF6B7280);
-  static const label = Color(0xFF374151);
-}
 
 class OrderReportsScreen extends StatefulWidget {
   const OrderReportsScreen({
@@ -133,7 +123,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
         children: const [
           AppContent(
             child: AppEmptyState(
-              icon: Icons.lock_outline,
+              icon: LucideIcons.lock,
               title: 'Không có quyền xem đơn hàng',
               message:
                   'Tài khoản chưa được cấp quyền BCDH - D.Sách để xem đơn hàng.',
@@ -157,7 +147,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               RoundIconButton(
                 key: const ValueKey<String>('order-report-filters-button'),
                 size: 40,
-                icon: Icons.tune_rounded,
+                icon: LucideIcons.slidersHorizontal,
                 tooltip: 'Bộ lọc đơn hàng',
                 badgeCount: _filterCount(controller),
                 onPressed: () => _openFilters(controller),
@@ -237,7 +227,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               FilterChipButton(
                 size: FilterChipSize.medium,
                 key: const ValueKey<String>('order-report-company-chip'),
-                icon: Icons.apartment_outlined,
+                icon: LucideIcons.building,
                 label:
                     controller.selectedCompany?.displayName ?? 'Tất cả công ty',
                 showChevron: true,
@@ -248,7 +238,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
             FilterChipButton(
               size: FilterChipSize.medium,
               key: const ValueKey<String>('order-report-date-chip'),
-              icon: Icons.calendar_month_outlined,
+              icon: LucideIcons.calendar,
               label: _shortRange(controller.fromDate, controller.toDate),
               active: true,
               onTap: () => _pickDateRange(controller),
@@ -256,7 +246,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
             FilterChipButton(
               size: FilterChipSize.medium,
               key: const ValueKey<String>('order-report-station-chip'),
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               label:
                   controller.selectedStation?.displayName ??
                   (controller.isAdmin ? 'Tất cả trạm' : 'Chọn trạm'),
@@ -268,7 +258,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
             FilterChipButton(
               size: FilterChipSize.medium,
               key: const ValueKey<String>('order-report-employee-chip'),
-              icon: Icons.badge_outlined,
+              icon: LucideIcons.idCard,
               label: controller.selectedEmployeeName ?? 'Nhân viên',
               showChevron: true,
               onTap: _canPickEmployee(controller)
@@ -326,7 +316,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
     if (controller.stations.isEmpty) {
       return const [
         StateView(
-          icon: Icons.factory_outlined,
+          icon: LucideIcons.factory,
           title: 'Không có trạm trộn phù hợp',
           message: 'Phạm vi hiện tại chưa có trạm trộn đang hoạt động.',
         ),
@@ -342,7 +332,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 36),
       child: StateView(
-        icon: noStation ? Icons.factory_outlined : Icons.receipt_long_outlined,
+        icon: noStation ? LucideIcons.factory : LucideIcons.receiptText,
         title: mustPick ? 'Chọn trạm để xem đơn hàng' : 'Xem đơn hàng',
         message: mustPick
             ? 'Đơn hàng luôn được hiển thị theo một trạm cụ thể.'
@@ -354,7 +344,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
             AppButton(
               key: const ValueKey<String>('order-report-pick-station'),
               label: 'Chọn trạm',
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               expand: false,
               onPressed: () => _pickStation(controller),
             ),
@@ -416,7 +406,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       const SizedBox(height: 14),
       if (controller.items.isEmpty)
         const StateView(
-          icon: Icons.search_off_outlined,
+          icon: LucideIcons.searchX,
           title: 'Không có đơn hàng',
           message: 'Thử đổi khoảng ngày hoặc bỏ lọc nhân viên kinh doanh.',
         )
@@ -483,7 +473,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       context: context,
       title: 'Chọn công ty',
       searchHint: 'Tìm công ty',
-      icon: Icons.apartment_outlined,
+      icon: LucideIcons.building,
       clearLabel: 'Tất cả công ty',
       selected: controller.selectedCompanyId,
       options: [
@@ -528,7 +518,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       context: context,
       title: 'Chọn trạm',
       searchHint: 'Tìm trạm',
-      icon: Icons.factory_outlined,
+      icon: LucideIcons.factory,
       clearLabel: controller.isAdmin ? 'Tất cả trạm' : null,
       selected: controller.selectedStationId,
       emptyMessage: 'Không có trạm trong phạm vi được cấp.',
@@ -567,7 +557,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       context: context,
       title: 'Chọn nhân viên',
       searchHint: 'Tìm nhân viên',
-      icon: Icons.badge_outlined,
+      icon: LucideIcons.idCard,
       clearLabel: 'Tất cả nhân viên',
       selected: controller.selectedEmployeeName,
       options: [
@@ -680,14 +670,14 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
     }
     if (!controller.isLoadingScope && controller.stations.isEmpty) {
       return const AppEmptyState(
-        icon: Icons.factory_outlined,
+        icon: LucideIcons.factory,
         title: 'Không có trạm trộn phù hợp',
         message: 'Phạm vi hiện tại chưa có trạm trộn đang hoạt động.',
       );
     }
     if (!controller.isAdmin && controller.selectedStationId == null) {
       return const AppEmptyState(
-        icon: Icons.factory_outlined,
+        icon: LucideIcons.factory,
         title: 'Chọn trạm để xem đơn hàng',
         message: 'Đơn hàng luôn được hiển thị theo một trạm cụ thể.',
       );
@@ -718,26 +708,26 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               mainAxisExtent: compact ? 174 : 180,
               children: [
                 OrderReportMetricCard(
-                  icon: Icons.receipt_long_outlined,
+                  icon: LucideIcons.receiptText,
                   label: 'Tổng đơn hàng',
                   value: '${controller.totalCount}',
                   caption: 'Trong khoảng thời gian đã chọn',
                 ),
                 OrderReportMetricCard(
-                  icon: Icons.shopping_cart_outlined,
+                  icon: LucideIcons.shoppingCart,
                   label: 'Khối lượng đặt',
                   value:
                       '${formatOrderReportVolume(controller.totalOrderedVolume)} m³',
                   caption: 'Tính trên toàn bộ kết quả',
-                  accentColor: AppColors.warning,
+                  accentColor: context.palette.warning,
                 ),
                 OrderReportMetricCard(
-                  icon: Icons.precision_manufacturing_outlined,
+                  icon: LucideIcons.factory,
                   label: 'Khối lượng sản xuất',
                   value:
                       '${formatOrderReportVolume(controller.totalProducedVolume)} m³',
                   caption: 'Tính trên toàn bộ kết quả',
-                  accentColor: AppColors.success,
+                  accentColor: context.palette.success,
                 ),
               ],
             );
@@ -754,7 +744,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
           const SizedBox(height: 12),
           const Card(
             child: AppEmptyState(
-              icon: Icons.search_off_outlined,
+              icon: LucideIcons.searchX,
               title: 'Không có đơn hàng',
               message: 'Thử đổi khoảng ngày hoặc bỏ lọc nhân viên kinh doanh.',
             ),
@@ -855,14 +845,14 @@ class _OrderCard extends StatelessWidget {
     final produced = item.producedVolume ?? 0;
     final tags = <(IconData, String)>[
       if (showCompany && _text(item.companyName) != null)
-        (Icons.apartment_outlined, _text(item.companyName)!),
-      (Icons.location_on_outlined, item.stationDisplayName),
+        (LucideIcons.building, _text(item.companyName)!),
+      (LucideIcons.mapPin, item.stationDisplayName),
       if (_text(item.projectName) != null)
-        (Icons.business_outlined, _text(item.projectName)!),
+        (LucideIcons.building, _text(item.projectName)!),
       if (_text(item.concreteGradeName) != null)
-        (Icons.science_outlined, _text(item.concreteGradeName)!),
+        (LucideIcons.flaskConical, _text(item.concreteGradeName)!),
       if (_text(item.employeeName) != null)
-        (Icons.badge_outlined, _text(item.employeeName)!),
+        (LucideIcons.idCard, _text(item.employeeName)!),
     ];
     return Container(
       padding: const EdgeInsets.all(16),
@@ -885,7 +875,7 @@ class _OrderCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const IconTile(
-                icon: Icons.receipt_long_outlined,
+                icon: LucideIcons.receiptText,
                 size: 42,
                 radius: 13,
                 iconSize: 22,
@@ -1079,7 +1069,7 @@ class _OrderFiltersSheet extends StatelessWidget {
                 child: AppButton(
                   key: const ValueKey<String>('order-report-filter-search'),
                   label: 'Tìm kiếm',
-                  icon: Icons.search_rounded,
+                  icon: LucideIcons.search,
                   onPressed: controller.canSearch
                       ? () => Navigator.of(context).pop(true)
                       : null,
@@ -1160,8 +1150,8 @@ class _OrderFiltersSheet extends StatelessWidget {
                   key: const ValueKey<String>('order-report-filter-date'),
                   label: 'THỜI GIAN',
                   placeholder: 'Chọn khoảng thời gian',
-                  icon: Icons.calendar_month_outlined,
-                  trailingIcon: Icons.chevron_right_rounded,
+                  icon: LucideIcons.calendar,
+                  trailingIcon: LucideIcons.chevronRight,
                   value:
                       '${_formatDate(controller.fromDate)} – '
                       '${_formatDate(controller.toDate)}',
@@ -1183,10 +1173,10 @@ class _OrderReportIntro extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'Đơn hàng',
         style: TextStyle(
-          color: _OrderReportDesign.textPrimary,
+          color: context.palette.text1,
           fontSize: 19,
           height: 24 / 19,
           fontWeight: FontWeight.w600,
@@ -1196,7 +1186,7 @@ class _OrderReportIntro extends StatelessWidget {
       Text(
         'Tổng hợp đơn đặt và khối lượng sản xuất theo từng trạm',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: _OrderReportDesign.textSecondary,
+          color: context.palette.text2,
           fontSize: 12,
           height: 16 / 12,
           fontWeight: FontWeight.w400,
@@ -1218,19 +1208,19 @@ class _OrderReportFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fields = <Widget>[
-      if (controller.isAdmin) _companyField(),
-      _stationField(),
+      if (controller.isAdmin) _companyField(context),
+      _stationField(context),
       _dateRangeField(context),
-      _employeeField(),
+      _employeeField(context),
     ];
     return Card(
       key: const ValueKey('order-report-filters'),
       margin: EdgeInsets.zero,
-      color: Colors.white,
+      color: context.palette.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: _OrderReportDesign.border),
+        side: BorderSide(color: context.palette.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -1256,7 +1246,7 @@ class _OrderReportFilters extends StatelessWidget {
               const LinearProgressIndicator(),
             ],
             const SizedBox(height: 10),
-            _filterActions(),
+            _filterActions(context),
           ],
         ),
       ),
@@ -1284,7 +1274,7 @@ class _OrderReportFilters extends StatelessWidget {
     return Column(children: rows);
   }
 
-  Widget _filterActions() {
+  Widget _filterActions(BuildContext context) {
     final searchButton = SizedBox(
       height: 38,
       child: FilledButton.icon(
@@ -1293,8 +1283,8 @@ class _OrderReportFilters extends StatelessWidget {
             ? null
             : controller.loadReport,
         style: FilledButton.styleFrom(
-          backgroundColor: _OrderReportDesign.blue,
-          foregroundColor: Colors.white,
+          backgroundColor: context.palette.primary,
+          foregroundColor: context.palette.onPrimary,
           minimumSize: const Size(0, 38),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(
@@ -1307,15 +1297,15 @@ class _OrderReportFilters extends StatelessWidget {
           ),
         ),
         icon: controller.isLoadingReport
-            ? const SizedBox(
+            ? SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: context.palette.onPrimary,
                 ),
               )
-            : const Icon(Icons.search_outlined, size: 16),
+            : const Icon(LucideIcons.search, size: 16),
         label: const Text('Tìm kiếm'),
       ),
     );
@@ -1327,20 +1317,20 @@ class _OrderReportFilters extends StatelessWidget {
             ? null
             : controller.resetFilters,
         style: OutlinedButton.styleFrom(
-          foregroundColor: _OrderReportDesign.blue,
+          foregroundColor: context.palette.primary,
           minimumSize: const Size(0, 38),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          side: const BorderSide(color: _OrderReportDesign.border),
+          side: BorderSide(color: context.palette.border),
           textStyle: const TextStyle(
             fontSize: 13,
             height: 18 / 13,
             fontWeight: FontWeight.w500,
           ),
         ),
-        icon: const Icon(Icons.refresh_rounded, size: 16),
+        icon: const Icon(LucideIcons.refreshCw, size: 16),
         label: const Text('Đặt lại'),
       ),
     );
@@ -1353,7 +1343,7 @@ class _OrderReportFilters extends StatelessWidget {
     );
   }
 
-  Widget _companyField() => SizedBox(
+  Widget _companyField(BuildContext context) => SizedBox(
     height: 38,
     child: CompanyAutocompleteField(
       key: ValueKey(
@@ -1366,8 +1356,8 @@ class _OrderReportFilters extends StatelessWidget {
       hintText: 'Tất cả công ty',
       labelText: 'Công ty',
       compact: true,
-      borderColor: _OrderReportDesign.fieldBorder,
-      borderWidth: _OrderReportDesign.fieldBorderWidth,
+      borderColor: context.palette.fieldBorder,
+      borderWidth: 1.25,
       onSelected: (company) async {
         final hadResult = controller.hasLoadedReport;
         await controller.selectCompany(company.id);
@@ -1381,7 +1371,7 @@ class _OrderReportFilters extends StatelessWidget {
     ),
   );
 
-  Widget _stationField() => SizedBox(
+  Widget _stationField(BuildContext context) => SizedBox(
     height: 38,
     child: SearchableAutocompleteField<OrderReportStation>(
       key: ValueKey(
@@ -1415,14 +1405,14 @@ class _OrderReportFilters extends StatelessWidget {
           ? 'Tất cả trạm'
           : 'Chọn trạm',
       labelText: 'Trạm',
-      prefixIcon: Icons.factory_outlined,
+      prefixIcon: LucideIcons.factory,
       compact: true,
-      borderColor: _OrderReportDesign.fieldBorder,
-      borderWidth: _OrderReportDesign.fieldBorderWidth,
+      borderColor: context.palette.fieldBorder,
+      borderWidth: 1.25,
     ),
   );
 
-  Widget _employeeField() {
+  Widget _employeeField(BuildContext context) {
     final employeeNames = controller.employees
         .map((employee) => employee.name)
         .toList(growable: false);
@@ -1459,10 +1449,10 @@ class _OrderReportFilters extends StatelessWidget {
             ? 'Không có dữ liệu'
             : 'Tất cả nhân viên',
         labelText: 'Nhân viên',
-        prefixIcon: Icons.badge_outlined,
+        prefixIcon: LucideIcons.idCard,
         compact: true,
-        borderColor: _OrderReportDesign.fieldBorder,
-        borderWidth: _OrderReportDesign.fieldBorderWidth,
+        borderColor: context.palette.fieldBorder,
+        borderWidth: 1.25,
       ),
     );
   }
@@ -1479,8 +1469,9 @@ class _OrderReportFilters extends StatelessWidget {
           onTap: onPickDateRange,
           child: InputDecorator(
             decoration: _compactDecoration(
+              context,
               label: 'Thời gian',
-              icon: Icons.calendar_month_outlined,
+              icon: LucideIcons.calendar,
             ),
             child: Row(
               children: [
@@ -1490,8 +1481,8 @@ class _OrderReportFilters extends StatelessWidget {
                     '${_formatDateTime(controller.toDate)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _OrderReportDesign.textPrimary,
+                    style: TextStyle(
+                      color: context.palette.text1,
                       fontSize: 13,
                       height: 18 / 13,
                     ),
@@ -1505,7 +1496,8 @@ class _OrderReportFilters extends StatelessWidget {
     );
   }
 
-  InputDecoration _compactDecoration({
+  InputDecoration _compactDecoration(
+    BuildContext context, {
     required String label,
     required IconData icon,
   }) => InputDecoration(
@@ -1516,39 +1508,33 @@ class _OrderReportFilters extends StatelessWidget {
     prefixIcon: Icon(icon, size: 16),
     prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 38),
     filled: true,
-    fillColor: Colors.white,
+    fillColor: context.palette.surface,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(
-        color: _OrderReportDesign.fieldBorder,
-        width: _OrderReportDesign.fieldBorderWidth,
-      ),
+      borderSide: BorderSide(color: context.palette.fieldBorder, width: 1.25),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(
-        color: _OrderReportDesign.fieldBorder,
-        width: _OrderReportDesign.fieldBorderWidth,
-      ),
+      borderSide: BorderSide(color: context.palette.fieldBorder, width: 1.25),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: _OrderReportDesign.blue, width: 1.5),
+      borderSide: BorderSide(color: context.palette.primary, width: 1.5),
     ),
-    hintStyle: const TextStyle(
-      color: Color(0xFF9CA3AF),
+    hintStyle: TextStyle(
+      color: context.palette.text3,
       fontSize: 13,
       height: 18 / 13,
       fontWeight: FontWeight.w400,
     ),
-    labelStyle: const TextStyle(
-      color: _OrderReportDesign.label,
+    labelStyle: TextStyle(
+      color: context.palette.text1,
       fontSize: 12,
       height: 16 / 12,
       fontWeight: FontWeight.w500,
     ),
-    floatingLabelStyle: const TextStyle(
-      color: _OrderReportDesign.label,
+    floatingLabelStyle: TextStyle(
+      color: context.palette.text1,
       fontSize: 12,
       height: 16 / 12,
       fontWeight: FontWeight.w500,
@@ -1586,10 +1572,7 @@ class _ScopeBannerV2 extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.shield_outlined,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          Icon(LucideIcons.shield, color: theme.colorScheme.onPrimaryContainer),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1625,10 +1608,7 @@ class _ScopeBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.shield_outlined,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          Icon(LucideIcons.shield, color: theme.colorScheme.onPrimaryContainer),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

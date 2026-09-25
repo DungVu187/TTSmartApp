@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../data/models/dashboard_models.dart';
@@ -88,10 +89,10 @@ class DashboardMetricCard extends StatelessWidget {
   }
 
   static IconData _iconFor(DashboardMetricType type) => switch (type) {
-    DashboardMetricType.orders => Icons.receipt_long_outlined,
-    DashboardMetricType.concreteGrades => Icons.science_outlined,
-    DashboardMetricType.mixerTrucks => Icons.local_shipping_outlined,
-    DashboardMetricType.salesWithOrders => Icons.group_outlined,
+    DashboardMetricType.orders => LucideIcons.receiptText,
+    DashboardMetricType.concreteGrades => LucideIcons.flaskConical,
+    DashboardMetricType.mixerTrucks => LucideIcons.truck,
+    DashboardMetricType.salesWithOrders => LucideIcons.users,
   };
 
   static AppTone _toneFor(DashboardMetricType type) => switch (type) {
@@ -400,7 +401,7 @@ class UnavailableStationNotice extends StatelessWidget {
               title: name,
               showChevron: false,
               leading: const IconTile(
-                icon: Icons.cloud_off_outlined,
+                icon: LucideIcons.cloudOff,
                 tone: AppTone.warning,
               ),
             ),
@@ -424,7 +425,7 @@ class UnavailableStationNotice extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
           child: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, size: 18, color: p.warning),
+              Icon(LucideIcons.triangleAlert, size: 18, color: p.warning),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -439,7 +440,7 @@ class UnavailableStationNotice extends StatelessWidget {
               ),
               if (canOpen) ...[
                 const SizedBox(width: 8),
-                Icon(Icons.chevron_right_rounded, size: 18, color: p.warning),
+                Icon(LucideIcons.chevronRight, size: 18, color: p.warning),
               ],
             ],
           ),

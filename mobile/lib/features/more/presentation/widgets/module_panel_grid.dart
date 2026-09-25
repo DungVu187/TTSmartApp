@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/ui/app_palette.dart';
 
 class ModulePanelItem {
   const ModulePanelItem({
@@ -84,8 +85,8 @@ class _ModulePanelTile extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF1D1F2C),
+                style: TextStyle(
+                  color: context.palette.text1,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   height: 1.15,

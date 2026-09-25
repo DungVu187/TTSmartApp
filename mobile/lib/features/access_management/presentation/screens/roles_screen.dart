@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -97,7 +98,7 @@ class _RolesScreenState extends State<RolesScreen> {
           IconButton(
             tooltip: 'Tìm kiếm',
             onPressed: () => setState(() => _showSearch = !_showSearch),
-            icon: const Icon(Icons.search_rounded),
+            icon: const Icon(LucideIcons.search),
           ),
         ],
       ),
@@ -126,7 +127,7 @@ class _RolesScreenState extends State<RolesScreen> {
           ? FloatingActionButton(
               onPressed: _openCreate,
               tooltip: 'Tạo vai trò',
-              child: const Icon(Icons.add_rounded),
+              child: const Icon(LucideIcons.plus),
             )
           : null,
     );
@@ -147,7 +148,7 @@ class _RolesScreenState extends State<RolesScreen> {
         onRefresh: _controller.load,
         filtered:
             _controller.search.trim().isNotEmpty || _controller.status != null,
-        icon: Icons.admin_panel_settings_outlined,
+        icon: LucideIcons.shield,
         emptyTitle: 'Chưa có vai trò nào',
         emptyMessage: 'Tạo vai trò để gom quyền và gán cho người dùng.',
         noMatchTitle: 'Không tìm thấy vai trò',

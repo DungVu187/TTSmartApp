@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../app_dependencies.dart';
 import '../../../core/app_scope.dart';
@@ -75,7 +76,7 @@ final accessModules = <AccessModule>[
     functionCode: AccessFunctionCodes.users,
     label: 'Người dùng',
     description: 'Quản lý tài khoản và trạng thái sử dụng ứng dụng.',
-    icon: Icons.people_alt_outlined,
+    icon: LucideIcons.users,
     builder: (_, repositories) => UsersScreen(
       companyRepository: repositories.companies,
       stationRepository: repositories.stations,
@@ -86,7 +87,7 @@ final accessModules = <AccessModule>[
     functionCode: AccessFunctionCodes.roles,
     label: 'Phân quyền',
     description: 'Thiết lập vai trò và quyền sử dụng từng chức năng.',
-    icon: Icons.admin_panel_settings_outlined,
+    icon: LucideIcons.shield,
     builder: (_, _) => const RolesScreen(),
   ),
   AccessModule(
@@ -94,7 +95,7 @@ final accessModules = <AccessModule>[
     functionCode: AccessFunctionCodes.functions,
     label: 'Chức năng',
     description: 'Quản lý danh mục chức năng được sử dụng trong hệ thống.',
-    icon: Icons.account_tree_outlined,
+    icon: LucideIcons.gitBranch,
     builder: (_, _) => const FunctionsScreen(),
   ),
 ];
@@ -217,7 +218,7 @@ const organizationModules = <OrganizationModule>[
     functionCode: AccessFunctionCodes.companies,
     label: 'Quản lý công ty',
     description: 'Thông tin công ty và đơn vị trực thuộc.',
-    icon: Icons.apartment_outlined,
+    icon: LucideIcons.building,
   ),
 ];
 
@@ -258,7 +259,7 @@ const stationModules = <StationModule>[
     functionCode: AccessFunctionCodes.branches,
     label: 'Quản lý trạm',
     description: 'Theo dõi và quản lý các trạm trong phạm vi được cấp.',
-    icon: Icons.factory_outlined,
+    icon: LucideIcons.factory,
   ),
 ];
 
@@ -302,7 +303,7 @@ const operationalModules = <OperationalModule>[
     label: 'Quản lý vật liệu',
     description:
         'Xem nhập, xuất, tồn kho và giá trị vật liệu theo từng trạm trộn.',
-    icon: Icons.inventory_2_outlined,
+    icon: LucideIcons.package,
     permission: AccessPermission.view,
   ),
   OperationalModule(
@@ -310,28 +311,28 @@ const operationalModules = <OperationalModule>[
     functionCode: AccessFunctionCodes.orderReports,
     label: 'Đơn hàng',
     description: 'Tra cứu đơn hàng và khối lượng sản xuất theo trạm.',
-    icon: Icons.receipt_long_outlined,
+    icon: LucideIcons.receiptText,
   ),
   OperationalModule(
     keyName: 'order-statistics',
     functionCode: AccessFunctionCodes.orderStatistics,
     label: 'Thống kê',
     description: 'Thống kê chi tiết và tổng hợp mẻ trộn theo trạm.',
-    icon: Icons.query_stats_outlined,
+    icon: LucideIcons.chartNoAxesColumnIncreasing,
   ),
   OperationalModule(
     keyName: 'mix-designs',
     functionCode: AccessFunctionCodes.mixDesigns,
     label: 'Quản lý cấp phối',
     description: 'Tra cứu thông số mác và định lượng vật liệu theo trạm.',
-    icon: Icons.science_outlined,
+    icon: LucideIcons.flaskConical,
   ),
   OperationalModule(
     keyName: 'weigh-stations',
     functionCode: AccessFunctionCodes.weighStations,
     label: 'Quản lý cân ô tô',
     description: 'Tra cứu phiếu cân và tổng hợp theo từng trạm cân.',
-    icon: Icons.balance_outlined,
+    icon: LucideIcons.scale,
   ),
 ];
 
@@ -432,25 +433,25 @@ String _functionLabel(GrantedFunction function, String fallback) {
 IconData _functionIcon(GrantedFunction function, IconData fallback) {
   final icon = function.icon?.toLowerCase() ?? '';
   if (icon.contains('user') || icon.contains('people')) {
-    return Icons.people_alt_outlined;
+    return LucideIcons.users;
   }
   if (icon.contains('role') || icon.contains('admin')) {
-    return Icons.admin_panel_settings_outlined;
+    return LucideIcons.shield;
   }
   if (icon.contains('function') || icon.contains('setting')) {
-    return Icons.settings_outlined;
+    return LucideIcons.settings;
   }
   if (icon.contains('company') || icon.contains('building')) {
-    return Icons.apartment_outlined;
+    return LucideIcons.building;
   }
   if (icon.contains('branch') || icon.contains('factory')) {
-    return Icons.factory_outlined;
+    return LucideIcons.factory;
   }
   if (icon.contains('scale') || icon.contains('weigh')) {
-    return Icons.balance_outlined;
+    return LucideIcons.scale;
   }
   if (icon.contains('order') || icon.contains('receipt')) {
-    return Icons.receipt_long_outlined;
+    return LucideIcons.receiptText;
   }
   return fallback;
 }

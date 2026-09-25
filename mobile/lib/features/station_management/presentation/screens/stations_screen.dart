@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -154,7 +155,7 @@ class _StationsScreenState extends State<StationsScreen> {
                   child: AppButton(
                     key: const ValueKey<String>('station-filter-apply'),
                     onPressed: () => Navigator.of(sheetContext).pop(true),
-                    icon: Icons.check_rounded,
+                    icon: LucideIcons.check,
                     label: 'Áp dụng',
                   ),
                 ),
@@ -194,7 +195,7 @@ class _StationsScreenState extends State<StationsScreen> {
                         context: context,
                         title: 'Chọn công ty',
                         searchHint: 'Tìm công ty',
-                        icon: Icons.apartment_outlined,
+                        icon: LucideIcons.building,
                         clearLabel: 'Tất cả công ty',
                         selected: selectedCompany,
                         options: [
@@ -290,7 +291,7 @@ class _StationsScreenState extends State<StationsScreen> {
           IconButton(
             tooltip: 'Tìm kiếm',
             onPressed: () => setState(() => _showSearch = !_showSearch),
-            icon: const Icon(Icons.search_rounded),
+            icon: const Icon(LucideIcons.search),
           ),
           IconButton(
             tooltip: 'Bộ lọc',
@@ -298,7 +299,7 @@ class _StationsScreenState extends State<StationsScreen> {
             icon: Badge(
               isLabelVisible: filterCount > 0,
               label: Text('$filterCount'),
-              child: const Icon(Icons.tune_rounded),
+              child: const Icon(LucideIcons.slidersHorizontal),
             ),
           ),
         ],
@@ -408,7 +409,7 @@ class _StationsScreenState extends State<StationsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.lock_outline, color: theme.colorScheme.primary),
+                  Icon(LucideIcons.lock, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -434,8 +435,8 @@ class _StationsScreenState extends State<StationsScreen> {
         _ActiveFilter(
           label: stationType.label,
           icon: type == StationType.scale.value
-              ? Icons.balance_outlined
-              : Icons.factory_outlined,
+              ? LucideIcons.scale
+              : LucideIcons.factory,
           onDeleted: () => _setType(null),
         ),
       );
@@ -449,7 +450,7 @@ class _StationsScreenState extends State<StationsScreen> {
       filters.add(
         _ActiveFilter(
           label: company?.displayName ?? 'Công ty #$companyId',
-          icon: Icons.apartment_outlined,
+          icon: LucideIcons.building,
           onDeleted: () => _setCompany(null),
         ),
       );
@@ -458,7 +459,7 @@ class _StationsScreenState extends State<StationsScreen> {
       filters.add(
         _ActiveFilter(
           label: 'Đã xóa mềm',
-          icon: Icons.delete_outline,
+          icon: LucideIcons.trash2,
           onDeleted: () => _setStatus(StationDataStatus.active),
         ),
       );
@@ -484,7 +485,7 @@ class _StationsScreenState extends State<StationsScreen> {
           children: const [
             SizedBox(height: 110),
             AppEmptyState(
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               title: 'Chưa có trạm phù hợp',
               message: 'Thử thay đổi từ khóa hoặc bộ lọc để tìm dữ liệu khác.',
             ),

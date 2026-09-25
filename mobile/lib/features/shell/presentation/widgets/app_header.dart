@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 
@@ -61,28 +62,20 @@ class AppHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Image.asset(
-                  'assets/images/ttsmart_logo_transparent.png',
-                  width: 122,
-                  height: 26,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerLeft,
-                  filterQuality: FilterQuality.medium,
-                  semanticLabel: 'Logo TTSmart',
-                ),
+                const AppLogo.header(),
                 const Spacer(),
                 _HeaderButton(
                   tooltip: onOpenNotifications == null
                       ? 'Thông báo chưa được triển khai'
                       : 'Thông báo',
-                  icon: Icons.notifications_none_rounded,
+                  icon: LucideIcons.bell,
                   onPressed: onOpenNotifications,
                   badgeCount: unreadNotificationCount,
                 ),
                 const SizedBox(width: 10),
                 _HeaderButton(
                   tooltip: 'Cài đặt',
-                  icon: Icons.settings_outlined,
+                  icon: LucideIcons.settings,
                   onPressed: onOpenSettings,
                 ),
               ],

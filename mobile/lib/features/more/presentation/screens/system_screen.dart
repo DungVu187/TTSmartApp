@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../app_dependencies.dart';
 import '../../../../core/app_scope.dart';
@@ -90,7 +91,7 @@ class _SystemScreenState extends State<SystemScreen> {
               ? const SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
                   child: AppEmptyState(
-                    icon: Icons.lock_outline,
+                    icon: LucideIcons.lock,
                     title: 'Không có chức năng quản trị',
                     message:
                         'Tài khoản hiện tại chưa được cấp quyền quản trị hệ thống.',
@@ -137,9 +138,9 @@ class _SystemScreenState extends State<SystemScreen> {
 }
 
 IconData _systemIcon(String keyName, IconData fallback) => switch (keyName) {
-  'users' => Icons.group_outlined,
-  'roles' => Icons.shield_outlined,
-  'functions' => Icons.account_tree_outlined,
+  'users' => LucideIcons.users,
+  'roles' => LucideIcons.shield,
+  'functions' => LucideIcons.gitBranch,
   _ => fallback,
 };
 

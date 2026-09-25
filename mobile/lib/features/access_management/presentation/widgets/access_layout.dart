@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 
@@ -189,7 +190,7 @@ class AccessEmptyList extends StatelessWidget {
               if (!filtered && onCreate != null && createLabel != null)
                 AppButton(
                   label: createLabel!,
-                  icon: Icons.add_rounded,
+                  icon: LucideIcons.plus,
                   expand: false,
                   onPressed: onCreate,
                 ),

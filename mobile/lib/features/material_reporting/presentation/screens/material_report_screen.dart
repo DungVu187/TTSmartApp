@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_date_picker.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -90,7 +90,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 AppIconButton(
                   key: const ValueKey<String>('material-refresh'),
                   tooltip: 'Làm mới',
-                  icon: Icons.refresh_rounded,
+                  icon: LucideIcons.refreshCw,
                   onPressed:
                       _controller.report == null || _controller.isLoadingReport
                       ? null
@@ -99,7 +99,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 AppIconButton(
                   key: const ValueKey<String>('material-filters'),
                   tooltip: 'Bộ lọc',
-                  icon: Icons.tune_rounded,
+                  icon: LucideIcons.slidersHorizontal,
                   badgeCount: _activeFilterCount,
                   onPressed: () => _showFilters(context),
                 ),
@@ -143,7 +143,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             if (widget.isAdmin)
               FilterChipButton(
                 key: const ValueKey<String>('material-company'),
-                icon: Icons.apartment_outlined,
+                icon: LucideIcons.building,
                 label:
                     controller.selectedCompany?.displayName ?? 'Chọn công ty',
                 showChevron: true,
@@ -151,14 +151,14 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
               ),
             FilterChipButton(
               key: const ValueKey<String>('material-date-range'),
-              icon: Icons.calendar_month_outlined,
+              icon: LucideIcons.calendar,
               label: _shortRange(controller.from, controller.to),
               active: true,
               onTap: () => _pickDateRange(context),
             ),
             FilterChipButton(
               key: const ValueKey<String>('material-station'),
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               label:
                   controller.selectedStation?.displayName ?? 'Chọn trạm trộn',
               showChevron: true,
@@ -191,13 +191,13 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 36),
               child: StateView(
-                icon: Icons.inventory_2_outlined,
+                icon: LucideIcons.package,
                 title: 'Chọn trạm trộn',
                 message: 'Chọn trạm trộn để xem nhập, xuất và tồn vật liệu.',
                 actions: [
                   AppButton(
                     label: 'Chọn trạm trộn',
-                    icon: Icons.factory_outlined,
+                    icon: LucideIcons.factory,
                     expand: false,
                     onPressed: _pickStation,
                   ),
@@ -268,21 +268,19 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
           dividerIndent: kLeadingDividerIndent,
           children: [
             total(
-              Icons.south_west_rounded,
+              LucideIcons.arrowDownLeft,
               AppTone.success,
               quantity ? 'Tổng nhập' : 'Giá trị nhập',
               quantity ? totals.importQuantityKg : totals.importValueVnd,
             ),
             total(
-              Icons.north_east_rounded,
+              LucideIcons.arrowUpRight,
               AppTone.danger,
               quantity ? 'Tổng xuất' : 'Giá trị xuất',
               quantity ? totals.exportQuantityKg : totals.exportValueVnd,
             ),
             total(
-              quantity
-                  ? Icons.inventory_2_outlined
-                  : Icons.account_balance_wallet_outlined,
+              quantity ? LucideIcons.package : LucideIcons.wallet,
               AppTone.primary,
               quantity ? 'Tồn hiện tại' : 'Giá trị tồn',
               quantity ? totals.inventoryQuantityKg : totals.inventoryValueVnd,
@@ -320,7 +318,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       return const Padding(
         padding: EdgeInsets.only(top: 24),
         child: StateView(
-          icon: Icons.receipt_long_outlined,
+          icon: LucideIcons.receiptText,
           title: 'Chưa có giao dịch',
           message:
               'Không tìm thấy giao dịch phù hợp với bộ lọc và khoảng thời gian.',
@@ -357,7 +355,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       context: context,
       title: 'Chọn công ty',
       searchHint: 'Tìm công ty',
-      icon: Icons.apartment_outlined,
+      icon: LucideIcons.building,
       selected: _controller.selectedCompanyId,
       options: [
         for (final company in _controller.companies)
@@ -381,7 +379,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       context: context,
       title: 'Chọn trạm trộn',
       searchHint: 'Tìm trạm trộn',
-      icon: Icons.factory_outlined,
+      icon: LucideIcons.factory,
       selected: _controller.selectedStationId,
       emptyMessage: 'Không có trạm trộn trong phạm vi được cấp.',
       options: [
@@ -448,7 +446,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                     ] else if (report == null) ...[
                       const SizedBox(height: 20),
                       AppEmptyState(
-                        icon: Icons.inventory_2_outlined,
+                        icon: LucideIcons.package,
                         title: 'Chọn trạm để xem báo cáo',
                         message: widget.isAdmin
                             ? 'Chọn cụ thể công ty, trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.'
@@ -493,9 +491,9 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -555,18 +553,18 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 (!widget.isAdmin || _controller.selectedCompanyId != null),
             hintText: 'Tìm trạm trộn',
             labelText: 'Trạm trộn',
-            prefixIcon: Icons.factory_outlined,
+            prefixIcon: LucideIcons.factory,
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             key: const ValueKey<String>('material-date-range'),
             onPressed: () => _pickDateRange(context),
-            icon: const Icon(Icons.date_range_outlined),
+            icon: const Icon(LucideIcons.calendarRange),
             label: Text(_dateRangeLabel(_controller.from, _controller.to)),
           ),
           const SizedBox(height: 10),
           Material(
-            color: const Color(0xFFF8FAFC),
+            color: context.palette.surfaceMuted,
             borderRadius: BorderRadius.circular(14),
             child: InkWell(
               key: const ValueKey<String>('material-filter-button'),
@@ -579,10 +577,10 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.tune,
+                    Icon(
+                      LucideIcons.slidersHorizontal,
                       size: 20,
-                      color: AppColors.brandBlue,
+                      color: context.palette.primary,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -593,7 +591,10 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.mutedText),
+                    Icon(
+                      LucideIcons.chevronRight,
+                      color: context.palette.text2,
+                    ),
                   ],
                 ),
               ),
@@ -605,7 +606,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             onPressed: _controller.isLoadingReport
                 ? null
                 : _controller.loadReport,
-            icon: const Icon(Icons.analytics_outlined),
+            icon: const Icon(LucideIcons.chartNoAxesColumnIncreasing),
             label: const Text('Tìm kiếm'),
           ),
         ],
@@ -633,10 +634,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
               const SizedBox(height: 3),
               Text(
                 'Tồn kho tính đến ${formatVietnamDateTime(report.inventoryAsOf)}',
-                style: const TextStyle(
-                  color: AppColors.mutedText,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: context.palette.text2, fontSize: 12),
               ),
             ],
           ),
@@ -667,7 +665,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
         _controller.valueMode == MaterialValueMode.quantity
             ? 'Khối lượng nhập, xuất và tồn lũy kế đến cuối kỳ.'
             : 'Giá trị FIFO nhập, xuất và tồn lũy kế đến cuối kỳ.',
-        style: const TextStyle(color: AppColors.mutedText, fontSize: 12),
+        style: TextStyle(color: context.palette.text2, fontSize: 12),
       ),
       const SizedBox(height: 10),
       MaterialComparisonList(
@@ -690,7 +688,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
         const SizedBox(height: 10),
         if (_controller.loadedTransactions.isEmpty)
           const AppEmptyState(
-            icon: Icons.receipt_long_outlined,
+            icon: LucideIcons.receiptText,
             title: 'Chưa có giao dịch',
             message:
                 'Không tìm thấy giao dịch phù hợp với bộ lọc và khoảng thời gian.',
@@ -716,7 +714,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                       : () => _controller.loadReport(
                           pageNumber: report.pageNumber - 1,
                         ),
-                  icon: const Icon(Icons.chevron_left),
+                  icon: const Icon(LucideIcons.chevronLeft),
                   label: const Text('Trang trước'),
                 ),
               ),
@@ -737,7 +735,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                           pageNumber: report.pageNumber + 1,
                         ),
                   iconAlignment: IconAlignment.end,
-                  icon: const Icon(Icons.chevron_right),
+                  icon: const Icon(LucideIcons.chevronRight),
                   label: const Text('Trang sau'),
                 ),
               ),
@@ -784,7 +782,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       footer: (sheetContext) => AppButton(
         key: const ValueKey<String>('material-apply-filters'),
         onPressed: () => Navigator.pop(sheetContext, true),
-        icon: Icons.check_rounded,
+        icon: LucideIcons.check,
         label: 'Áp dụng bộ lọc',
       ),
       builder: (_) => StatefulBuilder(
@@ -862,10 +860,10 @@ class _TransactionRow extends StatelessWidget {
       background: transaction.isSummary ? p.primaryContainer : null,
       leading: IconTile(
         icon: transaction.isSummary
-            ? Icons.functions_rounded
+            ? LucideIcons.sigma
             : isImport
-            ? Icons.south_west_rounded
-            : Icons.north_east_rounded,
+            ? LucideIcons.arrowDownLeft
+            : LucideIcons.arrowUpRight,
         tone: tone,
         background: transaction.isSummary ? p.surface : null,
       ),
@@ -921,14 +919,16 @@ class _WarningsPanel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: const Color(0xFFFFF7ED),
+      color: context.palette.warningBg,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFFED7AA)),
+      border: Border.all(
+        color: context.palette.warning.withValues(alpha: 0.35),
+      ),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+        Icon(LucideIcons.triangleAlert, color: context.palette.warning),
         const SizedBox(width: 10),
         Expanded(
           child: Column(

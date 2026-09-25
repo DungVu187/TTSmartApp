@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -201,7 +202,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
     }
     final discard = await showAppConfirmDialog(
       context,
-      icon: Icons.edit_off_outlined,
+      icon: LucideIcons.penOff,
       title: 'Bỏ thay đổi chưa lưu?',
       message: 'Các thay đổi phân quyền sẽ không được lưu.',
       confirmLabel: 'Bỏ thay đổi',
@@ -227,7 +228,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
                 key: const ValueKey<String>('role-functions-bulk'),
                 tooltip: 'Áp dụng cho tất cả chức năng',
                 onPressed: _submitting ? null : _showBulkActions,
-                icon: const Icon(Icons.more_vert_rounded),
+                icon: const Icon(LucideIcons.ellipsisVertical),
               ),
           ],
         ),
@@ -250,7 +251,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
             final roots = _buildTree(_items.values);
             if (roots.isEmpty) {
               return const AccessEmptyState(
-                icon: Icons.rule_folder_outlined,
+                icon: LucideIcons.folder,
                 title: 'Chưa có chức năng',
                 message: 'Chưa có chức năng nào để phân quyền.',
               );
@@ -335,7 +336,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
                     child: AppButton(
                       key: const ValueKey<String>('role-functions-save'),
                       label: _submitting ? 'Đang lưu...' : 'Lưu phân quyền',
-                      icon: Icons.save_outlined,
+                      icon: LucideIcons.save,
                       loading: _submitting,
                       onPressed: _submitting ? null : _save,
                     ),
@@ -455,7 +456,7 @@ class _GroupHeader extends StatelessWidget {
                     ),
                   ),
                   Icon(
-                    Icons.chevron_right_rounded,
+                    LucideIcons.chevronRight,
                     size: 16,
                     color: context.palette.text3,
                   ),

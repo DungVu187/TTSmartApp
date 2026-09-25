@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../../station_management/data/models/station_models.dart';
@@ -46,7 +47,7 @@ class _StationPickerScreenState extends State<StationPickerScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Đóng',
-          icon: const Icon(Icons.close_rounded),
+          icon: const Icon(LucideIcons.x),
           onPressed: () => Navigator.maybePop(context),
         ),
         title: const Text('Chọn trạm trộn'),
@@ -66,7 +67,7 @@ class _StationPickerScreenState extends State<StationPickerScreen> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 hintText: 'Tìm trạm trộn',
-                prefixIcon: Icon(Icons.search_rounded),
+                prefixIcon: Icon(LucideIcons.search),
               ),
             ),
             const SizedBox(height: 20),
@@ -76,7 +77,7 @@ class _StationPickerScreenState extends State<StationPickerScreen> {
             const SizedBox(height: 8),
             if (visible.isEmpty)
               const StateView(
-                icon: Icons.factory_outlined,
+                icon: LucideIcons.factory,
                 title: 'Không tìm thấy trạm',
                 message: 'Thử từ khóa khác hoặc kiểm tra công ty đang chọn.',
               )
@@ -93,7 +94,7 @@ class _StationPickerScreenState extends State<StationPickerScreen> {
                         showChevron: false,
                         trailing: _selected.contains(station.id)
                             ? Icon(
-                                Icons.check_circle_outline_rounded,
+                                LucideIcons.circleCheck,
                                 size: 24,
                                 color: context.palette.primary,
                               )

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -86,7 +87,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
                 maxWidth: 720,
                 child: Card(
                   child: AppEmptyState(
-                    icon: Icons.lock_outline,
+                    icon: LucideIcons.lock,
                     title: 'Không có quyền xem cấp phối',
                     message:
                         'Tài khoản chưa được cấp quyền QLCP - D.Sách để sử dụng chức năng này.',
@@ -162,7 +163,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
             if (controller.isAdmin)
               FilterChipButton(
                 key: const ValueKey<String>('mix-design-company'),
-                icon: Icons.apartment_outlined,
+                icon: LucideIcons.building,
                 label: _companyName(controller) ?? 'Chọn công ty',
                 showChevron: true,
                 onTap: controller.isLoadingCompanies
@@ -171,7 +172,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
               ),
             FilterChipButton(
               key: const ValueKey<String>('mix-design-station'),
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               label: controller.selectedStation?.displayName ?? 'Chọn trạm',
               active: controller.selectedStationId != null,
               showChevron: true,
@@ -207,13 +208,13 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 36),
             child: StateView(
-              icon: Icons.science_outlined,
+              icon: LucideIcons.flaskConical,
               title: 'Chọn trạm',
               message: 'Chọn trạm để xem danh sách cấp phối bê tông.',
               actions: [
                 AppButton(
                   label: 'Chọn trạm',
-                  icon: Icons.factory_outlined,
+                  icon: LucideIcons.factory,
                   expand: false,
                   onPressed: () => _pickStation(controller),
                 ),
@@ -238,7 +239,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       context: context,
       title: 'Chọn công ty',
       searchHint: 'Tìm công ty',
-      icon: Icons.apartment_outlined,
+      icon: LucideIcons.building,
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
@@ -266,7 +267,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       context: context,
       title: 'Chọn trạm',
       searchHint: 'Tìm trạm',
-      icon: Icons.factory_outlined,
+      icon: LucideIcons.factory,
       selected: controller.selectedStationId,
       emptyMessage: 'Không có trạm trong phạm vi được cấp.',
       options: [
@@ -387,7 +388,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       loading: controller.isLoadingStations,
       hintText: _stationHint(controller),
       labelText: 'Trạm',
-      prefixIcon: Icons.factory_outlined,
+      prefixIcon: LucideIcons.factory,
       compact: true,
     );
   }
@@ -408,14 +409,14 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
         key: const ValueKey<String>('mix-design-search'),
         onPressed: controller.isLoadingResult ? null : controller.search,
         icon: controller.isLoadingResult
-            ? const SizedBox.square(
+            ? SizedBox.square(
                 dimension: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: context.palette.onPrimary,
                 ),
               )
-            : const Icon(Icons.search, size: 18),
+            : const Icon(LucideIcons.search, size: 18),
         label: const Text('Tìm kiếm'),
       ),
     );
@@ -427,7 +428,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       child: OutlinedButton.icon(
         key: const ValueKey<String>('mix-design-reset'),
         onPressed: controller.isLoadingResult ? null : controller.resetFilters,
-        icon: const Icon(Icons.refresh, size: 18),
+        icon: const Icon(LucideIcons.refreshCw, size: 18),
         label: const Text('Đặt lại'),
       ),
     );
@@ -452,7 +453,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
     if (result == null) {
       return const Card(
         child: AppEmptyState(
-          icon: Icons.table_chart_outlined,
+          icon: LucideIcons.table2,
           title: 'Chưa tải danh sách cấp phối',
           message:
               'Chọn phạm vi công ty, trạm rồi bấm Tìm kiếm để xem dữ liệu.',
@@ -524,7 +525,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
             for (final item in controller.loadedItems)
               NavRow(
                 leading: const IconTile(
-                  icon: Icons.science_outlined,
+                  icon: LucideIcons.flaskConical,
                   tone: AppTone.violet,
                 ),
                 title: item.displayConcreteGradeName,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -90,7 +91,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           IconButton(
             tooltip: 'Tìm kiếm',
             onPressed: () => setState(() => _showSearch = !_showSearch),
-            icon: const Icon(Icons.search_rounded),
+            icon: const Icon(LucideIcons.search),
           ),
         ],
       ),
@@ -126,7 +127,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: 'Tìm theo tên, mã, email hoặc số điện thoại',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const Icon(LucideIcons.search),
                       suffixIcon: value.text.isEmpty
                           ? null
                           : IconButton(
@@ -135,7 +136,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                                 _searchController.clear();
                                 _onSearchChanged('');
                               },
-                              icon: const Icon(Icons.close),
+                              icon: const Icon(LucideIcons.x),
                             ),
                     ),
                   ),
@@ -183,7 +184,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                             fontSize: 13,
                           ),
                         ),
-                        const Icon(Icons.expand_more_rounded, size: 18),
+                        const Icon(LucideIcons.chevronDown, size: 18),
                       ],
                     ),
                   ),
@@ -221,7 +222,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 120),
-            Icon(Icons.apartment_outlined, size: 52),
+            Icon(LucideIcons.building, size: 52),
             SizedBox(height: 12),
             Center(child: Text('Chưa có công ty phù hợp.')),
           ],
@@ -262,7 +263,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                       ))
                         NavRow(
                           leading: const IconTile(
-                            icon: Icons.apartment_outlined,
+                            icon: LucideIcons.building,
                             tone: AppTone.info,
                           ),
                           title: company.displayName,
@@ -298,7 +299,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
       return Center(
         child: TextButton.icon(
           onPressed: _controller.loadMore,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(LucideIcons.refreshCw),
           label: Text(_controller.loadMoreError!.message),
         ),
       );

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
@@ -317,7 +318,7 @@ void main() {
     );
     final stationSearchIcon = find.descendant(
       of: stationField,
-      matching: find.byIcon(Icons.search),
+      matching: find.byIcon(LucideIcons.search),
     );
     final dateArrow = find.byKey(
       const ValueKey<String>('statistics-date-arrow'),

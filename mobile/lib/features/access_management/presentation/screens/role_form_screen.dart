@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -119,7 +120,7 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
                     ],
                     AccessSection(
                       title: 'Thông tin vai trò',
-                      icon: Icons.admin_panel_settings_outlined,
+                      icon: LucideIcons.shield,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(

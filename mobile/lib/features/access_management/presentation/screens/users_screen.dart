@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -142,7 +143,7 @@ class _UsersScreenState extends State<UsersScreen> {
           IconButton(
             tooltip: 'Tìm kiếm',
             onPressed: () => setState(() => _showSearch = !_showSearch),
-            icon: const Icon(Icons.search_rounded),
+            icon: const Icon(LucideIcons.search),
           ),
           IconButton(
             tooltip: 'Bộ lọc',
@@ -153,7 +154,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   _controller.branchId != null ||
                   _controller.roleId != null ||
                   _controller.withoutRole,
-              child: const Icon(Icons.tune),
+              child: const Icon(LucideIcons.slidersHorizontal),
             ),
           ),
         ],
@@ -185,7 +186,7 @@ class _UsersScreenState extends State<UsersScreen> {
           ? FloatingActionButton(
               onPressed: _openCreate,
               tooltip: 'Tạo người dùng',
-              child: const Icon(Icons.add_rounded),
+              child: const Icon(LucideIcons.plus),
             )
           : null,
     );
@@ -211,7 +212,7 @@ class _UsersScreenState extends State<UsersScreen> {
             _controller.branchId != null ||
             _controller.roleId != null ||
             _controller.withoutRole,
-        icon: Icons.group_outlined,
+        icon: LucideIcons.users,
         emptyTitle: 'Chưa có người dùng nào',
         emptyMessage:
             'Thêm tài khoản đầu tiên để bắt đầu phân quyền cho đội ngũ của bạn.',
@@ -597,7 +598,7 @@ class _UserListItem extends StatelessWidget {
                         AccessStatusChip(isActive: user.isActive),
                         Chip(
                           visualDensity: VisualDensity.compact,
-                          avatar: const Icon(Icons.badge_outlined, size: 18),
+                          avatar: const Icon(LucideIcons.idCard, size: 18),
                           label: Text('${user.roles.length} vai trò'),
                         ),
                       ],
@@ -605,7 +606,7 @@ class _UserListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTap != null) const Icon(Icons.chevron_right),
+              if (onTap != null) const Icon(LucideIcons.chevronRight),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../ui/app_ui.dart';
 
@@ -368,7 +369,7 @@ class _AppDatePickerSheetState extends State<AppDatePickerSheet> {
               child: AppButton(
                 key: ValueKey<String>('${widget.keyPrefix}-clear'),
                 label: 'Bỏ giới hạn thời gian',
-                icon: Icons.close_rounded,
+                icon: LucideIcons.x,
                 variant: AppButtonVariant.text,
                 expand: false,
                 onPressed: () => Navigator.pop(
@@ -554,7 +555,7 @@ class _TimeSelector extends StatelessWidget {
     final p = context.palette;
     return Row(
       children: [
-        Icon(Icons.schedule_rounded, size: 20, color: p.text2),
+        Icon(LucideIcons.clock, size: 20, color: p.text2),
         const SizedBox(width: 8),
         Text(
           'Chọn giờ',
@@ -631,11 +632,7 @@ class _TimeDropdown extends StatelessWidget {
           isExpanded: true,
           dropdownColor: p.surface,
           borderRadius: BorderRadius.circular(12),
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            size: 18,
-            color: p.text3,
-          ),
+          icon: Icon(LucideIcons.chevronDown, size: 18, color: p.text3),
           // Merged with the theme so the app font family applies.
           style: Theme.of(context).textTheme.bodyLarge!.copyWith(
             color: p.text1,
@@ -732,7 +729,7 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
                 onPressed: canGoPrevious ? _previousMonth : null,
                 color: p.text1,
                 disabledColor: p.text3,
-                icon: const Icon(Icons.chevron_left_rounded),
+                icon: const Icon(LucideIcons.chevronLeft),
               ),
               Expanded(
                 child: Center(
@@ -752,7 +749,7 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
                 onPressed: canGoNext ? _nextMonth : null,
                 color: p.text1,
                 disabledColor: p.text3,
-                icon: const Icon(Icons.chevron_right_rounded),
+                icon: const Icon(LucideIcons.chevronRight),
               ),
             ],
           ),
@@ -911,7 +908,7 @@ class _SheetActions extends StatelessWidget {
           child: AppButton(
             key: ValueKey<String>('$keyPrefix-apply'),
             label: 'Áp dụng',
-            icon: Icons.check_rounded,
+            icon: LucideIcons.check,
             onPressed: enabled ? onApply : null,
           ),
         ),

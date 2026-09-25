@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../ui/app_palette.dart';
 
@@ -74,6 +75,11 @@ class AppTheme {
       scaffoldBackgroundColor: p.canvas,
       visualDensity: VisualDensity.standard,
       extensions: <ThemeExtension<dynamic>>[p],
+      // Back / close buttons drawn by Flutter use the Lucide glyphs too.
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (_) => const Icon(LucideIcons.arrowLeft),
+        closeButtonIconBuilder: (_) => const Icon(LucideIcons.x),
+      ),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -86,6 +92,8 @@ class AppTheme {
         backgroundColor: p.canvas,
         foregroundColor: p.text1,
         surfaceTintColor: Colors.transparent,
+        iconTheme: IconThemeData(color: p.text1, size: 22),
+        actionsIconTheme: IconThemeData(color: p.text1, size: 22),
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,
           color: p.text1,

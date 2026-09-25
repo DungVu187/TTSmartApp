@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -90,7 +91,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   Future<void> _resetPassword(UserResponse user) async {
     final confirmed = await showAppConfirmDialog(
       context,
-      icon: Icons.lock_reset_rounded,
+      icon: LucideIcons.rotateCcwKey,
       title: 'Đặt lại mật khẩu?',
       message: 'Mật khẩu của ${user.displayName} sẽ được đặt lại về 123456.',
       confirmLabel: 'Đặt lại',
@@ -113,7 +114,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   Future<void> _delete(UserResponse user) async {
     final confirmed = await showAppConfirmDialog(
       context,
-      icon: Icons.delete_outline_rounded,
+      icon: LucideIcons.trash2,
       title: 'Xóa người dùng?',
       message:
           'Xóa ${user.displayName} khỏi danh sách hiệu lực. Thao tác này cần được backend xác nhận.',
@@ -401,25 +402,25 @@ class _UserActions extends StatelessWidget {
       children: [
         if (canUpdate)
           ActionRow(
-            icon: Icons.edit_outlined,
+            icon: LucideIcons.pencil,
             label: 'Sửa thông tin',
             onTap: busy ? null : onEdit,
           ),
         if (canUpdate)
           ActionRow(
-            icon: Icons.badge_outlined,
+            icon: LucideIcons.idCard,
             label: 'Gán vai trò',
             onTap: busy ? null : onRoles,
           ),
         if (canResetPassword)
           ActionRow(
-            icon: Icons.key_outlined,
+            icon: LucideIcons.keyRound,
             label: 'Đặt lại mật khẩu',
             onTap: busy ? null : onResetPassword,
           ),
         if (canDelete)
           ActionRow(
-            icon: Icons.delete_outline,
+            icon: LucideIcons.trash2,
             label: 'Xóa người dùng',
             destructive: true,
             onTap: busy ? null : onDelete,

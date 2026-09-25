@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'app_palette.dart';
 import 'ui_list.dart';
@@ -204,7 +205,7 @@ class FilterChipButton extends StatelessWidget {
                       if (showChevron) ...[
                         SizedBox(width: dense ? 5 : 6),
                         Icon(
-                          Icons.keyboard_arrow_down_rounded,
+                          LucideIcons.chevronDown,
                           size: size == FilterChipSize.medium ? 18 : 16,
                           color: active ? p.onPrimary : p.text2,
                         ),
@@ -285,7 +286,7 @@ class OptionChip extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (selected) ...[
-                  Icon(Icons.check_rounded, size: 16, color: p.primary),
+                  Icon(LucideIcons.check, size: 16, color: p.primary),
                   const SizedBox(width: 6),
                 ],
                 Flexible(
@@ -353,7 +354,7 @@ class SelectFieldButton extends StatelessWidget {
     this.icon,
     this.enabled = true,
     this.errorText,
-    this.trailingIcon = Icons.keyboard_arrow_down_rounded,
+    this.trailingIcon = LucideIcons.chevronDown,
   });
 
   final String label;
@@ -420,11 +421,7 @@ class SelectFieldButton extends StatelessWidget {
                       IconButton(
                         tooltip: 'Bỏ chọn',
                         onPressed: enabled ? onClear : null,
-                        icon: Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: p.text2,
-                        ),
+                        icon: Icon(LucideIcons.x, size: 18, color: p.text2),
                       )
                     else ...[
                       Icon(trailingIcon, size: 20, color: p.text3),
@@ -476,7 +473,7 @@ class FieldError extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 1),
-          child: Icon(Icons.warning_amber_rounded, size: 15, color: p.danger),
+          child: Icon(LucideIcons.triangleAlert, size: 15, color: p.danger),
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -916,7 +913,7 @@ class AppSearchField extends StatelessWidget {
             borderSide: BorderSide(color: p.primary, width: 1.5),
           ),
           contentPadding: const EdgeInsets.symmetric(vertical: 13),
-          prefixIcon: Icon(Icons.search_rounded, color: p.text3, size: 20),
+          prefixIcon: Icon(LucideIcons.search, color: p.text3, size: 20),
           suffixIcon: value.text.isEmpty
               ? null
               : IconButton(
@@ -925,7 +922,7 @@ class AppSearchField extends StatelessWidget {
                     controller.clear();
                     onChanged?.call('');
                   },
-                  icon: Icon(Icons.close_rounded, color: p.text2, size: 18),
+                  icon: Icon(LucideIcons.x, color: p.text2, size: 18),
                 ),
         ),
       ),

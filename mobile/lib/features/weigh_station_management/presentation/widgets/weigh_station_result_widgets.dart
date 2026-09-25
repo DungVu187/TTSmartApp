@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/vietnam_time.dart';
 import '../../data/models/weigh_station_result_models.dart';
 
@@ -154,19 +154,19 @@ class WeighStationSummaryOverview extends StatelessWidget {
           builder: (context, constraints) {
             final values = <Widget>[
               _SummaryMetricCard(
-                icon: Icons.category_outlined,
+                icon: LucideIcons.layers,
                 label: 'Tổng số loại hàng',
                 value: '${summary.totalCount}',
                 suffix: 'loại',
               ),
               _SummaryMetricCard(
-                icon: Icons.monitor_weight_outlined,
+                icon: LucideIcons.weight,
                 label: 'Tổng khối lượng',
                 value: _number(summary.totalGoodsWeightKg),
                 suffix: 'kg',
               ),
               _SummaryMetricCard(
-                icon: Icons.trending_up_rounded,
+                icon: LucideIcons.trendingUp,
                 label: 'Loại hàng nhiều nhất',
                 value: _text(summary.topGoods?.goodsName),
                 detail: summary.topGoods == null
@@ -175,12 +175,12 @@ class WeighStationSummaryOverview extends StatelessWidget {
               ),
               if (summary.canViewMaterialValue)
                 _SummaryMetricCard(
-                  icon: Icons.payments_outlined,
+                  icon: LucideIcons.banknote,
                   label: 'Tổng giá trị',
                   value: _currencyOrDash(summary.totalMaterialValueVnd),
                 ),
               _SummaryMetricCard(
-                icon: Icons.swap_vert_rounded,
+                icon: LucideIcons.arrowLeftRight,
                 label: 'Khối lượng quy đổi',
                 valueWidget: _ConvertedQuantities(
                   values: summary.totalConvertedQuantities,
@@ -244,8 +244,8 @@ class _SummaryMetricCard extends StatelessWidget {
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFF),
-        border: Border.all(color: AppColors.border),
+        color: context.palette.infoBg,
+        border: Border.all(color: context.palette.border),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Padding(
@@ -255,12 +255,12 @@ class _SummaryMetricCard extends StatelessWidget {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: AppColors.brandBlue.withValues(alpha: 0.1),
+                color: context.palette.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: Icon(icon, size: 20, color: AppColors.brandBlue),
+                child: Icon(icon, size: 20, color: context.palette.primary),
               ),
             ),
             const SizedBox(width: 10),
@@ -271,7 +271,7 @@ class _SummaryMetricCard extends StatelessWidget {
                   Text(
                     label,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.mutedText,
+                      color: context.palette.text2,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -280,7 +280,7 @@ class _SummaryMetricCard extends StatelessWidget {
                     style:
                         theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
+                          color: context.palette.text1,
                         ) ??
                         const TextStyle(fontWeight: FontWeight.w800),
                     child:
@@ -353,7 +353,7 @@ class _DetailCard extends StatelessWidget {
                 _text(item.vehiclePlate),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w900,
-                  color: const Color(0xFF0F172A),
+                  color: context.palette.text1,
                 ),
               ),
             ),
@@ -395,7 +395,7 @@ class _DetailCard extends StatelessWidget {
               if (showMaterialValue) ...[
                 const SizedBox(height: 10),
                 _InfoLine(
-                  icon: Icons.payments_outlined,
+                  icon: LucideIcons.banknote,
                   label: 'Giá trị',
                   value: _currencyOrDash(item.materialValueVnd),
                   emphasized: true,
@@ -405,7 +405,7 @@ class _DetailCard extends StatelessWidget {
               Text(
                 'Phiếu #${item.ticketNumber} · ${_dateTime(item.weighingAt)}',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.mutedText,
+                  color: context.palette.text2,
                 ),
               ),
             ],
@@ -417,28 +417,28 @@ class _DetailCard extends StatelessWidget {
           _WeightPair(item: item),
           const SizedBox(height: 12),
           _InfoLine(
-            icon: Icons.person_outline,
+            icon: LucideIcons.user,
             label: 'Lái xe',
             value: _text(item.driverName),
           ),
           _InfoLine(
-            icon: Icons.business_outlined,
+            icon: LucideIcons.building,
             label: 'Đơn vị',
             value: _text(item.unitName),
           ),
           _InfoLine(
-            icon: Icons.qr_code_2_outlined,
+            icon: LucideIcons.qrCode,
             label: 'Mã phiếu / niêm chì',
             value: '${_text(item.ticketCode)} / ${_text(item.sealNumber)}',
           ),
           _InfoLine(
-            icon: Icons.login_rounded,
+            icon: LucideIcons.logIn,
             label: 'Cân lần 1',
             value:
                 '${_text(item.firstOperatorName)} · ${_dateTime(item.weighedInAt)}',
           ),
           _InfoLine(
-            icon: Icons.logout_rounded,
+            icon: LucideIcons.logOut,
             label: 'Cân lần 2',
             value:
                 '${_text(item.secondOperatorName)} · ${_dateTime(item.weighedOutAt)}',
@@ -462,7 +462,7 @@ class _WeightPair extends StatelessWidget {
           child: _WeightBox(
             label: 'Cân vào',
             value: '${_numberOrDash(item.inboundWeightKg)} kg',
-            icon: Icons.call_received_rounded,
+            icon: LucideIcons.arrowDownLeft,
           ),
         ),
         const SizedBox(width: 10),
@@ -470,7 +470,7 @@ class _WeightPair extends StatelessWidget {
           child: _WeightBox(
             label: 'Cân ra',
             value: '${_numberOrDash(item.outboundWeightKg)} kg',
-            icon: Icons.call_made_rounded,
+            icon: LucideIcons.arrowUpRight,
           ),
         ),
       ],
@@ -493,9 +493,9 @@ class _WeightBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.palette.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.palette.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -504,7 +504,7 @@ class _WeightBox extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: AppColors.brandBlue),
+                Icon(icon, size: 16, color: context.palette.primary),
                 const SizedBox(width: 6),
                 Text(label, style: Theme.of(context).textTheme.bodySmall),
               ],
@@ -535,14 +535,14 @@ class _PrimaryValue extends StatelessWidget {
           label,
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.mutedText),
+          ).textTheme.bodySmall?.copyWith(color: context.palette.text2),
         ),
         const SizedBox(height: 3),
         DefaultTextStyle(
           style:
               Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A),
+                color: context.palette.text1,
               ) ??
               const TextStyle(fontWeight: FontWeight.w900),
           child: valueWidget ?? Text(value!),
@@ -561,7 +561,7 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.brandTeal.withValues(alpha: 0.1),
+        color: context.palette.secondary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Padding(
@@ -569,7 +569,7 @@ class _StatusPill extends StatelessWidget {
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.brandTeal,
+            color: context.palette.secondary,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -598,7 +598,7 @@ class _InfoLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 17, color: AppColors.mutedText),
+          Icon(icon, size: 17, color: context.palette.text2),
           const SizedBox(width: 8),
           SizedBox(
             width: 112,
@@ -610,7 +610,7 @@ class _InfoLine extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontWeight: emphasized ? FontWeight.w900 : FontWeight.w600,
-                color: emphasized ? AppColors.brandTeal : null,
+                color: emphasized ? context.palette.secondary : null,
               ),
             ),
           ),
@@ -676,7 +676,7 @@ class _SummaryCardList extends StatelessWidget {
                   if (summary.canViewMaterialValue) ...[
                     const Divider(height: 24),
                     _InfoLine(
-                      icon: Icons.payments_outlined,
+                      icon: LucideIcons.banknote,
                       label: 'Giá trị',
                       value: _currencyOrDash(item.materialValueVnd),
                       emphasized: true,
@@ -751,7 +751,7 @@ class _ConversionWarning extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 120),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.12),
+          color: context.palette.warning.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Padding(
@@ -760,17 +760,17 @@ class _ConversionWarning extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.warning_amber_rounded,
+              Icon(
+                LucideIcons.triangleAlert,
                 size: 14,
-                color: AppColors.warning,
+                color: context.palette.warning,
               ),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   message,
-                  style: const TextStyle(
-                    color: AppColors.warning,
+                  style: TextStyle(
+                    color: context.palette.warning,
                     fontWeight: FontWeight.w700,
                     height: 1.05,
                   ),
@@ -815,7 +815,7 @@ class _ResultTable<T> extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.palette.border),
         borderRadius: BorderRadius.circular(12),
       ),
       child: ClipRRect(
@@ -825,9 +825,9 @@ class _ResultTable<T> extends StatelessWidget {
           children: [
             if (pinnedColumns.isNotEmpty)
               Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(
-                    right: BorderSide(color: AppColors.border, width: 1),
+                    right: BorderSide(color: context.palette.border, width: 1),
                   ),
                 ),
                 child: Row(
@@ -857,12 +857,12 @@ class _ResultTable<T> extends StatelessWidget {
                   ),
                   headingTextStyle: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1F2937),
+                    color: context.palette.text1,
                     fontSize: 12,
                     height: 1.05,
                   ),
                   dataTextStyle: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF1F2937),
+                    color: context.palette.text1,
                     height: 1.05,
                   ),
                   headingRowHeight: 42,
@@ -944,7 +944,7 @@ class _PinnedResultColumn<T> extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF1F2937),
+              color: context.palette.text1,
               fontSize: 12,
               height: 1.05,
             ),
@@ -955,9 +955,9 @@ class _PinnedResultColumn<T> extends StatelessWidget {
             height: dataRowHeight,
             alignment: Alignment.centerLeft,
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: AppColors.border, width: 0.7),
+                bottom: BorderSide(color: context.palette.border, width: 0.7),
               ),
             ),
             child:
@@ -967,7 +967,7 @@ class _PinnedResultColumn<T> extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF1F2937),
+                    color: context.palette.text1,
                     height: 1.05,
                   ),
                 ),

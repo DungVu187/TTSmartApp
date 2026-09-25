@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../../../core/utils/vietnam_time.dart';
@@ -78,9 +79,7 @@ class NotificationListItem extends StatelessWidget {
                         borderRadius: BorderRadius.circular(13),
                       ),
                       child: Icon(
-                        order
-                            ? Icons.receipt_long_outlined
-                            : Icons.info_outline_rounded,
+                        order ? LucideIcons.receiptText : LucideIcons.info,
                         size: 22,
                         color: iconColor,
                       ),

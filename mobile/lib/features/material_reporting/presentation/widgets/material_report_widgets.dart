@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/app_ui.dart';
 import '../../../../core/utils/vietnam_time.dart';
 import '../../data/models/material_report_models.dart';
@@ -24,40 +24,40 @@ class MaterialTotalsGrid extends StatelessWidget {
             (
               label: 'Tổng nhập',
               value: totals.importQuantityKg,
-              color: AppColors.success,
-              icon: Icons.south_west,
+              color: context.palette.success,
+              icon: LucideIcons.arrowDownLeft,
             ),
             (
               label: 'Tổng xuất',
               value: totals.exportQuantityKg,
-              color: AppColors.danger,
-              icon: Icons.north_east,
+              color: context.palette.danger,
+              icon: LucideIcons.arrowUpRight,
             ),
             (
               label: 'Tồn hiện tại',
               value: totals.inventoryQuantityKg,
-              color: AppColors.brandBlue,
-              icon: Icons.inventory_2_outlined,
+              color: context.palette.primary,
+              icon: LucideIcons.package,
             ),
           ]
         : <({String label, double value, Color color, IconData icon})>[
             (
               label: 'Giá trị nhập',
               value: totals.importValueVnd,
-              color: AppColors.success,
-              icon: Icons.south_west,
+              color: context.palette.success,
+              icon: LucideIcons.arrowDownLeft,
             ),
             (
               label: 'Giá trị xuất',
               value: totals.exportValueVnd,
-              color: AppColors.danger,
-              icon: Icons.north_east,
+              color: context.palette.danger,
+              icon: LucideIcons.arrowUpRight,
             ),
             (
               label: 'Giá trị tồn',
               value: totals.inventoryValueVnd,
-              color: AppColors.brandBlue,
-              icon: Icons.account_balance_wallet_outlined,
+              color: context.palette.primary,
+              icon: LucideIcons.wallet,
             ),
           ];
     return LayoutBuilder(
@@ -78,9 +78,9 @@ class MaterialTotalsGrid extends StatelessWidget {
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.palette.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.palette.border),
               ),
               child: Row(
                 children: [
@@ -101,8 +101,8 @@ class MaterialTotalsGrid extends StatelessWidget {
                       children: [
                         Text(
                           item.label,
-                          style: const TextStyle(
-                            color: AppColors.mutedText,
+                          style: TextStyle(
+                            color: context.palette.text2,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -116,7 +116,7 @@ class MaterialTotalsGrid extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: item.value < 0
-                                ? AppColors.danger
+                                ? context.palette.danger
                                 : item.color,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -318,17 +318,17 @@ class MaterialTransactionCard extends StatelessWidget {
         ? transaction.importQuantityKg
         : transaction.exportQuantityKg;
     final color = transaction.isSummary
-        ? AppColors.brandBlue
+        ? context.palette.primary
         : isImport
-        ? AppColors.success
-        : AppColors.danger;
+        ? context.palette.success
+        : context.palette.danger;
     return Material(
       color: transaction.isSummary
-          ? AppColors.brandBlue.withValues(alpha: 0.06)
-          : Colors.white,
+          ? context.palette.primary.withValues(alpha: 0.06)
+          : context.palette.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: context.palette.border),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -347,10 +347,10 @@ class MaterialTransactionCard extends StatelessWidget {
                 ),
                 child: Icon(
                   transaction.isSummary
-                      ? Icons.functions
+                      ? LucideIcons.sigma
                       : isImport
-                      ? Icons.south_west
-                      : Icons.north_east,
+                      ? LucideIcons.arrowDownLeft
+                      : LucideIcons.arrowUpRight,
                   color: color,
                   size: 21,
                 ),
@@ -371,8 +371,8 @@ class MaterialTransactionCard extends StatelessWidget {
                       transaction.occurredAt == null
                           ? transaction.id
                           : '${formatVietnamDateTime(transaction.occurredAt!)} • ${transaction.id}',
-                      style: const TextStyle(
-                        color: AppColors.mutedText,
+                      style: TextStyle(
+                        color: context.palette.text2,
                         fontSize: 12,
                       ),
                     ),
@@ -398,9 +398,12 @@ class MaterialTransactionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Icon(Icons.chevron_right, color: AppColors.mutedText),
+                child: Icon(
+                  LucideIcons.chevronRight,
+                  color: context.palette.text2,
+                ),
               ),
             ],
           ),
@@ -519,14 +522,14 @@ class _InlineEmpty extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: context.palette.surface,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColors.border),
+      border: Border.all(color: context.palette.border),
     ),
     child: Text(
       message,
       textAlign: TextAlign.center,
-      style: const TextStyle(color: AppColors.mutedText),
+      style: TextStyle(color: context.palette.text2),
     ),
   );
 }

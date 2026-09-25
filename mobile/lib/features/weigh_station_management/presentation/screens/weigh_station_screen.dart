@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -19,12 +20,6 @@ import '../../data/repositories/weigh_station_repository.dart';
 import '../controllers/weigh_station_controller.dart';
 import '../widgets/weigh_station_result_widgets.dart';
 import 'weigh_ticket_detail_screen.dart';
-
-abstract final class _WeighStationDesign {
-  static const background = Color(0xFFF8FAFC);
-  static const border = Color(0xFF94A3B8);
-  static const borderWidth = 1.25;
-}
 
 class WeighStationScreen extends StatefulWidget {
   const WeighStationScreen({
@@ -117,7 +112,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     key: const ValueKey<String>(
                       'weigh-station-advanced-filters',
                     ),
-                    icon: Icons.tune_rounded,
+                    icon: LucideIcons.slidersHorizontal,
                     tooltip: 'Bộ lọc nâng cao',
                     badgeCount: _advancedFilterCount(controller),
                     onPressed: () => _openAdvancedFilters(controller),
@@ -125,7 +120,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                   if (_canExport)
                     AppIconButton(
                       key: const ValueKey<String>('weigh-station-export'),
-                      icon: Icons.file_download_outlined,
+                      icon: LucideIcons.download,
                       tooltip: _showSummary
                           ? 'Xuất Excel tổng hợp'
                           : 'Xuất Excel chi tiết',
@@ -150,7 +145,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                 maxWidth: 720,
                 child: Card(
                   child: AppEmptyState(
-                    icon: Icons.lock_outline,
+                    icon: LucideIcons.lock,
                     title: 'Không có quyền xem cân ô tô',
                     message:
                         'Tài khoản chưa được cấp quyền TKTC - D.Sách để sử dụng chức năng này.',
@@ -173,7 +168,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
         _showFeedbackIfNeeded(controller);
         if (_isCompact) return _buildMobileBody(controller);
         return ColoredBox(
-          color: _WeighStationDesign.background,
+          color: context.palette.surfaceMuted,
           child: ListView(
             key: const PageStorageKey<String>('weigh-station-scroll'),
             children: [
@@ -234,7 +229,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
             if (controller.isAdmin)
               FilterChipButton(
                 key: const ValueKey<String>('weigh-station-company'),
-                icon: Icons.apartment_outlined,
+                icon: LucideIcons.building,
                 label: company?.displayName ?? 'Chọn công ty',
                 showChevron: true,
                 onTap: controller.isLoadingCompanies
@@ -243,7 +238,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
               ),
             FilterChipButton(
               key: const ValueKey<String>('weigh-station-date-range'),
-              icon: Icons.calendar_month_outlined,
+              icon: LucideIcons.calendar,
               label:
                   '${_shortDate(controller.fromDate)} – '
                   '${_shortDate(controller.toDate)}',
@@ -252,7 +247,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
             ),
             FilterChipButton(
               key: const ValueKey<String>('weigh-station-station'),
-              icon: Icons.balance_outlined,
+              icon: LucideIcons.scale,
               label: stationName ?? 'Chọn trạm cân',
               showChevron: true,
               onTap: controller.isLoadingStations
@@ -300,7 +295,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 36),
       child: StateView(
-        icon: Icons.balance_outlined,
+        icon: LucideIcons.scale,
         title: needsCompany ? 'Chọn công ty' : 'Chọn trạm cân',
         message: needsCompany
             ? 'Chọn công ty rồi chọn trạm cân để xem phiếu cân.'
@@ -308,9 +303,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
         actions: [
           AppButton(
             label: needsCompany ? 'Chọn công ty' : 'Chọn trạm cân',
-            icon: needsCompany
-                ? Icons.apartment_outlined
-                : Icons.balance_outlined,
+            icon: needsCompany ? LucideIcons.building : LucideIcons.scale,
             expand: false,
             onPressed: () => needsCompany
                 ? _pickCompany(controller)
@@ -339,7 +332,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
       return const Padding(
         padding: EdgeInsets.only(top: 36),
         child: StateView(
-          icon: Icons.inbox_outlined,
+          icon: LucideIcons.inbox,
           title: 'Không có phiếu cân',
           message: 'Không có dữ liệu trong khoảng thời gian đã chọn.',
         ),
@@ -443,10 +436,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
             ),
             child: Row(
               children: [
-                IconTile(
-                  icon: Icons.trending_up_rounded,
-                  background: p.surface,
-                ),
+                IconTile(icon: LucideIcons.trendingUp, background: p.surface),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -491,7 +481,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
         const SizedBox(height: 20),
         if (controller.loadedSummaryItems.isEmpty)
           const StateView(
-            icon: Icons.inbox_outlined,
+            icon: LucideIcons.inbox,
             title: 'Không có dữ liệu',
             message: 'Không có dữ liệu trong khoảng thời gian đã chọn.',
           )
@@ -546,7 +536,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
       context: context,
       title: 'Chọn công ty',
       searchHint: 'Tìm công ty',
-      icon: Icons.apartment_outlined,
+      icon: LucideIcons.building,
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
@@ -570,7 +560,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
       context: context,
       title: 'Chọn trạm cân',
       searchHint: 'Tìm trạm cân',
-      icon: Icons.balance_outlined,
+      icon: LucideIcons.scale,
       tone: AppTone.violet,
       selected: controller.selectedStationId,
       emptyMessage: 'Không có trạm cân trong phạm vi được cấp.',
@@ -637,7 +627,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
               'Chọn trạm, thời gian và trạng thái xe trước khi tra cứu.',
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: const Color(0xFF475569)),
+              ).textTheme.bodySmall?.copyWith(color: context.palette.text2),
             ),
             const SizedBox(height: 12),
             if (controller.companyError != null) ...[
@@ -673,8 +663,8 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                       onCleared: () => controller.selectCompany(null),
                       enabled: !controller.isLoadingCompanies,
                       compact: true,
-                      borderColor: _WeighStationDesign.border,
-                      borderWidth: _WeighStationDesign.borderWidth,
+                      borderColor: context.palette.text3,
+                      borderWidth: 1.25,
                     ),
                   SearchableAutocompleteField<WeighStationStation>(
                     key: const ValueKey<String>('weigh-station-station'),
@@ -694,10 +684,10 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     loading: controller.isLoadingStations,
                     hintText: 'Chọn trạm cân',
                     labelText: 'Trạm cân',
-                    prefixIcon: Icons.balance_outlined,
+                    prefixIcon: LucideIcons.scale,
                     compact: true,
-                    borderColor: _WeighStationDesign.border,
-                    borderWidth: _WeighStationDesign.borderWidth,
+                    borderColor: context.palette.text3,
+                    borderWidth: 1.25,
                   ),
                   KeyedSubtree(
                     key: const ValueKey<String>('weigh-station-stage'),
@@ -708,8 +698,9 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                       isExpanded: true,
                       initialValue: controller.selectedStage,
                       decoration: _fieldDecoration(
+                        context,
                         label: 'Giai đoạn cân (tùy chọn)',
-                        icon: Icons.low_priority_outlined,
+                        icon: LucideIcons.listOrdered,
                       ),
                       hint: const Text('Tất cả giai đoạn'),
                       items: <DropdownMenuItem<WeighStationStage>>[
@@ -759,7 +750,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     key: const ValueKey<String>('weigh-station-vehicle'),
                     label: 'Biển số xe',
                     hint: 'Chọn biển số xe',
-                    icon: Icons.local_shipping_outlined,
+                    icon: LucideIcons.truck,
                     options: controller.filterOptions.vehiclePlates,
                     selected: controller.selectedVehiclePlate,
                     enabled: controller.canLoadOptions,
@@ -769,7 +760,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     key: const ValueKey<String>('weigh-station-goods'),
                     label: 'Tên hàng',
                     hint: 'Chọn tên hàng',
-                    icon: Icons.inventory_2_outlined,
+                    icon: LucideIcons.package,
                     options: controller.filterOptions.goodsNames,
                     selected: controller.selectedGoodsName,
                     enabled: controller.canLoadOptions,
@@ -779,7 +770,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     key: const ValueKey<String>('weigh-station-operator'),
                     label: 'Người cân',
                     hint: 'Chọn người cân',
-                    icon: Icons.person_outline,
+                    icon: LucideIcons.user,
                     options: controller.filterOptions.operatorNames,
                     selected: controller.selectedOperatorName,
                     enabled: controller.canLoadOptions,
@@ -789,7 +780,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     key: const ValueKey<String>('weigh-station-unit'),
                     label: 'Đơn vị',
                     hint: 'Chọn đơn vị',
-                    icon: Icons.business_outlined,
+                    icon: LucideIcons.building,
                     options: controller.filterOptions.unitNames,
                     selected: controller.selectedUnitName,
                     enabled: controller.canLoadOptions,
@@ -799,7 +790,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     key: const ValueKey<String>('weigh-station-type'),
                     label: 'Kiểu cân',
                     hint: 'Chọn kiểu cân',
-                    icon: Icons.compare_arrows_outlined,
+                    icon: LucideIcons.arrowLeftRight,
                     options: controller.filterOptions.weighingTypes,
                     selected: controller.selectedWeighingType,
                     enabled: controller.canLoadOptions,
@@ -817,8 +808,8 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                 ].where((value) => value != null).length;
                 return DecoratedBox(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    color: context.palette.surfaceMuted,
+                    border: Border.all(color: context.palette.border),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -838,9 +829,9 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.tune_rounded,
-                                color: Color(0xFF2563EB),
+                              Icon(
+                                LucideIcons.slidersHorizontal,
+                                color: context.palette.primary,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -867,9 +858,9 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                               ),
                               Icon(
                                 _showAdvancedFilters
-                                    ? Icons.keyboard_arrow_up_rounded
-                                    : Icons.keyboard_arrow_down_rounded,
-                                color: const Color(0xFF2563EB),
+                                    ? LucideIcons.chevronUp
+                                    : LucideIcons.chevronDown,
+                                color: context.palette.primary,
                               ),
                             ],
                           ),
@@ -893,7 +884,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                   child: FilledButton.icon(
                     key: const ValueKey<String>('weigh-station-search'),
                     onPressed: controller.search,
-                    icon: const Icon(Icons.search, size: 18),
+                    icon: const Icon(LucideIcons.search, size: 18),
                     label: const Text('Tìm kiếm'),
                   ),
                 ),
@@ -903,7 +894,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                   child: OutlinedButton.icon(
                     key: const ValueKey<String>('weigh-station-reset'),
                     onPressed: controller.resetFilters,
-                    icon: const Icon(Icons.refresh, size: 18),
+                    icon: const Icon(LucideIcons.refreshCw, size: 18),
                     label: const Text('Đặt lại'),
                   ),
                 ),
@@ -947,7 +938,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
     final result = controller.detailResult;
     if (!controller.hasSearched) {
       return const AppEmptyState(
-        icon: Icons.search_outlined,
+        icon: LucideIcons.search,
         title: 'Chưa tìm kiếm phiếu cân',
         message: 'Chọn bộ lọc rồi bấm Tìm kiếm để tải dữ liệu.',
       );
@@ -960,7 +951,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
     }
     if (result == null || result.items.isEmpty) {
       return const AppEmptyState(
-        icon: Icons.inbox_outlined,
+        icon: LucideIcons.inbox,
         title: 'Không có dữ liệu',
         message: 'Không có dữ liệu trong khoảng thời gian đã chọn',
       );
@@ -1013,7 +1004,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
     final summary = controller.summaryResult;
     if (!controller.hasSearched) {
       return const AppEmptyState(
-        icon: Icons.query_stats_outlined,
+        icon: LucideIcons.chartNoAxesColumnIncreasing,
         title: 'Chưa có dữ liệu tổng hợp',
         message: 'Kết quả tổng hợp sẽ xuất hiện sau khi bấm Tìm kiếm.',
       );
@@ -1030,7 +1021,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
       children: [
         if (summary.items.isEmpty)
           const AppEmptyState(
-            icon: Icons.inbox_outlined,
+            icon: LucideIcons.inbox,
             title: 'Không có dữ liệu',
             message: 'Không có dữ liệu trong khoảng thời gian đã chọn',
           )
@@ -1155,8 +1146,8 @@ class _StringFilterField extends StatelessWidget {
       labelText: label,
       prefixIcon: icon,
       compact: true,
-      borderColor: _WeighStationDesign.border,
-      borderWidth: _WeighStationDesign.borderWidth,
+      borderColor: context.palette.text3,
+      borderWidth: 1.25,
     );
   }
 }
@@ -1180,8 +1171,9 @@ class _DateRangeField extends StatelessWidget {
       onTap: onTap,
       child: InputDecorator(
         decoration: _fieldDecoration(
+          context,
           label: 'Khoảng ngày cân',
-          icon: Icons.calendar_month_outlined,
+          icon: LucideIcons.calendar,
         ),
         child: Text('${_date(fromDate)} - ${_date(toDate)}'),
       ),
@@ -1295,7 +1287,7 @@ class _ExportButton extends StatelessWidget {
               dimension: 16,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : const Icon(Icons.file_download_outlined, size: 18),
+          : const Icon(LucideIcons.download, size: 18),
       label: Text(label),
     );
   }
@@ -1327,13 +1319,13 @@ class _Pagination extends StatelessWidget {
           key: ValueKey<String>('$keyPrefix-page-first'),
           tooltip: 'Trang đầu',
           onPressed: canPrevious ? () => onPage(1) : null,
-          icon: const Icon(Icons.first_page),
+          icon: const Icon(LucideIcons.chevronsLeft),
         ),
         IconButton(
           key: ValueKey<String>('$keyPrefix-page-previous'),
           tooltip: 'Trang trước',
           onPressed: canPrevious ? () => onPage(currentPage - 1) : null,
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(LucideIcons.chevronLeft),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1346,13 +1338,13 @@ class _Pagination extends StatelessWidget {
           key: ValueKey<String>('$keyPrefix-page-next'),
           tooltip: 'Trang sau',
           onPressed: canNext ? () => onPage(currentPage + 1) : null,
-          icon: const Icon(Icons.chevron_right),
+          icon: const Icon(LucideIcons.chevronRight),
         ),
         IconButton(
           key: ValueKey<String>('$keyPrefix-page-last'),
           tooltip: 'Trang cuối',
           onPressed: canNext ? () => onPage(totalPages) : null,
-          icon: const Icon(Icons.last_page),
+          icon: const Icon(LucideIcons.chevronsRight),
         ),
       ],
     );
@@ -1374,10 +1366,7 @@ class _TicketRow extends StatelessWidget {
     final type = item.weighingType?.trim();
     final pending = item.weighedOutAt == null;
     return NavRow(
-      leading: const IconTile(
-        icon: Icons.local_shipping_outlined,
-        tone: AppTone.info,
-      ),
+      leading: const IconTile(icon: LucideIcons.truck, tone: AppTone.info),
       title: plate?.isNotEmpty == true ? plate! : 'Phiếu #${item.ticketNumber}',
       titleStyle: TextStyle(
         color: p.text1,
@@ -1616,7 +1605,7 @@ class _WeighAdvancedFilterSheetState extends State<_WeighAdvancedFilterSheet> {
                 child: AppButton(
                   key: const ValueKey<String>('weigh-station-search'),
                   label: 'Tìm kiếm',
-                  icon: Icons.search_rounded,
+                  icon: LucideIcons.search,
                   onPressed: () => Navigator.of(context).pop(_draft),
                 ),
               ),
@@ -1714,7 +1703,8 @@ class _LocalLoading extends StatelessWidget {
   }
 }
 
-InputDecoration _fieldDecoration({
+InputDecoration _fieldDecoration(
+  BuildContext context, {
   required String label,
   required IconData icon,
 }) => InputDecoration(
@@ -1723,21 +1713,15 @@ InputDecoration _fieldDecoration({
   isDense: true,
   border: OutlineInputBorder(
     borderRadius: BorderRadius.circular(10),
-    borderSide: const BorderSide(
-      color: _WeighStationDesign.border,
-      width: _WeighStationDesign.borderWidth,
-    ),
+    borderSide: BorderSide(color: context.palette.text3, width: 1.25),
   ),
   enabledBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(10),
-    borderSide: const BorderSide(
-      color: _WeighStationDesign.border,
-      width: _WeighStationDesign.borderWidth,
-    ),
+    borderSide: BorderSide(color: context.palette.text3, width: 1.25),
   ),
   focusedBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(10),
-    borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+    borderSide: BorderSide(color: context.palette.primary, width: 1.5),
   ),
 );
 

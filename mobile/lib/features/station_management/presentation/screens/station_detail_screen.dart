@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -210,7 +211,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('Chi tiết trạm')),
         body: const AppEmptyState(
-          icon: Icons.lock_outline,
+          icon: LucideIcons.lock,
           title: 'Không có quyền xem',
           message: 'Phiên hiện tại không được phép xem chi tiết trạm này.',
         ),
@@ -235,7 +236,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             if (_canUpdate && station != null && !station.isDeleted)
               TextButton.icon(
                 onPressed: _actionInProgress ? null : _edit,
-                icon: const Icon(Icons.edit_outlined, size: 18),
+                icon: const Icon(LucideIcons.pencil, size: 18),
                 label: const Text('Sửa'),
               ),
             if (_canDelete && station != null)
@@ -252,7 +253,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                       value: _StationAction.delete,
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.delete_outline),
+                        leading: Icon(LucideIcons.trash2),
                         title: Text('Xóa mềm'),
                       ),
                     ),
@@ -261,7 +262,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                       value: _StationAction.restore,
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.restore_outlined),
+                        leading: Icon(LucideIcons.rotateCcw),
                         title: Text('Khôi phục'),
                       ),
                     ),
@@ -291,7 +292,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     }
     if (station == null) {
       return const AppEmptyState(
-        icon: Icons.factory_outlined,
+        icon: LucideIcons.factory,
         title: 'Không tìm thấy trạm',
         message: 'Trạm có thể đã bị xóa hoặc nằm ngoài phạm vi được cấp.',
       );

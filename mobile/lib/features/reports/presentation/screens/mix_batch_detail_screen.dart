@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../data/models/report_models.dart';
@@ -125,7 +126,7 @@ class MixBatchDetailScreen extends StatelessWidget {
             const SizedBox(height: 8),
             if (item.materials.isEmpty)
               const StateView(
-                icon: Icons.science_outlined,
+                icon: LucideIcons.flaskConical,
                 title: 'Chưa có định lượng',
                 message: 'Mẻ trộn này không có dòng vật liệu.',
               )

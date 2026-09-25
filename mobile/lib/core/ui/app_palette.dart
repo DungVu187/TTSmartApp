@@ -14,6 +14,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.surface,
     required this.surfaceMuted,
     required this.border,
+    required this.fieldBorder,
     required this.text1,
     required this.text2,
     required this.text3,
@@ -38,6 +39,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color surface;
   final Color surfaceMuted;
   final Color border;
+
+  /// Input outline of the wide (web-parity) filter bars.
+  final Color fieldBorder;
   final Color text1;
   final Color text2;
   final Color text3;
@@ -62,6 +66,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     surface: Color(0xFFFFFFFF),
     surfaceMuted: Color(0xFFF1F4F9),
     border: Color(0xFFE6EAF0),
+    fieldBorder: Color(0xFFCBD5E1),
     text1: Color(0xFF0F172A),
     text2: Color(0xFF64748B),
     text3: Color(0xFF94A3B8),
@@ -87,6 +92,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     surface: Color(0xFF131C2E),
     surfaceMuted: Color(0xFF1B2538),
     border: Color(0xFF253049),
+    fieldBorder: Color(0xFF334155),
     text1: Color(0xFFE5EAF3),
     text2: Color(0xFF94A3B8),
     text3: Color(0xFF64748B),
@@ -130,6 +136,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surface: mix(surface, other.surface),
       surfaceMuted: mix(surfaceMuted, other.surfaceMuted),
       border: mix(border, other.border),
+      fieldBorder: mix(fieldBorder, other.fieldBorder),
       text1: mix(text1, other.text1),
       text2: mix(text2, other.text2),
       text3: mix(text3, other.text3),

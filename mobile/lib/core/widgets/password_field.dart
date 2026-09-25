@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../ui/app_palette.dart';
 import '../ui/ui_controls.dart';
@@ -67,7 +68,7 @@ class _PasswordFieldState extends State<PasswordField> {
             focusedBorder: error == null ? null : errorBorder,
             prefixIcon: Padding(
               padding: const EdgeInsets.only(left: 13, right: 10),
-              child: Icon(Icons.lock_outline_rounded, size: 18, color: p.text3),
+              child: Icon(LucideIcons.lock, size: 18, color: p.text3),
             ),
             prefixIconConstraints: const BoxConstraints(),
             suffixIcon: Padding(
@@ -81,9 +82,7 @@ class _PasswordFieldState extends State<PasswordField> {
                 ),
                 padding: EdgeInsets.zero,
                 icon: Icon(
-                  _obscureText
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
+                  _obscureText ? LucideIcons.eyeOff : LucideIcons.eye,
                   size: 20,
                   color: p.text3,
                 ),

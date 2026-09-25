@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 
@@ -26,7 +27,7 @@ class StationStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppTag(
     label: isDeleted ? 'Đã xóa' : 'Đang hoạt động',
-    icon: isDeleted ? Icons.delete_outline_rounded : Icons.check_rounded,
+    icon: isDeleted ? LucideIcons.trash2 : LucideIcons.check,
     tone: isDeleted ? AppTone.neutral : AppTone.success,
   );
 }
@@ -168,7 +169,7 @@ class StationListCard extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.phone_outlined,
+                            LucideIcons.phone,
                             size: 16,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -201,12 +202,12 @@ class StationListCard extends StatelessWidget {
                 IconButton(
                   tooltip: 'Thao tác',
                   onPressed: onMenu,
-                  icon: const Icon(Icons.more_vert),
+                  icon: const Icon(LucideIcons.ellipsisVertical),
                 )
               else if (isInteractive)
                 const Padding(
                   padding: EdgeInsets.only(top: 12),
-                  child: Icon(Icons.chevron_right),
+                  child: Icon(LucideIcons.chevronRight),
                 ),
             ],
           ),
@@ -234,7 +235,7 @@ AppTone stationTypeTone(StationType? type) => switch (type) {
 };
 
 IconData stationTypeIcon(StationType? type) => switch (type) {
-  StationType.scale => Icons.balance_outlined,
-  StationType.mixing => Icons.factory_outlined,
-  null => Icons.help_outline,
+  StationType.scale => LucideIcons.scale,
+  StationType.mixing => LucideIcons.factory,
+  null => LucideIcons.circleHelp,
 };

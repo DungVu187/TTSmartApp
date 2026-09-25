@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../data/models/weigh_station_result_models.dart';
@@ -102,7 +103,7 @@ class WeighTicketDetailScreen extends StatelessWidget {
                 children: [
                   NavRow(
                     leading: Icon(
-                      Icons.payments_outlined,
+                      LucideIcons.banknote,
                       size: 20,
                       color: p.text2,
                     ),
@@ -128,7 +129,7 @@ class WeighTicketDetailScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _WeightCell(
-                        icon: Icons.south_west_rounded,
+                        icon: LucideIcons.arrowDownLeft,
                         tone: AppTone.success,
                         label: 'Cân vào',
                         value: '${formatWeighNumber(item.inboundWeightKg)} kg',
@@ -136,7 +137,7 @@ class WeighTicketDetailScreen extends StatelessWidget {
                     ),
                     Expanded(
                       child: _WeightCell(
-                        icon: Icons.north_east_rounded,
+                        icon: LucideIcons.arrowUpRight,
                         tone: AppTone.danger,
                         label: 'Cân ra',
                         value: '${formatWeighNumber(item.outboundWeightKg)} kg',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 
@@ -15,9 +16,7 @@ class CompanyPlanChip extends StatelessWidget {
     final isPaid = plan == CompanyPlan.paid;
     return AppTag(
       label: plan.label,
-      icon: isPaid
-          ? Icons.workspace_premium_outlined
-          : Icons.card_giftcard_outlined,
+      icon: isPaid ? LucideIcons.award : LucideIcons.gift,
       tone: isPaid ? AppTone.violet : AppTone.neutral,
     );
   }
@@ -32,7 +31,7 @@ class CompanyStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppTag(
     label: isDeleted ? 'Đã xóa' : 'Đang hoạt động',
-    icon: isDeleted ? Icons.delete_outline_rounded : Icons.check_rounded,
+    icon: isDeleted ? LucideIcons.trash2 : LucideIcons.check,
     tone: isDeleted ? AppTone.neutral : AppTone.success,
   );
 }
@@ -47,7 +46,7 @@ class CompanyLockChip extends StatelessWidget {
     if (!isLocked) return const SizedBox.shrink();
     return const AppTag(
       label: 'Đang khóa',
-      icon: Icons.lock_outline_rounded,
+      icon: LucideIcons.lock,
       tone: AppTone.danger,
     );
   }
@@ -160,7 +159,7 @@ class CompanyListCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
-                    Icons.apartment_outlined,
+                    LucideIcons.building,
                     color: theme.colorScheme.onSecondaryContainer,
                   ),
                 ),
@@ -226,12 +225,12 @@ class CompanyListCard extends StatelessWidget {
                   IconButton(
                     tooltip: 'Thao tác',
                     onPressed: onMenu,
-                    icon: const Icon(Icons.more_vert),
+                    icon: const Icon(LucideIcons.ellipsisVertical),
                   )
                 else if (onTap != null)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
-                    child: Icon(Icons.chevron_right),
+                    child: Icon(LucideIcons.chevronRight),
                   ),
               ],
             ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/order_report_models.dart';
+import '../../../../core/ui/app_palette.dart';
 
 class OrderReportPartialWarning extends StatelessWidget {
   const OrderReportPartialWarning({
@@ -16,12 +17,12 @@ class OrderReportPartialWarning extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       key: const ValueKey('order-report-partial-warning'),
-      color: AppColors.warning.withValues(alpha: 0.08),
+      color: context.palette.warning.withValues(alpha: 0.08),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+            Icon(LucideIcons.triangleAlert, color: context.palette.warning),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -156,7 +157,7 @@ class OrderReportItemCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Icon(
-                    Icons.receipt_long_outlined,
+                    LucideIcons.receiptText,
                     color: theme.colorScheme.onPrimaryContainer,
                   ),
                 ),
@@ -193,26 +194,26 @@ class OrderReportItemCard extends StatelessWidget {
               runSpacing: 10,
               children: [
                 _Metadata(
-                  icon: Icons.factory_outlined,
+                  icon: LucideIcons.factory,
                   label: _display(item.companyName, 'Chưa có công ty'),
                 ),
                 _Metadata(
-                  icon: Icons.location_on_outlined,
+                  icon: LucideIcons.mapPin,
                   label: item.stationDisplayName,
                 ),
                 _Metadata(
-                  icon: Icons.apartment_outlined,
+                  icon: LucideIcons.building,
                   label: _display(item.projectName, 'Chưa có dự án'),
                 ),
                 _Metadata(
-                  icon: Icons.science_outlined,
+                  icon: LucideIcons.flaskConical,
                   label: _display(
                     item.concreteGradeName,
                     'Chưa có mác bê tông',
                   ),
                 ),
                 _Metadata(
-                  icon: Icons.badge_outlined,
+                  icon: LucideIcons.idCard,
                   label: _display(item.employeeName, 'Chưa gán nhân viên'),
                 ),
               ],
@@ -228,7 +229,7 @@ class OrderReportItemCard extends StatelessWidget {
                 final produced = _VolumeBox(
                   label: 'Đã sản xuất',
                   value: formatOrderReportVolume(item.producedVolume),
-                  color: AppColors.success,
+                  color: context.palette.success,
                 );
                 return Row(
                   children: [

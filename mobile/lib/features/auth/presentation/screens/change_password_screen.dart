@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -125,7 +126,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       AppButton(
                         onPressed: _submitting ? null : _submit,
                         loading: _submitting,
-                        icon: Icons.key_outlined,
+                        icon: LucideIcons.keyRound,
                         label: _submitting ? 'Đang lưu...' : 'Đổi mật khẩu',
                       ),
                     ],

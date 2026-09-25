@@ -4,6 +4,7 @@
 // Not part of `flutter test`. Run explicitly:
 //   flutter test --update-goldens test_visual
 // Output: test_visual/out/*.png (git-ignored).
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,10 @@ import 'package:ttsmart_mobile/features/auth/data/repositories/auth_repository.d
 import 'package:ttsmart_mobile/features/auth/presentation/controllers/app_controller.dart';
 
 final visualRootKey = GlobalKey(debugLabel: 'visual-root');
+
+/// `VISUAL_DARK=1 flutter test --update-goldens test_visual` captures the
+/// Figma "Dark" frames instead (files end with `_dark`).
+final visualDark = Platform.environment['VISUAL_DARK'] == '1';
 
 /// Loads the bundled Inter + Material Icons (from the Flutter SDK) so text
 /// and icons are drawn for real instead of the test font's boxes.
@@ -53,6 +58,18 @@ Future<void> loadVisualFonts() async {
       ),
     );
   await icons.load();
+  // Lucide (the Figma icon set) from the pub cache, found through the
+  // package config so the harness works on any machine.
+  final config =
+      jsonDecode(File('.dart_tool/package_config.json').readAsStringSync())
+          as Map<String, dynamic>;
+  final lucide = (config['packages'] as List<dynamic>)
+      .cast<Map<String, dynamic>>()
+      .firstWhere((entry) => entry['name'] == 'lucide_icons_flutter');
+  final lucideRoot = Uri.parse('${lucide['rootUri']}/');
+  final lucideFont = FontLoader('packages/lucide_icons_flutter/Lucide')
+    ..addFont(read(lucideRoot.resolve('assets/lucide.ttf').toFilePath()));
+  await lucideFont.load();
 }
 
 /// iPhone 13/14 frame of the Figma file: 390×844 pt, notch 47, home bar 34.
@@ -117,7 +134,7 @@ Future<void> snap(String name) async {
   try {
     await expectLater(
       find.byKey(visualRootKey),
-      matchesGoldenFile('out/$name.png'),
+      matchesGoldenFile('out/$name${visualDark ? '_dark' : ''}.png'),
     );
   } finally {
     debugDisableShadows = true;
@@ -223,7 +240,7 @@ Widget visualApp(AppController controller, Widget home) => RepaintBoundary(
     controller: controller,
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: visualDark ? AppTheme.dark : AppTheme.light,
       home: home,
     ),
   ),

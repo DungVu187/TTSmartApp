@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -208,8 +209,8 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
                             children: [
                               IconTile(
                                 icon: function.isContainer
-                                    ? Icons.folder_outlined
-                                    : Icons.link_rounded,
+                                    ? LucideIcons.folder
+                                    : LucideIcons.link,
                                 tone: function.isContainer
                                     ? AppTone.primary
                                     : AppTone.neutral,
@@ -308,15 +309,15 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
                               children: [
                                 if (canUpdate)
                                   ActionRow(
-                                    icon: Icons.edit_outlined,
+                                    icon: LucideIcons.pencil,
                                     label: 'Sửa chức năng',
                                     onTap: _busy ? null : () => _edit(function),
                                   ),
                                 if (canUpdate)
                                   ActionRow(
                                     icon: function.isActive
-                                        ? Icons.pause_circle_outline_rounded
-                                        : Icons.play_circle_outline_rounded,
+                                        ? LucideIcons.circlePause
+                                        : LucideIcons.circlePlay,
                                     label: function.isActive
                                         ? 'Ngừng hiệu lực'
                                         : 'Kích hoạt',
@@ -326,7 +327,7 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
                                   ),
                                 if (canDelete)
                                   ActionRow(
-                                    icon: Icons.delete_outline_rounded,
+                                    icon: LucideIcons.trash2,
                                     label: 'Xóa chức năng',
                                     destructive: true,
                                     onTap: _busy

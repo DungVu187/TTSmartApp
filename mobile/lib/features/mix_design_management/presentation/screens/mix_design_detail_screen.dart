@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../data/models/mix_design_models.dart';
@@ -31,7 +32,7 @@ class MixDesignDetailScreen extends StatelessWidget {
             Row(
               children: [
                 const IconTile(
-                  icon: Icons.science_outlined,
+                  icon: LucideIcons.flaskConical,
                   tone: AppTone.violet,
                   size: 60,
                   radius: 18,
@@ -83,7 +84,7 @@ class MixDesignDetailScreen extends StatelessWidget {
             const SizedBox(height: 8),
             if (materials.isEmpty)
               const StateView(
-                icon: Icons.science_outlined,
+                icon: LucideIcons.flaskConical,
                 title: 'Chưa có định lượng',
                 message:
                     'Cấp phối này không có vật liệu khác 0 trong dữ liệu trả về.',

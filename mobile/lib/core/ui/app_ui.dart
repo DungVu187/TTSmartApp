@@ -2,6 +2,7 @@
 library;
 
 export 'app_palette.dart';
+export 'ui_brand.dart';
 export 'ui_controls.dart';
 export 'ui_feedback.dart';
 export 'ui_list.dart';

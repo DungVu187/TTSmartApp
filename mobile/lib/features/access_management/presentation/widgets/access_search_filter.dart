@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/models/pagination_models.dart';
 
@@ -31,7 +32,7 @@ class AccessSearchFilter extends StatelessWidget {
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: hintText,
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(LucideIcons.search),
               filled: true,
               fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
               contentPadding: const EdgeInsets.symmetric(
@@ -63,7 +64,7 @@ class AccessSearchFilter extends StatelessWidget {
                         controller.clear();
                         onSearchChanged('');
                       },
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(LucideIcons.x),
                     ),
             ),
           ),

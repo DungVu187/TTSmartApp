@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -139,7 +140,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   variant: AppButtonVariant.outline,
                   onPressed: _refreshing ? null : _refresh,
                   loading: _refreshing,
-                  icon: Icons.refresh_rounded,
+                  icon: LucideIcons.refreshCw,
                   label: 'Cập nhật phiên và quyền',
                 ),
                 const SizedBox(height: 10),

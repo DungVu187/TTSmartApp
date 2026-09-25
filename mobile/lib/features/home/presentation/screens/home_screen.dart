@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/models/time_range_preset.dart';
@@ -41,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final picked = await showPickerSheet<TimeRangePreset>(
       context: context,
       title: 'Khoảng thời gian',
-      icon: Icons.calendar_month_outlined,
+      icon: LucideIcons.calendar,
       selected: _controller.timeRange,
       options: [
         for (final value in TimeRangePreset.values)
@@ -58,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       title: 'Chọn công ty',
       searchHint: 'Tìm công ty',
-      icon: Icons.apartment_outlined,
+      icon: LucideIcons.building,
       clearLabel: 'Tất cả công ty',
       selected: _controller.selectedCompany?.keyName,
       options: [
@@ -82,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       title: 'Chọn trạm',
       searchHint: 'Tìm trạm',
-      icon: Icons.factory_outlined,
+      icon: LucideIcons.factory,
       clearLabel: 'Tất cả trạm',
       selected: _controller.selectedStation?.keyName,
       emptyMessage: 'Không có trạm trong phạm vi được cấp.',
@@ -135,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     size: FilterChipSize.small,
                     active: true,
-                    icon: Icons.calendar_month_outlined,
+                    icon: LucideIcons.calendar,
                     label: _controller.timeRange.label,
                     onTap: busy ? null : _pickTimeRange,
                   ),
@@ -144,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       key: const ValueKey<String>('dashboard-company-filter'),
                       size: FilterChipSize.small,
                       showChevron: true,
-                      icon: Icons.apartment_outlined,
+                      icon: LucideIcons.building,
                       label:
                           _controller.selectedCompany?.label ??
                           'Tất cả công ty',
@@ -159,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     size: FilterChipSize.small,
                     showChevron: true,
-                    icon: Icons.factory_outlined,
+                    icon: LucideIcons.factory,
                     label: _controller.selectedStation?.label ?? 'Tất cả trạm',
                     onTap: busy || _controller.stationScopes.isEmpty
                         ? null

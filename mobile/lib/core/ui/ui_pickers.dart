@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'app_palette.dart';
 import 'ui_controls.dart';
@@ -179,7 +180,7 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
                     ),
                   ),
                   AppIconButton(
-                    icon: Icons.close_rounded,
+                    icon: LucideIcons.x,
                     tooltip: 'Đóng',
                     color: p.text2,
                     onPressed: () => Navigator.pop(context),
@@ -281,11 +282,7 @@ class _PickerRow extends StatelessWidget {
               ),
         showChevron: false,
         trailing: selected
-            ? Icon(
-                Icons.check_circle_outline_rounded,
-                size: 22,
-                color: p.primary,
-              )
+            ? Icon(LucideIcons.circleCheck, size: 22, color: p.primary)
             : Container(
                 width: 20,
                 height: 20,

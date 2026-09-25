@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/core/ui/app_palette.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/more/presentation/widgets/module_panel_grid.dart';
 
@@ -100,7 +101,7 @@ void main() {
     final label = tester.widget<Text>(labelFinder);
     expect(label.style?.fontSize, 13);
     expect(label.style?.fontWeight, FontWeight.w500);
-    expect(label.style?.color, const Color(0xFF1D1F2C));
+    expect(label.style?.color, AppPalette.light.text1);
     expect(
       tester.getRect(labelFinder).top - tester.getRect(iconBackground).bottom,
       closeTo(6, 0.01),

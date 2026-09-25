@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'app_palette.dart';
 import 'ui_controls.dart';
@@ -103,14 +104,14 @@ class LoadErrorView extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
           child: StateView(
-            icon: Icons.warning_amber_rounded,
+            icon: LucideIcons.triangleAlert,
             tone: AppTone.danger,
             title: title,
             message: message,
             actions: [
               AppButton(
                 label: 'Thử lại',
-                icon: Icons.refresh_rounded,
+                icon: LucideIcons.refreshCw,
                 variant: AppButtonVariant.outline,
                 expand: false,
                 onPressed: onRetry,
@@ -208,7 +209,7 @@ class WarningBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded, size: 18, color: p.warning),
+          Icon(LucideIcons.triangleAlert, size: 18, color: p.warning),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -272,7 +273,7 @@ class ErrorBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, size: 18, color: p.danger),
+            Icon(LucideIcons.triangleAlert, size: 18, color: p.danger),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -606,7 +607,7 @@ class AppSheetFrame extends StatelessWidget {
                   if (showClose)
                     AppIconButton(
                       key: closeKey,
-                      icon: Icons.close_rounded,
+                      icon: LucideIcons.x,
                       tooltip: 'Đóng',
                       color: p.text2,
                       onPressed: () => Navigator.of(context).pop(),

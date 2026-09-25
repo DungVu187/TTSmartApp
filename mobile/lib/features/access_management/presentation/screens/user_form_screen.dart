@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/app_scope.dart';
@@ -195,7 +196,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
       context: context,
       title: 'Chọn công ty',
       searchHint: 'Tìm công ty',
-      icon: Icons.apartment_outlined,
+      icon: LucideIcons.building,
       selected: _companyId,
       options: [
         for (final company in companies)
@@ -235,7 +236,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 value:
                     companyName ??
                     (_companyId == null ? null : 'Công ty #$_companyId'),
-                icon: Icons.apartment_outlined,
+                icon: LucideIcons.building,
                 enabled:
                     !_submitting &&
                     !companySnapshot.hasError &&
@@ -284,7 +285,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       value: _selectedBranchIds.isEmpty
                           ? null
                           : 'Đã chọn ${_selectedBranchIds.length} trạm',
-                      icon: Icons.factory_outlined,
+                      icon: LucideIcons.factory,
                       enabled:
                           !_submitting &&
                           _companyId != null &&
@@ -348,7 +349,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
           ),
           child: roles.isEmpty
               ? const StateView(
-                  icon: Icons.badge_outlined,
+                  icon: LucideIcons.idCard,
                   title: 'Chưa có vai trò',
                   message: 'Chưa có vai trò hiệu lực để gán.',
                 )
@@ -446,7 +447,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Đóng',
-          icon: const Icon(Icons.close_rounded),
+          icon: const Icon(LucideIcons.x),
           onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(widget.isEditing ? 'Sửa người dùng' : 'Thêm người dùng'),
@@ -582,8 +583,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
                   : names.length == _selectedRoleIds.length
                   ? names.join(', ')
                   : 'Đã chọn ${_selectedRoleIds.length} vai trò',
-              icon: Icons.badge_outlined,
-              trailingIcon: Icons.chevron_right_rounded,
+              icon: LucideIcons.idCard,
+              trailingIcon: LucideIcons.chevronRight,
               enabled: snapshot.hasData && !_submitting,
               onTap: () => _pickRoles(roles),
             ),

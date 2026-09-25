@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/widgets/searchable_autocomplete_field.dart';
 import '../../data/models/company_models.dart';
@@ -51,7 +52,7 @@ class CompanyAutocompleteField extends StatelessWidget {
       enabled: enabled,
       hintText: hintText,
       labelText: labelText,
-      prefixIcon: Icons.apartment_outlined,
+      prefixIcon: LucideIcons.building,
       compact: compact,
       borderColor: borderColor,
       borderWidth: borderWidth,

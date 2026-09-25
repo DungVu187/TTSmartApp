@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../theme/app_theme.dart';
+import '../../core/ui/app_palette.dart';
 
 class SearchableAutocompleteField<T extends Object> extends StatefulWidget {
   const SearchableAutocompleteField({
@@ -109,8 +110,8 @@ class _SearchableAutocompleteFieldState<T extends Object>
               enabled: widget.enabled,
               textInputAction: TextInputAction.search,
               style: widget.compact
-                  ? const TextStyle(
-                      color: Color(0xFF111827),
+                  ? TextStyle(
+                      color: context.palette.text1,
                       fontSize: 13,
                       height: 18 / 13,
                       fontWeight: FontWeight.w400,
@@ -183,7 +184,7 @@ class _SearchableAutocompleteFieldState<T extends Object>
   InputDecoration _decoration() {
     final suffixIcon = _suffixIcon();
     final borderSide = BorderSide(
-      color: widget.borderColor ?? AppColors.border,
+      color: widget.borderColor ?? context.palette.border,
       width: widget.borderWidth,
     );
     return InputDecoration(
@@ -205,24 +206,24 @@ class _SearchableAutocompleteFieldState<T extends Object>
           ? const BoxConstraints(minWidth: 36, minHeight: 38)
           : null,
       labelStyle: widget.compact
-          ? const TextStyle(
-              color: Color(0xFF374151),
+          ? TextStyle(
+              color: context.palette.text2,
               fontSize: 12,
               height: 16 / 12,
               fontWeight: FontWeight.w500,
             )
           : null,
       floatingLabelStyle: widget.compact
-          ? const TextStyle(
-              color: Color(0xFF374151),
+          ? TextStyle(
+              color: context.palette.text2,
               fontSize: 12,
               height: 16 / 12,
               fontWeight: FontWeight.w500,
             )
           : null,
       hintStyle: widget.compact
-          ? const TextStyle(
-              color: Color(0xFF9CA3AF),
+          ? TextStyle(
+              color: context.palette.text3,
               fontSize: 13,
               height: 18 / 13,
               fontWeight: FontWeight.w400,
@@ -249,8 +250,8 @@ class _SearchableAutocompleteFieldState<T extends Object>
       focusedBorder: widget.compact
           ? OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: AppColors.brandBlue,
+              borderSide: BorderSide(
+                color: context.palette.primary,
                 width: 1.5,
               ),
             )
@@ -276,12 +277,12 @@ class _SearchableAutocompleteFieldState<T extends Object>
           tooltip: 'Xóa lựa chọn',
           onPressed: widget.enabled ? _clearSelection : null,
           padding: EdgeInsets.zero,
-          icon: Icon(Icons.close, size: widget.compact ? 16 : 18),
+          icon: Icon(LucideIcons.x, size: widget.compact ? 16 : 18),
         ),
       );
     }
     if (!widget.showDropdownIcon) {
-      return Icon(Icons.search, size: widget.compact ? 16 : 18);
+      return Icon(LucideIcons.search, size: widget.compact ? 16 : 18);
     }
     return SizedBox.square(
       dimension: widget.compact ? 36 : 48,
@@ -289,10 +290,7 @@ class _SearchableAutocompleteFieldState<T extends Object>
         tooltip: 'Mở danh sách',
         onPressed: widget.enabled ? _openOptions : null,
         padding: EdgeInsets.zero,
-        icon: Icon(
-          Icons.keyboard_arrow_down_rounded,
-          size: widget.compact ? 18 : 22,
-        ),
+        icon: Icon(LucideIcons.chevronDown, size: widget.compact ? 18 : 22),
       ),
     );
   }

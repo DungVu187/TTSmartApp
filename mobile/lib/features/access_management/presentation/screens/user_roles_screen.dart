@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -143,7 +144,7 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Icons.save_outlined),
+                            : const Icon(LucideIcons.save),
                         label: const Text('Lưu vai trò'),
                       ),
                     ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../data/models/report_models.dart';
@@ -69,7 +70,7 @@ class StatisticsSummaryScreen extends StatelessWidget {
             const SizedBox(height: 20),
             if (groups.isEmpty)
               const StateView(
-                icon: Icons.inventory_2_outlined,
+                icon: LucideIcons.package,
                 title: 'Chưa có tổng vật liệu',
                 message:
                     'Khoảng thời gian đang chọn không có dữ liệu tổng hợp.',

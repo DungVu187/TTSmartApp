@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -79,9 +80,7 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
     final nextActive = !role.isActive;
     final confirmed = await showAppConfirmDialog(
       context,
-      icon: nextActive
-          ? Icons.play_circle_outline_rounded
-          : Icons.pause_circle_outline_rounded,
+      icon: nextActive ? LucideIcons.circlePlay : LucideIcons.circlePause,
       title: nextActive ? 'Kích hoạt vai trò?' : 'Ngừng vai trò?',
       message: nextActive
           ? 'Vai trò sẽ có hiệu lực trở lại.'
@@ -109,7 +108,7 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
   Future<void> _delete(RoleResponse role) async {
     final confirmed = await showAppConfirmDialog(
       context,
-      icon: Icons.delete_outline_rounded,
+      icon: LucideIcons.trash2,
       title: 'Xóa vai trò?',
       message:
           'Xóa vai trò ${role.name}. Backend có thể từ chối nếu vai trò đang bảo vệ quyền quản trị cuối cùng.',
@@ -192,7 +191,7 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
                           Row(
                             children: [
                               const IconTile(
-                                icon: Icons.shield_outlined,
+                                icon: LucideIcons.shield,
                                 tone: AppTone.violet,
                                 size: 60,
                                 radius: 18,
@@ -261,7 +260,7 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
                               children: [
                                 if (canUpdate)
                                   ActionRow(
-                                    icon: Icons.edit_outlined,
+                                    icon: LucideIcons.pencil,
                                     label: 'Sửa vai trò',
                                     onTap: _busy ? null : () => _edit(role),
                                   ),
@@ -271,15 +270,15 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
                                         ? null
                                         : () => _toggleStatus(role),
                                     icon: role.isActive
-                                        ? Icons.pause_circle_outline
-                                        : Icons.play_circle_outline,
+                                        ? LucideIcons.circlePause
+                                        : LucideIcons.circlePlay,
                                     label: role.isActive
                                         ? 'Ngừng hiệu lực'
                                         : 'Kích hoạt',
                                   ),
                                 if (canDelete)
                                   ActionRow(
-                                    icon: Icons.delete_outline,
+                                    icon: LucideIcons.trash2,
                                     label: 'Xóa vai trò',
                                     destructive: true,
                                     onTap: _busy ? null : () => _delete(role),

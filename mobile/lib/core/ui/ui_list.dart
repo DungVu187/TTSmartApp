@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'app_palette.dart';
 
@@ -115,7 +116,7 @@ class AppChevron extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Icon(Icons.chevron_right_rounded, size: 22, color: context.palette.text3);
+      Icon(LucideIcons.chevronRight, size: 22, color: context.palette.text3);
 }
 
 /// Tinted square with a centred icon (40px by default).

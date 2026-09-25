@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'app_palette.dart';
 
@@ -61,7 +62,7 @@ class StatTile extends StatelessWidget {
                     ),
                   ),
                   if (onTap != null)
-                    Icon(Icons.chevron_right_rounded, size: 16, color: p.text3),
+                    Icon(LucideIcons.chevronRight, size: 16, color: p.text3),
                 ],
               ),
               const SizedBox(height: 3),

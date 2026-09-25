@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -101,7 +102,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
           IconButton(
             tooltip: 'Tìm kiếm',
             onPressed: () => setState(() => _showSearch = !_showSearch),
-            icon: const Icon(Icons.search_rounded),
+            icon: const Icon(LucideIcons.search),
           ),
         ],
       ),
@@ -130,7 +131,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
           ? FloatingActionButton(
               onPressed: _openCreate,
               tooltip: 'Tạo chức năng',
-              child: const Icon(Icons.add_rounded),
+              child: const Icon(LucideIcons.plus),
             )
           : null,
     );
@@ -151,7 +152,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
         onRefresh: _controller.load,
         filtered:
             _controller.search.trim().isNotEmpty || _controller.status != null,
-        icon: Icons.account_tree_outlined,
+        icon: LucideIcons.gitBranch,
         emptyTitle: 'Chưa có chức năng nào',
         emptyMessage: 'Tạo chức năng để hiển thị trong menu và phân quyền.',
         noMatchTitle: 'Không có chức năng phù hợp',
@@ -229,9 +230,7 @@ class _FunctionRows extends StatelessWidget {
           NavRow(
             key: ValueKey<String>('function-row-${item.id}'),
             leading: IconTile(
-              icon: item.isContainer
-                  ? Icons.folder_outlined
-                  : Icons.link_rounded,
+              icon: item.isContainer ? LucideIcons.folder : LucideIcons.link,
               tone: item.isContainer ? AppTone.primary : AppTone.neutral,
             ),
             title: item.name,
@@ -288,13 +287,13 @@ class _FunctionFolderScreen extends StatelessWidget {
                 IconButton(
                   tooltip: 'Chi tiết mục',
                   onPressed: () => onOpenDetail(folder),
-                  icon: const Icon(Icons.info_outline_rounded),
+                  icon: const Icon(LucideIcons.info),
                 ),
             ],
           ),
           body: folder == null
               ? const AccessEmptyState(
-                  icon: Icons.folder_off_outlined,
+                  icon: LucideIcons.folderX,
                   title: 'Không còn mục này',
                   message: 'Mục đã bị xóa hoặc chuyển chỗ.',
                 )
@@ -305,7 +304,7 @@ class _FunctionFolderScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     if (folder.children.isEmpty)
                       const AccessEmptyState(
-                        icon: Icons.folder_open_outlined,
+                        icon: LucideIcons.folderOpen,
                         title: 'Chưa có mục con',
                         message: 'Thêm chức năng và chọn mục này làm mục cha.',
                       )

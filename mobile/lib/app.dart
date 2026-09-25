@@ -61,6 +61,9 @@ class _TTsmartAppState extends State<TTsmartApp> with WidgetsBindingObserver {
           debugShowCheckedModeBanner: false,
           title: 'TTsmart',
           theme: AppTheme.light,
+          // Follows the phone's light / dark setting (Figma Light / Dark).
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
           home: switch (widget.controller.status) {
             SessionStatus.initializing => const SplashScreen(),
             SessionStatus.recoveryRequired => const SessionRecoveryScreen(),

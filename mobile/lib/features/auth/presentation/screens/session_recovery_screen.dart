@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/ui/app_ui.dart';
@@ -24,7 +25,7 @@ class SessionRecoveryScreen extends StatelessWidget {
                 children: [
                   Align(
                     child: IconTile(
-                      icon: Icons.cloud_off_outlined,
+                      icon: LucideIcons.cloudOff,
                       tone: AppTone.danger,
                       size: 78,
                       radius: 39,
@@ -51,7 +52,7 @@ class SessionRecoveryScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   AppButton(
                     onPressed: controller.initialize,
-                    icon: Icons.refresh_rounded,
+                    icon: LucideIcons.refreshCw,
                     label: 'Thử lại',
                   ),
                   const SizedBox(height: 4),

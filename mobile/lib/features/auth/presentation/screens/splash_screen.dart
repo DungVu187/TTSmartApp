@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/ui/app_palette.dart';
+import '../../../../core/ui/app_ui.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -16,12 +16,7 @@ class SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                'assets/images/ttsmart_logo_transparent.png',
-                width: 200,
-                height: 43,
-                fit: BoxFit.contain,
-              ),
+              const AppLogo.large(),
               const SizedBox(height: 40),
               SizedBox.square(
                 dimension: 34,

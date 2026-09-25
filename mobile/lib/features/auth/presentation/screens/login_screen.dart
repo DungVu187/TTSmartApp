@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_info.dart';
 import '../../../../core/app_scope.dart';
@@ -106,15 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 40),
-                          Center(
-                            child: Image.asset(
-                              'assets/images/ttsmart_logo_transparent.png',
-                              width: 200,
-                              height: 43,
-                              fit: BoxFit.contain,
-                              semanticLabel: 'Logo TTSmart',
-                            ),
-                          ),
+                          const Center(child: AppLogo.large()),
                           const SizedBox(height: 28),
                           Text(
                             'Chào mừng trở lại',
@@ -169,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                             decoration: _decoration(
                               p,
-                              icon: Icons.person_outline_rounded,
+                              icon: LucideIcons.user,
                               errorText: loginError?.fieldMessage('userName'),
                             ),
                           ),
@@ -191,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : null,
                             decoration: _decoration(
                               p,
-                              icon: Icons.lock_outline_rounded,
+                              icon: LucideIcons.lock,
                               errorText: loginError?.fieldMessage('password'),
                               suffix: IconButton(
                                 tooltip: _obscurePassword
@@ -202,8 +195,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 icon: Icon(
                                   _obscurePassword
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
+                                      ? LucideIcons.eyeOff
+                                      : LucideIcons.eye,
                                   size: 20,
                                   color: p.text3,
                                 ),
@@ -241,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         color: p.onPrimary,
                                       ),
                                     )
-                                  : const Icon(Icons.login_rounded, size: 20),
+                                  : const Icon(LucideIcons.logIn, size: 20),
                               label: Text(
                                 controller.isLoginSubmitting
                                     ? 'Đang đăng nhập...'

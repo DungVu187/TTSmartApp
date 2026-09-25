@@ -39,6 +39,7 @@ dependencies:
   image_picker: ^1.2.3
   http_parser: ^4.1.2
   path_provider: ^2.1.6
+  lucide_icons_flutter: ^3.1.20
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +66,7 @@ flutter:
   assets:
     - assets/images/ttsmart_logo.png
     - assets/images/ttsmart_logo_transparent.png
+    - assets/images/logodarkmode.png
     - assets/fonts/inter/OFL.txt
 
   # Inter 4.1 (SIL OFL 1.1, https://github.com/rsms/inter), the Figma font.

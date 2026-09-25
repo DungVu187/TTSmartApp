@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../app_dependencies.dart';
 import '../../../../core/app_scope.dart';
@@ -83,11 +84,7 @@ class MoreSheet extends StatelessWidget {
                       onTap: () => Navigator.of(context).pop(),
                       child: SizedBox.square(
                         dimension: 32,
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: p.text2,
-                        ),
+                        child: Icon(LucideIcons.x, size: 18, color: p.text2),
                       ),
                     ),
                   ),
@@ -98,7 +95,7 @@ class MoreSheet extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: StateView(
-                  icon: Icons.grid_view_outlined,
+                  icon: LucideIcons.layoutGrid,
                   title: 'Chưa có chức năng',
                   message: 'Tài khoản chưa được cấp thêm chức năng nào.',
                 ),
@@ -139,7 +136,7 @@ class MoreSheet extends StatelessWidget {
       if (mixDesigns != null)
         _ModuleTile(
           label: mixDesigns.label,
-          icon: Icons.science_outlined,
+          icon: LucideIcons.flaskConical,
           tone: AppTone.info,
           order: mixDesigns.location ?? 10,
           open: () => openMixDesignModule(
@@ -152,7 +149,7 @@ class MoreSheet extends StatelessWidget {
       if (weighStations != null)
         _ModuleTile(
           label: weighStations.label,
-          icon: Icons.balance_outlined,
+          icon: LucideIcons.scale,
           tone: AppTone.success,
           order: weighStations.location ?? 20,
           open: () => openWeighStationModule(
@@ -165,7 +162,7 @@ class MoreSheet extends StatelessWidget {
       if (materials != null)
         _ModuleTile(
           label: materials.label,
-          icon: Icons.inventory_2_outlined,
+          icon: LucideIcons.package,
           tone: AppTone.warning,
           order: materials.location ?? 30,
           open: () => openMaterialReportModule(
@@ -178,7 +175,7 @@ class MoreSheet extends StatelessWidget {
       for (final module in visibleStationModules(controller))
         _ModuleTile(
           label: module.label,
-          icon: Icons.factory_outlined,
+          icon: LucideIcons.factory,
           tone: AppTone.violet,
           order: module.location ?? 40,
           open: () => openStationModule(
@@ -197,7 +194,7 @@ class MoreSheet extends StatelessWidget {
       for (final module in visibleOrganizationModules(controller))
         _ModuleTile(
           label: module.label,
-          icon: Icons.apartment_outlined,
+          icon: LucideIcons.building,
           tone: AppTone.danger,
           order: module.location ?? 10,
           open: () =>
@@ -207,9 +204,9 @@ class MoreSheet extends StatelessWidget {
         _ModuleTile(
           label: module.label,
           icon: switch (module.keyName) {
-            'users' => Icons.group_outlined,
-            'roles' => Icons.shield_outlined,
-            _ => Icons.account_tree_outlined,
+            'users' => LucideIcons.users,
+            'roles' => LucideIcons.shield,
+            _ => LucideIcons.gitBranch,
           },
           tone: switch (module.keyName) {
             'users' => AppTone.primary,

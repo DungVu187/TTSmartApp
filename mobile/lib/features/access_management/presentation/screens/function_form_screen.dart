@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
@@ -125,7 +126,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Đóng',
-          icon: const Icon(Icons.close_rounded),
+          icon: const Icon(LucideIcons.x),
           onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(widget.isEditing ? 'Sửa chức năng' : 'Tạo chức năng'),
@@ -266,7 +267,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                   (_parentFunctionId == null
                       ? null
                       : 'Chức năng #$_parentFunctionId'),
-              icon: Icons.account_tree_outlined,
+              icon: LucideIcons.gitBranch,
               enabled: snapshot.hasData && !_submitting,
               errorText: _error?.fieldMessage('parentFunctionId'),
               onTap: () => _pickParent(options),
@@ -293,7 +294,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
       context: context,
       title: 'Chức năng cha',
       searchHint: 'Tìm chức năng',
-      icon: Icons.account_tree_outlined,
+      icon: LucideIcons.gitBranch,
       clearLabel: 'Không có chức năng cha',
       selected: _parentFunctionId,
       options: [

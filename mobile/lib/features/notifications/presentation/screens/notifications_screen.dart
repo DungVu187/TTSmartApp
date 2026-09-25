@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/ui/app_ui.dart';
 import '../../../../core/utils/vietnam_time.dart';
@@ -71,7 +72,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   leading: Padding(
                     padding: const EdgeInsets.only(left: 16, right: 8),
                     child: RoundIconButton(
-                      icon: Icons.arrow_back_rounded,
+                      icon: LucideIcons.arrowLeft,
                       tooltip: 'Quay lại',
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
@@ -158,7 +159,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           children: [
             const SizedBox(height: 96),
             StateView(
-              icon: Icons.notifications_none_rounded,
+              icon: LucideIcons.bell,
               title: _filter == _NotificationFilter.unread
                   ? 'Không có thông báo chưa đọc'
                   : 'Chưa có thông báo',
@@ -234,7 +235,7 @@ class _MarkAllButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.done_all_rounded, size: 18, color: p.primary),
+                  Icon(LucideIcons.checkCheck, size: 18, color: p.primary),
                   const SizedBox(width: 6),
                   Text(
                     'Đọc tất cả',

@@ -100,8 +100,9 @@ class SimpleLineChart extends StatelessWidget {
                   labels: labels,
                   lineColor: lineColor ?? theme.colorScheme.primary,
                   fillColor: fillColor ?? theme.colorScheme.primaryContainer,
-                  gridColor: const Color(0xFFD8DEE6),
-                  labelColor: const Color(0xFF5B6472),
+                  gridColor: theme.colorScheme.outlineVariant,
+                  labelColor: theme.colorScheme.onSurfaceVariant,
+                  pointBorderColor: theme.colorScheme.surface,
                 ),
               ),
             ),
@@ -120,6 +121,7 @@ class _LineChartPainter extends CustomPainter {
     required this.fillColor,
     required this.gridColor,
     required this.labelColor,
+    required this.pointBorderColor,
   });
 
   final List<double> values;
@@ -128,6 +130,7 @@ class _LineChartPainter extends CustomPainter {
   final Color fillColor;
   final Color gridColor;
   final Color labelColor;
+  final Color pointBorderColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -198,7 +201,7 @@ class _LineChartPainter extends CustomPainter {
 
     final pointFill = Paint()..color = lineColor;
     final pointBorder = Paint()
-      ..color = Colors.white
+      ..color = pointBorderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.3;
     for (final point in points) {

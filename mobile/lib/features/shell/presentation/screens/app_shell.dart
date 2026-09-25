@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../app_dependencies.dart';
 import '../../../../core/app_scope.dart';
@@ -146,8 +147,8 @@ class _AppShellState extends State<AppShell> {
       _ShellTabDefinition(
         keyName: _ShellTabKey.home,
         label: 'Trang chủ',
-        icon: Icons.home_outlined,
-        selectedIcon: Icons.home_outlined,
+        icon: LucideIcons.house,
+        selectedIcon: LucideIcons.house,
         child: Column(
           children: [
             AnimatedBuilder(
@@ -178,8 +179,8 @@ class _AppShellState extends State<AppShell> {
         _ShellTabDefinition(
           keyName: _ShellTabKey.orders,
           label: orderReportsModule.label,
-          icon: Icons.receipt_long_outlined,
-          selectedIcon: Icons.receipt_long_outlined,
+          icon: LucideIcons.receiptText,
+          selectedIcon: LucideIcons.receiptText,
           child: OrderReportsScreen(
             repository: widget.repositories.orderReports,
             companyRepository: widget.repositories.companies,
@@ -190,8 +191,8 @@ class _AppShellState extends State<AppShell> {
         _ShellTabDefinition(
           keyName: _ShellTabKey.statistics,
           label: orderStatisticsModule.label,
-          icon: Icons.bar_chart_rounded,
-          selectedIcon: Icons.bar_chart_rounded,
+          icon: LucideIcons.chartNoAxesColumnIncreasing,
+          selectedIcon: LucideIcons.chartNoAxesColumnIncreasing,
           child: ReportsScreen(
             repository: widget.repositories.reports,
             companyRepository: widget.repositories.companies,
@@ -202,15 +203,15 @@ class _AppShellState extends State<AppShell> {
         _ShellTabDefinition(
           keyName: _ShellTabKey.system,
           label: 'Hệ thống',
-          icon: Icons.settings_outlined,
-          selectedIcon: Icons.settings_outlined,
+          icon: LucideIcons.settings,
+          selectedIcon: LucideIcons.settings,
           child: SystemScreen(repositories: widget.repositories),
         ),
       const _ShellTabDefinition(
         keyName: _ShellTabKey.more,
         label: 'Xem thêm',
-        icon: Icons.grid_view_outlined,
-        selectedIcon: Icons.grid_view_outlined,
+        icon: LucideIcons.layoutGrid,
+        selectedIcon: LucideIcons.layoutGrid,
       ),
     ];
     final contentTabs = tabs
