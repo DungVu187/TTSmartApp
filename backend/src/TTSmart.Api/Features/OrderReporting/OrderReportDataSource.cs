@@ -13,7 +13,8 @@ public sealed record StationOrderReportRow(
     float? OrderedVolume,
     float? ProducedVolume,
     DateTime? OrderedAt,
-    string? EmployeeName);
+    string? EmployeeName,
+    int? TicketCount = null);
 
 public sealed record StationOrderReportPage(
     IReadOnlyList<StationOrderReportRow> Items,
@@ -160,6 +161,8 @@ public sealed class SqlOrderReportDataSource(
                     ConcreteGradeName = concreteGrade == null ? null : concreteGrade.Name,
                     row.Order.OrderedVolume,
                     row.Order.ProducedVolume,
+                    // CAST in SQL: TONGSOPHIEU's type is not the same everywhere.
+                    TicketCount = (double?)row.Order.TicketCount,
                     row.Order.OrderedAt,
                     EmployeeName = row.Employee == null ? null : row.Employee.Name
                 })
@@ -176,7 +179,8 @@ public sealed class SqlOrderReportDataSource(
                     row.OrderedVolume,
                     row.ProducedVolume,
                     row.OrderedAt,
-                    row.EmployeeName)).ToArray(),
+                    row.EmployeeName,
+                    ToTicketCount(row.TicketCount))).ToArray(),
                 metrics?.TotalCount ?? 0,
                 metrics?.TotalOrderedVolume ?? 0,
                 metrics?.TotalProducedVolume ?? 0);
@@ -220,4 +224,9 @@ public sealed class SqlOrderReportDataSource(
         var trimmed = value?.Trim();
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
+
+    private static int? ToTicketCount(double? value) =>
+        value.HasValue && double.IsFinite(value.Value)
+            ? (int)Math.Round(value.Value, MidpointRounding.AwayFromZero)
+            : null;
 }

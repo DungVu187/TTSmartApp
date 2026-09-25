@@ -102,6 +102,10 @@ class OrderDetailScreen extends StatelessWidget {
                   label: 'Ngày đặt',
                   value: orderedAt ?? 'Chưa cập nhật',
                 ),
+                FieldRow(
+                  label: 'Số phiếu',
+                  value: item.ticketCount?.toString() ?? 'Chưa cập nhật',
+                ),
                 FieldRow(label: 'Trạm', value: item.stationDisplayName),
                 if (showCompany && item.companyName?.trim().isNotEmpty == true)
                   FieldRow(label: 'Công ty', value: item.companyName!.trim()),

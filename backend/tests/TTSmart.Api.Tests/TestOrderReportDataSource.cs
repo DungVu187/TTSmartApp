@@ -91,7 +91,8 @@ internal sealed class TestOrderReportDataSource : IOrderReportDataSource
                 order.OrderedVolume,
                 order.ProducedVolume,
                 order.OrderedAt,
-                order.EmployeeName))
+                order.EmployeeName,
+                order.TicketCount))
             .ToArray();
         return Task.FromResult(new StationOrderReportPage(
             rows,
@@ -126,4 +127,5 @@ internal sealed record TestOrder(
     string? ProjectName = null,
     string? ConcreteGradeName = null,
     float? OrderedVolume = null,
-    float? ProducedVolume = null);
+    float? ProducedVolume = null,
+    int? TicketCount = null);

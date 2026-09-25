@@ -69,7 +69,7 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
         factory.OrderReportDataSource.Seed(
             10,
             new TestOrder(1, new DateTime(2026, 7, 30, 8, 0, 0), "KD A", "KH 1", "DA 1", "M250", 100, 10),
-            new TestOrder(2, new DateTime(2026, 7, 31, 0, 0, 0), "KD B", "KH 2", "DA 2", "M300", 44, 10.333335f),
+            new TestOrder(2, new DateTime(2026, 7, 31, 0, 0, 0), "KD B", "KH 2", "DA 2", "M300", 44, 10.333335f, TicketCount: 3),
             new TestOrder(3, new DateTime(2026, 7, 31, 0, 0, 0), "KD A", "KH 3", "DA 3", "M350", 1, 1));
 
         using var client = factory.CreateClient();
@@ -100,6 +100,9 @@ public sealed class OrderReportApiTests(TTSmartApiFactory factory) : IClassFixtu
         Assert.Equal([3, 2], report.Items.Select(item => item.OrderId).ToArray());
         Assert.All(report.Items, item => Assert.Equal("TRAM_10", item.StationCode));
         Assert.Equal(10.3m, report.Items.Single(item => item.OrderId == 2).ProducedVolume);
+        // "Số phiếu" (DATHANG.TONGSOPHIEU); null when the station has none.
+        Assert.Equal(3, report.Items.Single(item => item.OrderId == 2).TicketCount);
+        Assert.Null(report.Items.Single(item => item.OrderId == 3).TicketCount);
         Assert.Equal(DateTimeKind.Utc, report.Items[0].OrderedAtUtc!.Value.Kind);
         Assert.Equal(10, factory.OrderReportDataSource.SeenTargets.Last().BranchId);
         Assert.Equal("TRAM_10_online", factory.OrderReportDataSource.SeenTargets.Last().DatabaseName);

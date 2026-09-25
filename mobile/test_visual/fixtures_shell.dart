@@ -222,6 +222,7 @@ class VisualOrderReportRepository implements OrderReportRepository {
       orderedVolume: 120,
       producedVolume: 96,
       orderedAtUtc: DateTime.utc(2026, 9, 21, 1, 15),
+      ticketCount: 3,
       employeeName: 'Nguyễn Văn A',
     ),
     OrderReportItem(
@@ -234,6 +235,7 @@ class VisualOrderReportRepository implements OrderReportRepository {
       orderedVolume: 45,
       producedVolume: 45,
       orderedAtUtc: DateTime.utc(2026, 9, 21, 0, 40),
+      ticketCount: 2,
       employeeName: null,
     ),
     OrderReportItem(
@@ -246,6 +248,7 @@ class VisualOrderReportRepository implements OrderReportRepository {
       orderedVolume: 30,
       producedVolume: 12,
       orderedAtUtc: DateTime.utc(2026, 9, 20, 9, 5),
+      ticketCount: 1,
       employeeName: 'Trần Thị Lan',
     ),
   ];

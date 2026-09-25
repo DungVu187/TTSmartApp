@@ -145,6 +145,7 @@ class _FakeOrderReportRepository implements OrderReportRepository {
           producedVolume: 20.333,
           orderedAtUtc: DateTime.utc(2026, 7, 31, 3),
           employeeName: 'Nguyễn Văn A',
+          ticketCount: 4,
         ),
       ],
       pageNumber: 1,
@@ -536,6 +537,8 @@ void main() {
       expect(find.text('24,5 m³'), findsOneWidget);
       expect(find.text('20,3 m³'), findsOneWidget);
       expect(find.text('Nhân viên kinh doanh'), findsOneWidget);
+      expect(find.text('Số phiếu'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
 

@@ -152,6 +152,7 @@ public sealed class OrderReportService(
                 item.Row.ConcreteGradeName,
                 NormalizeVolume(item.Row.OrderedVolume),
                 NormalizeVolume(item.Row.ProducedVolume),
+                item.Row.TicketCount,
                 VietnamTime.ToUtc(item.Row.OrderedAt),
                 TrimOrNull(item.Row.EmployeeName),
                 item.Branch.CompanyId,

@@ -46,6 +46,9 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         order.Property(item => item.OrderedVolume).HasColumnName("METKHOIDATHANG").HasColumnType("real");
         order.Property(item => item.OrderedAt).HasColumnName("NGAYDATHANG").HasColumnType("datetime");
         order.Property(item => item.ProducedVolume).HasColumnName("METKHOITICHLUY").HasColumnType("real");
+        // "Số phiếu" on the web report. Queries read it through a CAST, so
+        // any numeric column type in the station databases works.
+        order.Property(item => item.TicketCount).HasColumnName("TONGSOPHIEU");
         order.Property(item => item.ConcreteGradeId).HasColumnName("MAMACBETONG");
 
         var customer = modelBuilder.Entity<StationCustomer>();

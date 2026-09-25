@@ -67,6 +67,7 @@ public sealed record OrderReportItemResponse(
     string? ConcreteGradeName,
     decimal? OrderedVolume,
     decimal? ProducedVolume,
+    int? TicketCount,
     DateTime? OrderedAtUtc,
     string? EmployeeName,
     int? CompanyId,
