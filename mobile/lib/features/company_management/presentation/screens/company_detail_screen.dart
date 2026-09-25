@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/widgets/app_date_picker.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -400,139 +401,51 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _CompanyHeaderCard(company: company, logoFuture: _logoFuture),
-                  const SizedBox(height: 20),
-                  CompanySection(
-                    title: 'Thông tin công ty',
-                    icon: Icons.apartment_outlined,
-                    child: Column(
-                      children: [
-                        CompanyInfoRow(
-                          label: 'Mã công ty',
-                          value: company.code,
-                          icon: Icons.tag_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Địa chỉ',
-                          value: company.address,
-                          icon: Icons.location_on_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Đại diện',
-                          value: company.representative,
-                          icon: Icons.person_outline,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Fax',
-                          value: company.fax,
-                          icon: Icons.print_outlined,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  CompanySection(
-                    title: 'Thông tin liên hệ',
-                    icon: Icons.contact_phone_outlined,
-                    child: Column(
-                      children: [
-                        CompanyInfoRow(
-                          label: 'Điện thoại',
-                          value: company.phone,
-                          icon: Icons.phone_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Email',
-                          value: company.email,
-                          icon: Icons.email_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Người liên hệ',
-                          value: company.contactName,
-                          icon: Icons.badge_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Điện thoại LH',
-                          value: company.contactPhone,
-                          icon: Icons.phone_in_talk_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Email LH',
-                          value: company.contactEmail,
-                          icon: Icons.alternate_email,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  CompanySection(
-                    title: 'Dịch vụ và hiệu lực',
-                    icon: Icons.workspace_premium_outlined,
-                    child: Column(
-                      children: [
-                        CompanyInfoRow(
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StatTile(
                           label: 'Gói sử dụng',
+                          valueFontSize: 16,
                           value: company.plan.label,
-                          icon: Icons.sell_outlined,
                         ),
-                        CompanyInfoRow(
-                          label: 'Người dùng',
-                          value: '${company.countUser}',
-                          icon: Icons.people_outline,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Hạn sử dụng',
-                          value: formatCompanyDate(company.expiredDate),
-                          icon: Icons.event_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Khóa dịch vụ',
-                          value: company.isLocked ? 'Đang khóa' : 'Không khóa',
-                          icon: company.isLocked
-                              ? Icons.lock_outline
-                              : Icons.lock_open_outlined,
-                        ),
-                        CompanyInfoRow(
-                          label: 'Dữ liệu',
-                          value: company.isDeleted
-                              ? 'Đã xóa mềm'
-                              : 'Đang hiệu lực',
-                          icon: Icons.data_usage_outlined,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (company.note?.trim().isNotEmpty == true) ...[
-                    const SizedBox(height: 20),
-                    CompanySection(
-                      title: 'Ghi chú',
-                      icon: Icons.notes_outlined,
-                      child: CompanyInfoRow(
-                        label: 'Nội dung',
-                        value: company.note,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatTile(
+                          label: 'Người dùng',
+                          valueFontSize: 16,
+                          value: '${company.countUser}',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: StatTile(
+                          label: 'Hạn sử dụng',
+                          valueFontSize: 16,
+                          value: formatCompanyDate(company.expiredDate),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Figma B02: contact, company, service, note, then
+                  // the created / updated line. Empty values are skipped.
+                  ..._groups(company),
                   if (company.createdAtUtc != null ||
                       company.updatedAtUtc != null) ...[
-                    const SizedBox(height: 20),
-                    CompanySection(
-                      title: 'Thông tin cập nhật',
-                      icon: Icons.history_outlined,
-                      child: Column(
-                        children: [
-                          CompanyInfoRow(
-                            label: 'Ngày tạo',
-                            value: company.createdAtUtc == null
-                                ? null
-                                : formatLocalDateTime(company.createdAtUtc!),
-                          ),
-                          CompanyInfoRow(
-                            label: 'Cập nhật',
-                            value: company.updatedAtUtc == null
-                                ? null
-                                : formatLocalDateTime(company.updatedAtUtc!),
-                          ),
-                        ],
+                    const SizedBox(height: 14),
+                    Text(
+                      [
+                        if (company.createdAtUtc != null)
+                          'Tạo ${formatLocalDateTime(company.createdAtUtc!)}',
+                        if (company.updatedAtUtc != null)
+                          'Cập nhật ${formatLocalDateTime(company.updatedAtUtc!)}',
+                      ].join('  ·  '),
+                      style: TextStyle(
+                        color: context.palette.text3,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -546,9 +459,48 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     );
   }
 
+  List<Widget> _groups(CompanyResponse company) {
+    String? text(String? value) {
+      final normalized = value?.trim();
+      return normalized == null || normalized.isEmpty ? null : normalized;
+    }
+
+    List<Widget> group(String label, List<(String, String?)> rows) {
+      final visible = [
+        for (final (title, value) in rows)
+          if (text(value) != null) FieldRow(label: title, value: text(value)!),
+      ];
+      if (visible.isEmpty) return const [];
+      return [
+        const SizedBox(height: 20),
+        InsetGroup(label: label, children: visible),
+      ];
+    }
+
+    return [
+      ...group('Liên hệ', [
+        ('Điện thoại', company.phone),
+        ('Email', company.email),
+        ('Người liên hệ', company.contactName),
+        ('Điện thoại liên hệ', company.contactPhone),
+        ('Email liên hệ', company.contactEmail),
+      ]),
+      ...group('Thông tin công ty', [
+        ('Địa chỉ', company.address),
+        ('Người đại diện', company.representative),
+        ('Fax', company.fax),
+      ]),
+      ...group('Dịch vụ và hiệu lực', [
+        ('Khóa dịch vụ', company.isLocked ? 'Đang khóa' : 'Không khóa'),
+        ('Dữ liệu', company.isDeleted ? 'Đã xóa mềm' : 'Đang hiệu lực'),
+      ]),
+      ...group('Ghi chú', [('Nội dung', company.note)]),
+    ];
+  }
+
   EdgeInsets _pagePadding(BuildContext context) {
     final horizontal = MediaQuery.sizeOf(context).width >= 720 ? 24.0 : 16.0;
-    return EdgeInsets.fromLTRB(horizontal, 16, horizontal, 24);
+    return EdgeInsets.fromLTRB(horizontal, 6, horizontal, 24);
   }
 
   String? _contentTypeFor(String fileName) {
@@ -572,82 +524,85 @@ class _CompanyHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Container(
-              width: 112,
-              height: 76,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-              ),
-              child: logoFuture == null
-                  ? Icon(
-                      Icons.apartment_outlined,
-                      size: 42,
-                      color: theme.colorScheme.primary,
-                    )
-                  : FutureBuilder<Uint8List>(
-                      future: logoFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          );
-                        }
-                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return Icon(
-                            Icons.broken_image_outlined,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          );
-                        }
-                        return Image.memory(
-                          snapshot.data!,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.medium,
-                          semanticLabel: 'Logo ${company.displayName}',
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 19),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 112,
+            height: 76,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: p.surfaceMuted,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.border),
+            ),
+            child: logoFuture == null
+                ? Icon(Icons.apartment_outlined, size: 36, color: p.primary)
+                : FutureBuilder<Uint8List>(
+                    future: logoFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         );
-                      },
-                    ),
+                      }
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Icon(
+                          Icons.apartment_outlined,
+                          size: 36,
+                          color: p.primary,
+                        );
+                      }
+                      return Image.memory(
+                        snapshot.data!,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.medium,
+                        semanticLabel: 'Logo ${company.displayName}',
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            company.displayName,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: p.text1,
+              fontSize: 19,
+              height: 24 / 19,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 14),
+          ),
+          if (company.code?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 3),
             Text(
-              company.displayName,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
+              company.code!.trim(),
+              style: TextStyle(
+                color: p.text2,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
-            ),
-            if (company.code?.trim().isNotEmpty == true) ...[
-              const SizedBox(height: 4),
-              Text(
-                company.code!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                CompanyPlanChip(plan: company.plan),
-                CompanyStatusChip(isDeleted: company.isDeleted),
-                if (company.isLocked)
-                  CompanyLockChip(isLocked: company.isLocked),
-              ],
             ),
           ],
-        ),
+          const SizedBox(height: 12),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              CompanyPlanChip(plan: company.plan),
+              CompanyStatusChip(isDeleted: company.isDeleted),
+              if (company.isLocked) CompanyLockChip(isLocked: company.isLocked),
+            ],
+          ),
+        ],
       ),
     );
   }

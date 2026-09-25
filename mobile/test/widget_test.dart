@@ -64,7 +64,8 @@ void main() {
       ),
     );
 
-    expect(find.text('TTsmart'), findsOneWidget);
+    expect(find.text('Chào mừng trở lại'), findsOneWidget);
+    expect(find.bySemanticsLabel('Logo TTSmart'), findsOneWidget);
     expect(find.text('Tên đăng nhập'), findsOneWidget);
     expect(find.text('Mật khẩu'), findsOneWidget);
     expect(find.text('Đăng nhập'), findsOneWidget);

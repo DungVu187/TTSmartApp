@@ -52,6 +52,7 @@ class ReportsController extends ChangeNotifier {
   String? selectedEmployeeName;
 
   OrderStatisticsPage? result;
+  final List<OrderStatisticsItem> loadedItems = <OrderStatisticsItem>[];
   bool isAdmin = false;
   bool isInitialized = false;
   bool isLoadingScope = false;
@@ -68,6 +69,7 @@ class ReportsController extends ChangeNotifier {
   int _optionsRequestVersion = 0;
   int _searchRequestVersion = 0;
   int? _failedPageNumber;
+  bool _failedAppend = false;
 
   bool get hasResult => result != null;
   int get currentPage => result?.pageNumber ?? 1;
@@ -77,6 +79,7 @@ class ReportsController extends ChangeNotifier {
   bool get canGoNext => currentPage < totalPages && !isSearching;
   bool get canGoLast =>
       totalPages > 0 && currentPage < totalPages && !isSearching;
+  bool get canLoadMore => !isSearching && currentPage < totalPages;
 
   CompanyResponse? get selectedCompany => _findCompany(selectedCompanyId);
 
@@ -246,9 +249,14 @@ class ReportsController extends ChangeNotifier {
 
   Future<void> goToLastPage() => _loadPage(totalPages);
 
-  Future<void> retryResult() => _loadPage(_failedPageNumber ?? currentPage);
+  Future<void> retryResult() =>
+      _loadPage(_failedPageNumber ?? currentPage, append: _failedAppend);
 
-  Future<void> _loadPage(int pageNumber) async {
+  Future<void> loadMore() => canLoadMore
+      ? _loadPage(currentPage + 1, append: true)
+      : Future<void>.value();
+
+  Future<void> _loadPage(int pageNumber, {bool append = false}) async {
     if (isSearching || selectedStationId == null || pageNumber < 1) return;
     if (result != null && totalPages > 0 && pageNumber > totalPages) return;
     final previousResult = result;
@@ -256,10 +264,20 @@ class ReportsController extends ChangeNotifier {
     isSearching = true;
     resultErrorMessage = null;
     _failedPageNumber = null;
+    _failedAppend = false;
     _notify();
     try {
       final page = await _repository.search(_buildQuery(pageNumber));
-      if (requestVersion == _searchRequestVersion) result = page;
+      if (requestVersion == _searchRequestVersion) {
+        result = page;
+        if (append) {
+          loadedItems.addAll(page.items);
+        } else {
+          loadedItems
+            ..clear()
+            ..addAll(page.items);
+        }
+      }
     } catch (error) {
       if (requestVersion == _searchRequestVersion) {
         result = previousResult;
@@ -268,10 +286,13 @@ class ReportsController extends ChangeNotifier {
           'Không thể tải thống kê. Vui lòng thử lại.',
         );
         _failedPageNumber = pageNumber;
+        _failedAppend = append;
         _feedback(resultErrorMessage!);
       }
     } finally {
-      isSearching = false;
+      // A request made stale by a scope change must not clear the loading
+      // flag of the request that replaced it.
+      if (requestVersion == _searchRequestVersion) isSearching = false;
       _notify();
     }
   }
@@ -414,10 +435,15 @@ class ReportsController extends ChangeNotifier {
   }
 
   void _clearResult() {
+    // Invalidates any in-flight search, so a new one may start right away
+    // (phones search as soon as a scope chip changes).
     _searchRequestVersion++;
+    isSearching = false;
     result = null;
+    loadedItems.clear();
     resultErrorMessage = null;
     _failedPageNumber = null;
+    _failedAppend = false;
   }
 
   CompanyResponse? _findCompany(int? id) {

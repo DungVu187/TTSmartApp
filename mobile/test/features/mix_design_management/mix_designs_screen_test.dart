@@ -17,6 +17,8 @@ import 'package:ttsmart_mobile/features/mix_design_management/data/repositories/
 import 'package:ttsmart_mobile/features/mix_design_management/presentation/screens/mix_designs_screen.dart';
 import 'package:ttsmart_mobile/features/mix_design_management/presentation/widgets/mix_design_widgets.dart';
 
+import '../../support/phone_viewport.dart';
+
 class _MemoryTokenStorage implements TokenStorage {
   @override
   Future<void> clear() async {}
@@ -117,6 +119,58 @@ class _FakeCompanyRepository implements CompanyRepository {
 }
 
 void main() {
+  testWidgets(
+    'phone layout loads the only station, fills short pages and opens detail',
+    (tester) async {
+      usePhoneViewport(tester);
+      final apiClient = ApiClient(
+        baseUri: Uri.parse('http://localhost:5052'),
+        timeout: const Duration(seconds: 1),
+        httpClient: MockClient(
+          (_) async => throw StateError('Không được gọi API thật trong test.'),
+        ),
+      );
+      final appController = _MixDesignAppController(apiClient, canList: true);
+      final repository = _FakeMixDesignRepository();
+      addTearDown(appController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AppScope(
+            controller: appController,
+            child: MixDesignsScreen(
+              repository: repository,
+              companyRepository: _FakeCompanyRepository(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No filter card or Search button on a phone: the only station in scope
+      // is loaded, and a first page too short to scroll pulls page 2.
+      expect(
+        find.byKey(const ValueKey<String>('mix-design-filters')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('mix-design-search')),
+        findsNothing,
+      );
+      expect(repository.queries.map((query) => query.pageNumber), [1, 2]);
+      expect(repository.queries.first.stationId, 10);
+      expect(find.text('12 CẤP PHỐI'), findsOneWidget);
+      expect(find.text('M300'), findsNWidgets(2));
+
+      await tester.tap(find.text('M300').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Chi tiết cấp phối'), findsOneWidget);
+      expect(find.text('Đá 1x2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('renders responsive mix design table and paginates', (
     tester,
   ) async {

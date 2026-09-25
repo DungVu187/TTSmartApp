@@ -1,35 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/ui/app_ui.dart';
+
 import '../../data/models/station_models.dart';
 
+/// "Trạm trộn" (blue) / "Trạm cân" (violet) tag with the type icon.
 class StationTypeChip extends StatelessWidget {
   const StationTypeChip({super.key, required this.type});
 
   final StationType? type;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final isScale = type == StationType.scale;
-    final isKnown = type != null;
-    final foreground = switch (type) {
-      StationType.scale => colors.onSecondaryContainer,
-      StationType.mixing => colors.onPrimaryContainer,
-      null => colors.onSurfaceVariant,
-    };
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      avatar: Icon(stationTypeIcon(type), size: 17, color: foreground),
-      label: Text(type?.label ?? 'Chưa xác định'),
-      labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
-      backgroundColor: !isKnown
-          ? colors.surfaceContainerHighest
-          : isScale
-          ? colors.secondaryContainer
-          : colors.primaryContainer,
-      side: BorderSide.none,
-    );
-  }
+  Widget build(BuildContext context) => AppTag(
+    label: type?.label ?? 'Chưa xác định',
+    icon: stationTypeIcon(type),
+    tone: stationTypeTone(type),
+  );
 }
 
 class StationStatusChip extends StatelessWidget {
@@ -38,26 +24,11 @@ class StationStatusChip extends StatelessWidget {
   final bool isDeleted;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final foreground = isDeleted
-        ? colors.onSurfaceVariant
-        : colors.onPrimaryContainer;
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      avatar: Icon(
-        isDeleted ? Icons.delete_outline : Icons.check_circle_outline,
-        size: 17,
-        color: foreground,
-      ),
-      label: Text(isDeleted ? 'Đã xóa' : 'Đang hoạt động'),
-      labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
-      backgroundColor: isDeleted
-          ? colors.surfaceContainerHighest
-          : colors.primaryContainer,
-      side: BorderSide.none,
-    );
-  }
+  Widget build(BuildContext context) => AppTag(
+    label: isDeleted ? 'Đã xóa' : 'Đang hoạt động',
+    icon: isDeleted ? Icons.delete_outline_rounded : Icons.check_rounded,
+    tone: isDeleted ? AppTone.neutral : AppTone.success,
+  );
 }
 
 class StationSection extends StatelessWidget {
@@ -78,24 +49,12 @@ class StationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            Expanded(child: GroupLabel(title)),
             ?trailing,
           ],
         ),
@@ -103,19 +62,20 @@ class StationSection extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             description!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(color: context.palette.text2, fontSize: 12),
           ),
         ],
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: context.palette.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(color: context.palette.border),
           ),
-          child: child,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: child,
+          ),
         ),
       ],
     );
@@ -140,42 +100,7 @@ class StationInfoRow extends StatelessWidget {
     if (normalized == null || normalized.isEmpty) {
       return const SizedBox.shrink();
     }
-    final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final labelWidth = constraints.maxWidth < 360 ? 96.0 : 116.0;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 12),
-              ],
-              SizedBox(
-                width: labelWidth,
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  normalized,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    return FieldRow(label: label, value: normalized);
   }
 }
 
@@ -302,8 +227,14 @@ String formatStationDate(DateTime? value) {
 String stationPasswordStatus(String value) =>
     value.trim().isEmpty ? 'Chưa thiết lập' : 'Đã thiết lập';
 
+AppTone stationTypeTone(StationType? type) => switch (type) {
+  StationType.scale => AppTone.violet,
+  StationType.mixing => AppTone.primary,
+  null => AppTone.neutral,
+};
+
 IconData stationTypeIcon(StationType? type) => switch (type) {
-  StationType.scale => Icons.scale_outlined,
+  StationType.scale => Icons.balance_outlined,
   StationType.mixing => Icons.factory_outlined,
   null => Icons.help_outline,
 };

@@ -26,9 +26,9 @@ import 'package:ttsmart_mobile/features/weigh_station_management/data/repositori
 import '../../support/empty_reports_repository.dart';
 
 const _surfaceSize = Size(411, 914);
-const _selectedBackground = Color(0xFFEEF2FF);
+const _selectedBackground = Color(0xFFDBEAFE);
 const _selectedColor = Color(0xFF2563EB);
-const _unselectedColor = Color(0xFF6B7280);
+const _unselectedColor = Color(0xFF64748B);
 
 class _MemoryTokenStorage implements TokenStorage {
   @override
@@ -275,44 +275,29 @@ void main() {
     ]) {
       expect(find.byKey(ValueKey<String>('shell-nav-$tab')), findsOneWidget);
     }
+    _expectNavigationColors(tester, selectedKey: 'home', unselectedKey: 'more');
+
+    // Home scope chips (Figma "02 Home") open picker sheets.
     expect(
       find.byKey(const ValueKey<String>('dashboard-filters')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('dashboard-company-filter')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('dashboard-station-filter-all')),
       findsOneWidget,
     );
     expect(homeRepository.dashboardCallCount, 1);
     expect(homeRepository.lastScope, isNull);
     expect(homeRepository.lastTimeRange, TimeRangePreset.today);
-    final companyInput = tester.widget<TextFormField>(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('dashboard-company-filter')),
-        matching: find.byType(TextFormField),
-      ),
-    );
-    expect(companyInput.controller?.text, isEmpty);
     await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('dashboard-company-filter')),
-        matching: find.byType(TextFormField),
-      ),
+      find.byKey(const ValueKey<String>('dashboard-company-filter')),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Công ty A').last);
     await tester.pumpAndSettle();
-
-    final stationInput = find.descendant(
-      of: find.byKey(const ValueKey<String>('dashboard-station-filter-1')),
-      matching: find.byType(TextFormField),
+    final stationChip = find.byKey(
+      const ValueKey<String>('dashboard-station-filter-1'),
     );
-    await tester.tap(stationInput);
-    await tester.pump();
+    await tester.ensureVisible(stationChip);
+    await tester.pumpAndSettle();
+    await tester.tap(stationChip);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Trạm A').last);
     await tester.pumpAndSettle();
 
@@ -342,186 +327,50 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
+    // "Hệ thống" is a full tab page (Figma S01).
     await tester.tap(find.byKey(const ValueKey<String>('shell-nav-system')));
     await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey<String>('shell-panel-system')),
-      findsOneWidget,
-    );
-    expect(find.text('Chức năng'), findsOneWidget);
-    expect(find.text('Phân quyền'), findsOneWidget);
-    expect(find.text('Người dùng'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('module-panel-grid-scroll')),
-      findsOneWidget,
-    );
-    _expectPanelDesign(tester);
-    _expectFourColumnGrid(tester);
-    _expectModuleTileDesign(tester, index: 0, label: 'Người dùng');
-    expect(find.text('(Trống)'), findsNothing);
+    expect(find.text('Hệ thống'), findsWidgets);
+    for (final module in <String>['users', 'roles', 'functions']) {
+      expect(find.byKey(ValueKey<String>('system-$module')), findsOneWidget);
+    }
     _expectNavigationColors(
       tester,
       selectedKey: 'system',
       unselectedKey: 'home',
     );
-    final systemPanelSize = tester.getSize(
-      find.byKey(const ValueKey<String>('shell-panel-surface')),
-    );
-    expect(
-      find.byKey(const ValueKey<String>('shell-bottom-navigation')),
-      findsOneWidget,
-    );
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byKey(const ValueKey<String>('shell-panel-close')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('shell-panel-system')),
-      findsNothing,
-    );
-
+    // "Xem thêm" is a sheet over the current tab (Figma 05 More).
     await tester.tap(find.byKey(const ValueKey<String>('shell-nav-more')));
     await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey<String>('shell-panel-more')),
-      findsOneWidget,
-    );
-    expect(find.text('Quản lý cấp phối'), findsOneWidget);
-    expect(find.text('Quản lý cân ô tô'), findsOneWidget);
-    expect(find.text('Quản lý trạm'), findsOneWidget);
-    expect(find.text('Quản lý công ty'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('more-sheet')), findsOneWidget);
+    expect(find.text('VẬN HÀNH'), findsOneWidget);
+    expect(find.text('TỔ CHỨC & HỆ THỐNG'), findsOneWidget);
+    for (final label in <String>[
+      'Quản lý cấp phối',
+      'Quản lý cân ô tô',
+      'Quản lý vật liệu',
+      'Quản lý trạm',
+      'Quản lý công ty',
+    ]) {
+      expect(find.byKey(ValueKey<String>('more-tile-$label')), findsOneWidget);
+    }
     expect(find.text('Quản lý xe'), findsNothing);
     expect(find.text('Quản lý camera'), findsNothing);
-    expect(find.text('Quản lý vật liệu'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('module-panel-grid-scroll')),
-      findsOneWidget,
-    );
-    _expectPanelDesign(tester);
-    _expectFourColumnGrid(tester);
-    _expectModuleTileDesign(tester, index: 0, label: 'Quản lý cấp phối');
-    _expectNavigationColors(
-      tester,
-      selectedKey: 'more',
-      unselectedKey: 'system',
-    );
-    expect(
-      tester.getSize(find.byKey(const ValueKey<String>('shell-panel-surface'))),
-      systemPanelSize,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('shell-bottom-navigation')),
-      findsOneWidget,
-    );
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byKey(const ValueKey<String>('module-panel-tile-0')));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('more-tile-Quản lý cấp phối')),
+    );
     await tester.pumpAndSettle();
-
+    expect(find.byKey(const ValueKey<String>('more-sheet')), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('mix-design-filters')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
   });
-}
-
-void _expectPanelDesign(WidgetTester tester) {
-  final panelSurface = find.byKey(
-    const ValueKey<String>('shell-panel-surface'),
-  );
-  final bottomNavigation = find.byKey(
-    const ValueKey<String>('shell-bottom-navigation'),
-  );
-  final panelRect = tester.getRect(panelSurface);
-  final bottomNavigationTop = tester.getRect(bottomNavigation).top;
-  final expectedPanelHeight = (bottomNavigationTop * 0.40)
-      .clamp(340.0, 520.0)
-      .toDouble();
-
-  expect(panelRect.left, closeTo(0, 0.01));
-  expect(panelRect.right, closeTo(_surfaceSize.width, 0.01));
-  expect(panelRect.height, closeTo(expectedPanelHeight, 0.01));
-  expect(
-    panelRect.top,
-    closeTo(bottomNavigationTop - expectedPanelHeight, 0.01),
-  );
-  expect(panelRect.bottom, closeTo(bottomNavigationTop, 0.01));
-
-  final panelMaterial = tester.widget<Material>(panelSurface);
-  final panelShape = panelMaterial.shape! as RoundedRectangleBorder;
-  final panelRadius = panelShape.borderRadius.resolve(TextDirection.ltr);
-  expect(panelMaterial.color, Colors.white);
-  expect(panelRadius.topLeft, const Radius.circular(16));
-  expect(panelRadius.topRight, const Radius.circular(16));
-
-  final closeButton = find.byKey(const ValueKey<String>('shell-panel-close'));
-  expect(tester.getSize(closeButton), const Size(32, 32));
-  final closeIconFinder = find.descendant(
-    of: closeButton,
-    matching: find.byIcon(Icons.close),
-  );
-  expect(closeIconFinder, findsOneWidget);
-  final closeIcon = tester.widget<Icon>(closeIconFinder);
-  expect(closeIcon.size, 16);
-  final closeIconButton = tester.widget<IconButton>(closeButton);
-  expect(
-    closeIconButton.style?.foregroundColor?.resolve(const <WidgetState>{}),
-    _unselectedColor,
-  );
-}
-
-void _expectFourColumnGrid(WidgetTester tester) {
-  final gridFinder = find.byKey(
-    const ValueKey<String>('module-panel-grid-scroll'),
-  );
-  final grid = tester.widget<GridView>(gridFinder);
-  final padding = grid.padding!.resolve(TextDirection.ltr);
-  final delegate =
-      grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-
-  expect(padding.left, 16);
-  expect(padding.right, 16);
-  expect(delegate.crossAxisCount, 4);
-  expect(delegate.crossAxisSpacing, 16);
-  expect(delegate.mainAxisExtent, 76);
-}
-
-void _expectModuleTileDesign(
-  WidgetTester tester, {
-  required int index,
-  required String label,
-}) {
-  final tile = find.byKey(ValueKey<String>('module-panel-tile-$index'));
-  final iconBackground = find.byKey(
-    ValueKey<String>('module-panel-icon-background-$index'),
-  );
-
-  expect(tile, findsOneWidget);
-  expect(iconBackground, findsOneWidget);
-  expect(tester.getSize(iconBackground), const Size(36, 36));
-
-  final inkWell = tester.widget<InkWell>(tile);
-  expect(
-    inkWell.overlayColor?.resolve(<WidgetState>{WidgetState.pressed}),
-    Colors.transparent,
-  );
-  expect(inkWell.splashFactory, NoSplash.splashFactory);
-
-  final iconFinder = find.descendant(
-    of: iconBackground,
-    matching: find.byType(Icon),
-  );
-  expect(iconFinder, findsOneWidget);
-  expect(tester.widget<Icon>(iconFinder).size, 18);
-
-  final labelFinder = find.descendant(of: tile, matching: find.text(label));
-  expect(labelFinder, findsOneWidget);
-  final labelText = tester.widget<Text>(labelFinder);
-  expect(labelText.style?.fontSize, 13);
-  expect(labelText.style?.fontWeight, FontWeight.w500);
 }
 
 void _expectNavigationColors(
@@ -535,6 +384,8 @@ void _expectNavigationColors(
     matching: find.byType(AnimatedContainer),
   );
   expect(selectedContainerFinder, findsOneWidget);
+  // Figma: 52×30 pill behind the icon only.
+  expect(tester.getSize(selectedContainerFinder), const Size(52, 30));
   final selectedContainer = tester.widget<AnimatedContainer>(
     selectedContainerFinder,
   );

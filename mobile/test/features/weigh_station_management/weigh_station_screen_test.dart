@@ -21,86 +21,125 @@ import 'package:ttsmart_mobile/features/weigh_station_management/data/models/wei
 import 'package:ttsmart_mobile/features/weigh_station_management/data/repositories/weigh_station_repository.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/presentation/screens/weigh_station_screen.dart';
 
+import '../../support/phone_viewport.dart';
+
+Future<void> _pumpScreen(
+  WidgetTester tester,
+  _DelayedWeighStationRepository repository,
+) async {
+  usePhoneViewport(tester);
+  final appController = _AuthorizedAppController();
+  addTearDown(appController.dispose);
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light,
+      home: AppScope(
+        controller: appController,
+        child: WeighStationScreen(
+          repository: repository,
+          companyRepository: _UnusedCompanyRepository(),
+          now: () => DateTime(2026, 8, 19),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Opening a modal route needs a few frames; the sheet may show an
+/// indeterminate progress bar, so pumpAndSettle cannot be used.
+Future<void> _settleRoute(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
 void main() {
   testWidgets(
-    'advanced filters can be repeatedly toggled while options are loading',
+    'advanced filter sheet can be reopened while options are loading',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final appController = _AuthorizedAppController();
       final repository = _DelayedWeighStationRepository();
-      addTearDown(appController.dispose);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: AppScope(
-            controller: appController,
-            child: WeighStationScreen(
-              repository: repository,
-              companyRepository: _UnusedCompanyRepository(),
-              now: () => DateTime(2026, 8, 19),
-            ),
-          ),
-        ),
-      );
+      await _pumpScreen(tester, repository);
       await tester.pumpAndSettle();
 
-      final stationField = find.byKey(
-        const ValueKey<String>('weigh-station-station'),
-      );
-      final stationInput = find.descendant(
-        of: stationField,
-        matching: find.byType(TextFormField),
-      );
-      await tester.tap(stationInput);
-      await tester.enterText(stationInput, '42');
-      await tester.pump();
-      await tester.tap(find.text('Trạm cân 42').last);
-      await tester.pump();
+      // A single station in scope is picked and searched on a phone.
+      expect(repository.detailQueries.single.branchId, 42);
 
-      final toggle = find.byKey(
+      final openFilters = find.byKey(
         const ValueKey<String>('weigh-station-advanced-filters'),
       );
-      await tester.ensureVisible(toggle);
-      await tester.tap(toggle);
-      await tester.pump();
-      expect(
-        find.byKey(const ValueKey<String>('weigh-station-vehicle')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('weigh-station-goods')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('weigh-station-operator')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('weigh-station-unit')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('weigh-station-type')),
-        findsOneWidget,
-      );
+      Future<void> openAndClose({required bool expectFields}) async {
+        await tester.tap(openFilters);
+        await _settleRoute(tester);
+        if (expectFields) {
+          for (final key in const [
+            'weigh-station-stage',
+            'weigh-station-vehicle',
+            'weigh-station-goods',
+            'weigh-station-operator',
+            'weigh-station-unit',
+            'weigh-station-type',
+          ]) {
+            expect(find.byKey(ValueKey<String>(key)), findsOneWidget);
+          }
+        }
+        await tester.tap(find.byTooltip('Đóng'));
+        await _settleRoute(tester);
+      }
 
-      await tester.tap(toggle);
-      await tester.pump();
-      await tester.tap(toggle);
-      await tester.pump();
+      await openAndClose(expectFields: true);
+      await openAndClose(expectFields: false);
 
       repository.completeOptions();
       await tester.pumpAndSettle();
 
-      await tester.tap(toggle);
-      await tester.pump();
-      await tester.tap(toggle);
-      await tester.pump();
+      await openAndClose(expectFields: true);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('picking a station from the chip searches immediately', (
+    tester,
+  ) async {
+    final repository = _DelayedWeighStationRepository(
+      stations: const [
+        WeighStationStation(id: 42, name: 'Trạm cân 42'),
+        WeighStationStation(id: 43, name: 'Trạm cân 43'),
+      ],
+      tickets: const [
+        WeighStationItem(
+          stt: 1,
+          id: 't-1',
+          ticketNumber: 10231,
+          hasConversionConfiguration: false,
+          vehiclePlate: '30A-123.45',
+          goodsName: 'Đá 1x2',
+          goodsWeightKg: 12450,
+          weighingType: 'Nhập',
+        ),
+      ],
+    )..completeOptions();
+    await _pumpScreen(tester, repository);
+    await tester.pumpAndSettle();
+
+    // Two stations: nothing is searched until the user picks one.
+    expect(repository.detailQueries, isEmpty);
+    expect(find.text('Chọn trạm cân'), findsWidgets);
+
+    // The test font is wider than real text, so bring the chip into view.
+    final stationChip = find.byKey(
+      const ValueKey<String>('weigh-station-station'),
+    );
+    await tester.ensureVisible(stationChip);
+    await tester.pumpAndSettle();
+    await tester.tap(stationChip);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trạm cân 43'));
+    await tester.pumpAndSettle();
+
+    expect(repository.detailQueries.single.branchId, 43);
+    expect(find.text('30A-123.45'), findsOneWidget);
+    expect(find.text('12.450 kg', findRichText: true), findsOneWidget);
+    expect(find.text('1 phiếu cân'.toUpperCase()), findsOneWidget);
+  });
 }
 
 class _MemoryTokenStorage implements TokenStorage {
@@ -165,6 +204,14 @@ class _AuthorizedAppController extends AppController {
 }
 
 class _DelayedWeighStationRepository implements WeighStationRepository {
+  _DelayedWeighStationRepository({
+    this.stations = const [WeighStationStation(id: 42, name: 'Trạm cân 42')],
+    this.tickets = const [],
+  });
+
+  final List<WeighStationStation> stations;
+  final List<WeighStationItem> tickets;
+  final List<WeighStationSearchQuery> detailQueries = [];
   final _options = Completer<WeighStationFilterOptions>();
 
   void completeOptions() {
@@ -184,9 +231,7 @@ class _DelayedWeighStationRepository implements WeighStationRepository {
   Future<List<WeighStationStation>> getStations({
     int? companyId,
     ApiRequestCancellation? cancellation,
-  }) async => const <WeighStationStation>[
-    WeighStationStation(id: 42, name: 'Trạm cân 42'),
-  ];
+  }) async => stations;
 
   @override
   Future<WeighStationFilterOptions> getFilterOptions(
@@ -198,13 +243,33 @@ class _DelayedWeighStationRepository implements WeighStationRepository {
   Future<WeighStationPage> searchDetail(
     WeighStationSearchQuery query, {
     ApiRequestCancellation? cancellation,
-  }) => throw UnimplementedError();
+  }) async {
+    detailQueries.add(query);
+    return WeighStationPage(
+      items: tickets,
+      pageNumber: 1,
+      pageSize: 20,
+      totalCount: tickets.length,
+      totalPages: tickets.isEmpty ? 0 : 1,
+      canViewMaterialValue: false,
+    );
+  }
 
   @override
   Future<WeighStationSummary> searchSummary(
     WeighStationSearchQuery query, {
     ApiRequestCancellation? cancellation,
-  }) => throw UnimplementedError();
+  }) async => const WeighStationSummary(
+    items: [],
+    pageNumber: 1,
+    pageSize: 20,
+    totalCount: 0,
+    totalPages: 0,
+    totalGoodsWeightKg: 0,
+    totalConvertedQuantities: [],
+    groups: [],
+    canViewMaterialValue: false,
+  );
 
   @override
   Future<ExportFile> exportDetail(WeighStationSearchQuery query) =>

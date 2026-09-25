@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
 import '../../data/models/permission_models.dart';
 import '../../data/models/role_models.dart';
 import '../controllers/roles_controller.dart';
 import '../widgets/access_layout.dart';
-import '../widgets/access_status_chip.dart';
 import 'role_form_screen.dart';
 import 'role_functions_screen.dart';
 
@@ -77,28 +77,19 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
 
   Future<void> _toggleStatus(RoleResponse role) async {
     final nextActive = !role.isActive;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(nextActive ? 'Kích hoạt vai trò?' : 'Ngừng vai trò?'),
-        content: Text(
-          nextActive
-              ? 'Vai trò sẽ có hiệu lực trở lại.'
-              : 'Vai trò sẽ ngừng hiệu lực sau khi backend xác nhận.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(nextActive ? 'Kích hoạt' : 'Ngừng'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      icon: nextActive
+          ? Icons.play_circle_outline_rounded
+          : Icons.pause_circle_outline_rounded,
+      title: nextActive ? 'Kích hoạt vai trò?' : 'Ngừng vai trò?',
+      message: nextActive
+          ? 'Vai trò sẽ có hiệu lực trở lại.'
+          : 'Vai trò sẽ ngừng hiệu lực sau khi backend xác nhận.',
+      confirmLabel: nextActive ? 'Kích hoạt' : 'Ngừng',
+      destructive: !nextActive,
     );
-    if (confirmed != true || !mounted || _busy) return;
+    if (!confirmed || !mounted || _busy) return;
     setState(() => _busy = true);
     try {
       final updated = await widget.controller.setActive(role.id, nextActive);
@@ -116,26 +107,15 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
   }
 
   Future<void> _delete(RoleResponse role) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa vai trò?'),
-        content: Text(
+    final confirmed = await showAppConfirmDialog(
+      context,
+      icon: Icons.delete_outline_rounded,
+      title: 'Xóa vai trò?',
+      message:
           'Xóa vai trò ${role.name}. Backend có thể từ chối nếu vai trò đang bảo vệ quyền quản trị cuối cùng.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Xóa',
     );
-    if (confirmed != true || !mounted || _busy) return;
+    if (!confirmed || !mounted || _busy) return;
     setState(() => _busy = true);
     try {
       await widget.controller.delete(role.id);
@@ -173,7 +153,8 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
         if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Chi tiết vai trò')),
+        // Figma S05: no title, the header names the role.
+        appBar: AppBar(),
         body: FutureBuilder<RoleResponse>(
           future: _future,
           builder: (context, snapshot) {
@@ -208,115 +189,100 @@ class _RoleDetailScreenState extends State<RoleDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  role.name,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(role.code),
-                                if (role.note?.trim().isNotEmpty == true) ...[
-                                  const SizedBox(height: 10),
-                                  Text(role.note!),
-                                ],
-                                const SizedBox(height: 12),
-                                AccessStatusChip(isActive: role.isActive),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          AccessSection(
-                            title: 'Tổng quan',
-                            icon: Icons.analytics_outlined,
-                            child: Column(
-                              children: [
-                                AccessInfoRow(
-                                  label: 'Người dùng',
-                                  value: '${role.userCount}',
-                                ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Số chức năng',
-                                  value: '${role.functions.length}',
-                                ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Số quyền đang bật',
-                                  value: '${role.grantedFunctionCount}',
-                                ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Cấp quản lý',
-                                  value:
-                                      role.levelRole?.toString() ?? 'Chưa đặt',
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.tonalIcon(
-                              onPressed: _busy
-                                  ? null
-                                  : () => _openMatrix(role, canUpdate),
-                              icon: const Icon(Icons.rule_folder_outlined),
-                              label: Text(
-                                canUpdate
-                                    ? 'Chỉnh quyền chức năng'
-                                    : 'Xem quyền chức năng',
+                          Row(
+                            children: [
+                              const IconTile(
+                                icon: Icons.shield_outlined,
+                                tone: AppTone.violet,
+                                size: 60,
+                                radius: 18,
                               ),
-                            ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      role.name,
+                                      style: TextStyle(
+                                        color: context.palette.text1,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      role.code,
+                                      style: TextStyle(
+                                        color: context.palette.text2,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          InsetGroup(
+                            label: 'Phạm vi',
+                            children: [
+                              NavRow(
+                                title: 'Quyền chức năng',
+                                subtitle:
+                                    '${role.grantedFunctionCount} / ${role.functions.length} chức năng được cấp',
+                                onTap: _busy
+                                    ? null
+                                    : () => _openMatrix(role, canUpdate),
+                              ),
+                              NavRow(
+                                title: 'Người dùng được gán',
+                                subtitle: '${role.userCount} người',
+                                showChevron: false,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          InsetGroup(
+                            label: 'Thông tin',
+                            children: [
+                              FieldRow(
+                                label: 'Ghi chú',
+                                value: role.note?.trim().isNotEmpty == true
+                                    ? role.note!
+                                    : 'Chưa cập nhật',
+                              ),
+                            ],
                           ),
                           if (canUpdate || canDelete) ...[
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                            const SizedBox(height: 20),
+                            InsetCard(
+                              dividerIndent: 46,
                               children: [
                                 if (canUpdate)
-                                  OutlinedButton.icon(
-                                    onPressed: _busy ? null : () => _edit(role),
-                                    icon: const Icon(Icons.edit_outlined),
-                                    label: const Text('Cập nhật'),
+                                  ActionRow(
+                                    icon: Icons.edit_outlined,
+                                    label: 'Sửa vai trò',
+                                    onTap: _busy ? null : () => _edit(role),
                                   ),
                                 if (canUpdate)
-                                  OutlinedButton.icon(
-                                    onPressed: _busy
+                                  ActionRow(
+                                    onTap: _busy
                                         ? null
                                         : () => _toggleStatus(role),
-                                    icon: Icon(
-                                      role.isActive
-                                          ? Icons.pause_circle_outline
-                                          : Icons.play_circle_outline,
-                                    ),
-                                    label: Text(
-                                      role.isActive
-                                          ? 'Ngừng hiệu lực'
-                                          : 'Kích hoạt',
-                                    ),
+                                    icon: role.isActive
+                                        ? Icons.pause_circle_outline
+                                        : Icons.play_circle_outline,
+                                    label: role.isActive
+                                        ? 'Ngừng hiệu lực'
+                                        : 'Kích hoạt',
                                   ),
                                 if (canDelete)
-                                  TextButton.icon(
-                                    onPressed: _busy
-                                        ? null
-                                        : () => _delete(role),
-                                    icon: const Icon(Icons.delete_outline),
-                                    label: const Text('Xóa'),
+                                  ActionRow(
+                                    icon: Icons.delete_outline,
+                                    label: 'Xóa vai trò',
+                                    destructive: true,
+                                    onTap: _busy ? null : () => _delete(role),
                                   ),
                               ],
                             ),

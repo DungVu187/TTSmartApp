@@ -5,6 +5,7 @@ import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
+import 'package:ttsmart_mobile/core/ui/app_ui.dart';
 import 'package:ttsmart_mobile/features/access_management/data/models/permission_models.dart';
 import 'package:ttsmart_mobile/features/access_management/data/repositories/access_management_repository.dart';
 import 'package:ttsmart_mobile/features/auth/data/models/auth_models.dart';
@@ -16,6 +17,8 @@ import 'package:ttsmart_mobile/features/order_reporting/data/models/order_report
 import 'package:ttsmart_mobile/features/order_reporting/data/repositories/order_report_repository.dart';
 import 'package:ttsmart_mobile/features/order_reporting/presentation/screens/order_reports_screen.dart';
 import 'package:ttsmart_mobile/features/order_reporting/presentation/widgets/order_report_widgets.dart';
+
+import '../../support/phone_viewport.dart';
 
 class _MemoryTokenStorage implements TokenStorage {
   @override
@@ -80,10 +83,23 @@ class _AuthorizedAppController extends AppController {
   bool hasRole(String roleCode) => isAdmin && roleCode == 'ADMIN';
 }
 
+const _hanoiStation = OrderReportStation(
+  id: 10,
+  companyId: 3,
+  name: 'Trạm Hà Nội',
+  typeTram: 1,
+  companyName: 'Công ty Alpha',
+  code: 'TRAM_10',
+);
+
 class _FakeOrderReportRepository implements OrderReportRepository {
-  _FakeOrderReportRepository({this.isPartial = false});
+  _FakeOrderReportRepository({
+    this.isPartial = false,
+    this.stations = const [_hanoiStation],
+  });
 
   final bool isPartial;
+  final List<OrderReportStation> stations;
   final requestedCompanyIds = <int?>[];
   final employeeRequests =
       <({int branchId, int? companyId, DateTime fromDate, DateTime toDate})>[];
@@ -92,16 +108,7 @@ class _FakeOrderReportRepository implements OrderReportRepository {
   @override
   Future<List<OrderReportStation>> getStations({int? companyId}) async {
     requestedCompanyIds.add(companyId);
-    return const [
-      OrderReportStation(
-        id: 10,
-        companyId: 3,
-        name: 'Trạm Hà Nội',
-        typeTram: 1,
-        companyName: 'Công ty Alpha',
-        code: 'TRAM_10',
-      ),
-    ];
+    return stations;
   }
 
   @override
@@ -438,10 +445,10 @@ void main() {
       find.byKey(const ValueKey('order-report-date-minute')),
       findsOneWidget,
     );
-    expect(find.text('Từ ngày'), findsOneWidget);
-    expect(find.text('Đến ngày'), findsOneWidget);
+    expect(find.text('TỪ NGÀY'), findsOneWidget);
+    expect(find.text('ĐẾN NGÀY'), findsOneWidget);
 
-    await tester.tap(find.text('Đến ngày'));
+    await tester.tap(find.text('ĐẾN NGÀY'));
     await tester.pump();
     expect(find.text('08'), findsWidgets);
 
@@ -483,6 +490,141 @@ void main() {
     );
     expect(find.text('Không thể tải dữ liệu từ 1 trạm'), findsOneWidget);
     expect(find.text('TRAM_20 • Trạm 20'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'phone layout loads the only station and reloads when a chip changes',
+    (tester) async {
+      usePhoneViewport(tester);
+      final appController = _AuthorizedAppController();
+      final orderRepository = _FakeOrderReportRepository();
+      addTearDown(appController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: AppScope(
+              controller: appController,
+              child: OrderReportsScreen(
+                repository: orderRepository,
+                companyRepository: _FakeCompanyRepository(),
+                showHeading: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No filter card / Search button: the only station loads by itself.
+      expect(find.byKey(const ValueKey('order-report-submit')), findsNothing);
+      expect(find.widgetWithText(TabTitleBar, 'Đơn hàng'), findsOneWidget);
+      expect(orderRepository.employeeRequests.single.branchId, 10);
+      expect(orderRepository.queries.single.branchId, 10);
+      expect(find.text('Đơn #101'), findsOneWidget);
+      expect(find.text('Khách hàng A'), findsOneWidget);
+      expect(find.text('31/07'), findsOneWidget);
+      expect(find.text('10:00'), findsOneWidget);
+      // One order, so the totals and the card show the same volumes.
+      expect(find.text('24,5 m³'), findsWidgets);
+      expect(find.text('20,3 m³'), findsWidgets);
+
+      final employeeChip = find.byKey(
+        const ValueKey('order-report-employee-chip'),
+      );
+      await tester.ensureVisible(employeeChip);
+      await tester.tap(employeeChip);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nguyễn Văn A').last);
+      await tester.pumpAndSettle();
+
+      expect(orderRepository.queries, hasLength(2));
+      expect(orderRepository.queries.last.employeeName, 'Nguyễn Văn A');
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('order-report-filters-button')),
+          matching: find.text('1'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('order-report-filters-button')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Bộ lọc đơn hàng'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('order-report-filter-reset')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('order-report-filter-search')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(orderRepository.queries, hasLength(3));
+      expect(orderRepository.queries.last.employeeName, isNull);
+      expect(orderRepository.queries.last.branchId, 10);
+      expect(find.text('Bộ lọc đơn hàng'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('phone layout asks an admin before loading every station', (
+    tester,
+  ) async {
+    usePhoneViewport(tester);
+    final appController = _AuthorizedAppController(isAdmin: true);
+    final orderRepository = _FakeOrderReportRepository(
+      stations: const [
+        _hanoiStation,
+        OrderReportStation(
+          id: 20,
+          companyId: 3,
+          name: 'Trạm Hà Nam',
+          typeTram: 1,
+          companyName: 'Công ty Alpha',
+          code: 'TRAM_20',
+        ),
+      ],
+    );
+    addTearDown(appController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: AppScope(
+            controller: appController,
+            child: OrderReportsScreen(
+              repository: orderRepository,
+              companyRepository: _FakeCompanyRepository(),
+              showHeading: false,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Xem đơn hàng'), findsOneWidget);
+    expect(orderRepository.queries, isEmpty);
+
+    await tester.tap(find.byKey(const ValueKey('order-report-load')));
+    await tester.pumpAndSettle();
+    expect(orderRepository.queries.single.branchId, isNull);
+    expect(orderRepository.queries.single.companyId, 3);
+    expect(find.text('Đơn #101'), findsOneWidget);
+
+    final stationChip = find.byKey(const ValueKey('order-report-station-chip'));
+    await tester.ensureVisible(stationChip);
+    await tester.tap(stationChip);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TRAM_20 • Trạm Hà Nam'));
+    await tester.pumpAndSettle();
+
+    expect(orderRepository.queries, hasLength(2));
+    expect(orderRepository.queries.last.branchId, 20);
     expect(tester.takeException(), isNull);
   });
 }

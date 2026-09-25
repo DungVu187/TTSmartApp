@@ -751,6 +751,56 @@ class _SummaryCategory {
   final String unit;
 }
 
+// Formatting shared with the phone views so a value reads exactly as it does
+// in the web-aligned tables.
+
+/// Concrete / requested volume as shown in the table ("7.5").
+String formatStatisticsVolume(double value) =>
+    _vietnamese(_concreteNumber(value));
+
+/// Per-batch material quantity, decimals by category (CAT/DA 0, XM/NUOC 1).
+String formatStatisticsMaterial(double value, String categoryCode) =>
+    _vietnamese(_materialNumber(value, categoryCode));
+
+/// Grouped total quantity of the phone views ("2.846.120").
+String formatStatisticsTotal(double value, {int digits = 2}) =>
+    _vietnamese(_groupedRoundedNumber(value, digits));
+
+/// Grouped per-material total of the phone summary.
+String formatStatisticsSummaryMaterial(double value, String categoryCode) =>
+    _vietnamese(_summaryMaterialNumber(value, categoryCode));
+
+/// The web tables group with "," and use "." for decimals (some values are
+/// not grouped); the phone views (Figma C01–C03) show "2.846.120",
+/// "1.198,5" and "−4".
+String _vietnamese(String webNumber) {
+  var text = webNumber.replaceAll(',', '');
+  final negative = text.startsWith('-');
+  if (negative) text = text.substring(1);
+  final parts = text.split('.');
+  final integer = parts.first;
+  final buffer = StringBuffer(negative ? '−' : '');
+  for (var index = 0; index < integer.length; index++) {
+    if (index > 0 && (integer.length - index) % 3 == 0) buffer.write('.');
+    buffer.write(integer[index]);
+  }
+  if (parts.length > 1) buffer.write(',${parts[1]}');
+  return buffer.toString();
+}
+
+/// Vietnam-time "HH:mm" of a UTC timestamp, "—" when missing.
+String formatStatisticsTime(DateTime? value) => _time(value);
+
+/// "dd/MM/yyyy" of a mixing date, "—" when missing.
+String formatStatisticsDate(DateTime? value) => _date(value);
+
+/// Phone unit of a material category ("lít" for water, else "kg").
+String statisticsCategoryUnit(String code) => _categoryUnit(code).toLowerCase();
+
+/// Vietnamese label of a material category code.
+String statisticsCategoryLabel(String code, String? fallback) =>
+    _categoryLabel(code, fallback);
+
 String _summaryCellKey(String categoryCode, int typePosition) =>
     '$categoryCode|$typePosition';
 

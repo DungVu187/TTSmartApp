@@ -331,7 +331,7 @@ const operationalModules = <OperationalModule>[
     functionCode: AccessFunctionCodes.weighStations,
     label: 'Quản lý cân ô tô',
     description: 'Tra cứu phiếu cân và tổng hợp theo từng trạm cân.',
-    icon: Icons.scale_outlined,
+    icon: Icons.balance_outlined,
   ),
 ];
 
@@ -447,7 +447,7 @@ IconData _functionIcon(GrantedFunction function, IconData fallback) {
     return Icons.factory_outlined;
   }
   if (icon.contains('scale') || icon.contains('weigh')) {
-    return Icons.scale_outlined;
+    return Icons.balance_outlined;
   }
   if (icon.contains('order') || icon.contains('receipt')) {
     return Icons.receipt_long_outlined;

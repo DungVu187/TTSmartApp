@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app.dart';
 import 'app_dependencies.dart';
@@ -20,6 +22,10 @@ import 'features/weigh_station_management/data/repositories/weigh_station_reposi
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/fonts/inter/OFL.txt');
+    yield LicenseEntryWithLineBreaks(const ['Inter'], license);
+  });
   final config = AppConfig.fromEnvironment();
   final apiClient = ApiClient(
     baseUri: config.apiBaseUri,

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/ui/app_ui.dart';
+
 import '../../data/models/company_models.dart';
 
+/// "Trả phí" (violet, award) / "Miễn phí" (neutral, gift).
 class CompanyPlanChip extends StatelessWidget {
   const CompanyPlanChip({super.key, required this.plan});
 
@@ -9,56 +12,29 @@ class CompanyPlanChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final isPaid = plan == CompanyPlan.paid;
-    final foreground = isPaid
-        ? colors.onSecondaryContainer
-        : colors.onPrimaryContainer;
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      avatar: Icon(
-        isPaid
-            ? Icons.workspace_premium_outlined
-            : Icons.card_giftcard_outlined,
-        size: 17,
-        color: foreground,
-      ),
-      label: Text(plan.label),
-      labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
-      backgroundColor: isPaid
-          ? colors.secondaryContainer
-          : colors.primaryContainer,
-      side: BorderSide.none,
+    return AppTag(
+      label: plan.label,
+      icon: isPaid
+          ? Icons.workspace_premium_outlined
+          : Icons.card_giftcard_outlined,
+      tone: isPaid ? AppTone.violet : AppTone.neutral,
     );
   }
 }
 
+/// "Đang hoạt động" (green) / "Đã xóa" (neutral).
 class CompanyStatusChip extends StatelessWidget {
   const CompanyStatusChip({super.key, required this.isDeleted});
 
   final bool isDeleted;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final foreground = isDeleted
-        ? colors.onSurfaceVariant
-        : colors.onPrimaryContainer;
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      avatar: Icon(
-        isDeleted ? Icons.delete_outline : Icons.check_circle_outline,
-        size: 17,
-        color: foreground,
-      ),
-      label: Text(isDeleted ? 'Đã xóa' : 'Đang hoạt động'),
-      labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
-      backgroundColor: isDeleted
-          ? colors.surfaceContainerHighest
-          : colors.primaryContainer,
-      side: BorderSide.none,
-    );
-  }
+  Widget build(BuildContext context) => AppTag(
+    label: isDeleted ? 'Đã xóa' : 'Đang hoạt động',
+    icon: isDeleted ? Icons.delete_outline_rounded : Icons.check_rounded,
+    tone: isDeleted ? AppTone.neutral : AppTone.success,
+  );
 }
 
 class CompanyLockChip extends StatelessWidget {
@@ -69,14 +45,10 @@ class CompanyLockChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!isLocked) return const SizedBox.shrink();
-    final colors = Theme.of(context).colorScheme;
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      avatar: Icon(Icons.lock_outline, size: 17, color: colors.error),
-      label: const Text('Đang khóa'),
-      labelStyle: TextStyle(color: colors.error, fontWeight: FontWeight.w600),
-      backgroundColor: colors.errorContainer,
-      side: BorderSide.none,
+    return const AppTag(
+      label: 'Đang khóa',
+      icon: Icons.lock_outline_rounded,
+      tone: AppTone.danger,
     );
   }
 }
@@ -97,35 +69,26 @@ class CompanySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            Expanded(child: GroupLabel(title)),
             ?trailing,
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: context.palette.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(color: context.palette.border),
           ),
-          child: child,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: child,
+          ),
         ),
       ],
     );
@@ -150,37 +113,7 @@ class CompanyInfoRow extends StatelessWidget {
     if (normalized == null || normalized.isEmpty) {
       return const SizedBox.shrink();
     }
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-          ],
-          SizedBox(
-            width: 116,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              normalized,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return FieldRow(label: label, value: normalized);
   }
 }
 

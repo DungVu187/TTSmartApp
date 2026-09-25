@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/utils/vietnam_time.dart';
 import '../../data/models/material_report_models.dart';
 
@@ -134,6 +135,8 @@ class MaterialTotalsGrid extends StatelessWidget {
   }
 }
 
+/// Figma C05 "So sánh theo vật liệu": one card, a row per material with
+/// import / export bars and the running stock.
 class MaterialComparisonList extends StatelessWidget {
   const MaterialComparisonList({
     super.key,
@@ -151,55 +154,35 @@ class MaterialComparisonList extends StatelessWidget {
         message: 'Không có vật liệu trong nhóm đã chọn.',
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 760 ? 2 : 1;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            mainAxisExtent: 150,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 10,
-          ),
-          itemBuilder: (context, index) =>
-              _MaterialComparisonCard(item: items[index], valueMode: valueMode),
-        );
-      },
+    return InsetCard(
+      children: [
+        for (final item in items)
+          _MaterialComparisonRow(item: item, valueMode: valueMode),
+      ],
     );
   }
 }
 
-class _MaterialComparisonCard extends StatelessWidget {
-  const _MaterialComparisonCard({required this.item, required this.valueMode});
+class _MaterialComparisonRow extends StatelessWidget {
+  const _MaterialComparisonRow({required this.item, required this.valueMode});
 
   final MaterialChartItem item;
   final MaterialValueMode valueMode;
 
   @override
   Widget build(BuildContext context) {
-    final imported = valueMode == MaterialValueMode.quantity
-        ? item.importQuantityKg
-        : item.importValueVnd;
-    final exported = valueMode == MaterialValueMode.quantity
-        ? item.exportQuantityKg
-        : item.exportValueVnd;
-    final inventory = valueMode == MaterialValueMode.quantity
+    final p = context.palette;
+    final byQuantity = valueMode == MaterialValueMode.quantity;
+    final imported = byQuantity ? item.importQuantityKg : item.importValueVnd;
+    final exported = byQuantity ? item.exportQuantityKg : item.exportValueVnd;
+    final inventory = byQuantity
         ? item.inventoryQuantityKg
         : item.inventoryValueVnd;
     final scale = math.max(1.0, math.max(imported.abs(), exported.abs()));
-    String display(double value) => valueMode == MaterialValueMode.quantity
-        ? formatWeight(value)
-        : formatCurrency(value);
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    String display(double value) =>
+        byQuantity ? formatWeight(value) : formatCurrency(value);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -210,25 +193,31 @@ class _MaterialComparisonCard extends StatelessWidget {
                   item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: p.text1,
+                    fontSize: 16,
+                    height: 21 / 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 'Tồn ${display(inventory)}',
                 style: TextStyle(
-                  color: inventory < 0 ? AppColors.danger : AppColors.brandBlue,
-                  fontSize: 12,
+                  color: inventory < 0 ? p.danger : p.primary,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _ComparisonBar(
             label: 'Nhập',
             value: imported,
             maximum: scale,
-            color: AppColors.success,
+            tone: AppTone.success,
             displayValue: display(imported),
           ),
           const SizedBox(height: 10),
@@ -236,7 +225,7 @@ class _MaterialComparisonCard extends StatelessWidget {
             label: 'Xuất',
             value: exported,
             maximum: scale,
-            color: AppColors.danger,
+            tone: AppTone.danger,
             displayValue: display(exported),
           ),
         ],
@@ -250,47 +239,59 @@ class _ComparisonBar extends StatelessWidget {
     required this.label,
     required this.value,
     required this.maximum,
-    required this.color,
+    required this.tone,
     required this.displayValue,
   });
 
   final String label;
   final double value;
   final double maximum;
-  final Color color;
+  final AppTone tone;
   final String displayValue;
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final (fg, bg) = p.tone(tone);
     final ratio = (value.abs() / maximum).clamp(0.0, 1.0);
     return Row(
       children: [
         SizedBox(
           width: 36,
-          child: Text(label, style: const TextStyle(fontSize: 12)),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: p.text2,
+              fontSize: 13,
+              height: 17 / 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
+        const SizedBox(width: 8),
         Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: ratio,
               minHeight: 8,
-              color: color,
-              backgroundColor: color.withValues(alpha: 0.1),
+              color: fg,
+              backgroundColor: bg,
             ),
           ),
         ),
         const SizedBox(width: 8),
         SizedBox(
-          width: 94,
+          width: 100,
           child: Text(
             displayValue,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: color,
-              fontSize: 11,
+              color: fg,
+              fontSize: 13,
+              height: 17 / 13,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -409,129 +410,104 @@ class MaterialTransactionCard extends StatelessWidget {
   }
 }
 
+/// Figma C07: movement title, time · id, note and one card per material
+/// (Khối lượng / Đơn giá / Thành tiền / Quy đổi).
 Future<void> showMaterialTransactionDetails(
   BuildContext context,
   MaterialTransaction transaction,
-) => showModalBottomSheet<void>(
+) => showAppSheet<void>(
   context: context,
-  isScrollControlled: true,
-  useSafeArea: true,
-  showDragHandle: true,
-  builder: (context) => DraggableScrollableSheet(
-    expand: false,
-    initialChildSize: 0.72,
-    minChildSize: 0.45,
-    maxChildSize: 0.94,
-    builder: (context, scrollController) => ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+  title: transaction.content,
+  builder: (context) {
+    final p = context.palette;
+    final note = transaction.note?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          transaction.content,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
         Text(
           transaction.occurredAt == null
               ? transaction.id
-              : '${formatVietnamDateTime(transaction.occurredAt!)} • ${transaction.id}',
-          style: const TextStyle(color: AppColors.mutedText),
+              : '${formatVietnamDateTime(transaction.occurredAt!)} · '
+                    '${transaction.id}',
+          style: TextStyle(
+            color: p.text2,
+            fontSize: 14,
+            height: 19 / 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        if (transaction.note?.trim().isNotEmpty == true) ...[
+        if (note != null && note.isNotEmpty) ...[
           const SizedBox(height: 12),
-          Text(transaction.note!),
+          Text(
+            note,
+            style: TextStyle(
+              color: p.text1,
+              fontSize: 16,
+              height: 22 / 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
         const SizedBox(height: 20),
-        Text(
-          'Chi tiết vật liệu',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
+        const GroupLabel('Chi tiết vật liệu'),
+        const SizedBox(height: 8),
         if (transaction.details.isEmpty)
           const _InlineEmpty(message: 'Phiếu này không có dòng chi tiết.')
         else
           for (final detail in transaction.details) ...[
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    detail.name,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  _DetailLine(
-                    label: 'Khối lượng',
-                    value: formatWeight(detail.quantityKg),
-                  ),
-                  _DetailLine(
-                    label: 'Đơn giá',
-                    value: detail.unitPriceVndPerKg == null
-                        ? 'Chưa có giá'
-                        : '${formatCurrency(detail.unitPriceVndPerKg!)}/kg',
-                  ),
-                  _DetailLine(
-                    label: 'Thành tiền',
-                    value: detail.valueVnd == null
+            InsetCard(
+              children: [
+                // Name and the first pair share a row: no divider between.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(13, 12, 13, 4),
+                      child: Text(
+                        detail.name,
+                        style: TextStyle(
+                          color: p.text1,
+                          fontSize: 16,
+                          height: 21 / 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    PairFieldRow(
+                      first: ('Khối lượng', formatWeight(detail.quantityKg)),
+                      second: (
+                        'Đơn giá',
+                        detail.unitPriceVndPerKg == null
+                            ? 'Chưa có giá'
+                            : '${formatCurrency(detail.unitPriceVndPerKg!)}/kg',
+                      ),
+                    ),
+                  ],
+                ),
+                PairFieldRow(
+                  first: (
+                    'Thành tiền',
+                    detail.valueVnd == null
                         ? '—'
                         : formatCurrency(detail.valueVnd!),
                   ),
-                  if (detail.conversionVolume != null)
-                    _DetailLine(
-                      label: 'Quy đổi',
-                      value:
-                          '${formatNumber(detail.conversionVolume!)} ${detail.conversionUnit ?? ''}'
+                  second: (
+                    'Quy đổi',
+                    detail.conversionVolume == null
+                        ? '—'
+                        : '${formatNumber(detail.conversionVolume!)} '
+                                  '${detail.conversionUnit ?? ''}'
                               .trim(),
-                    ),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
           ],
       ],
-    ),
-  ),
+    );
+  },
 );
-
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 4),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: AppColors.mutedText),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 class _InlineEmpty extends StatelessWidget {
   const _InlineEmpty({required this.message});
@@ -575,6 +551,18 @@ String formatNumber(double value, {int decimals = 2}) {
     if (index > 0 && (digits.length - index) % 3 == 0) buffer.write('.');
     buffer.write(digits[index]);
   }
-  final fraction = parts.length == 2 ? ',${parts.last}' : '';
+  // "8,60" → "8,6" (Figma C07); whole numbers have no fraction at all.
+  final decimalsText = parts.length == 2
+      ? parts.last.replaceFirst(RegExp(r'0+$'), '')
+      : '';
+  final fraction = decimalsText.isEmpty ? '' : ',$decimalsText';
   return '${value < 0 ? '-' : ''}$buffer$fraction';
+}
+
+/// "21/09 08:15" (Vietnam time) for list rows.
+String formatShortVietnamDateTime(DateTime utc) {
+  final value = utcToVietnamTime(utc);
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(value.day)}/${two(value.month)} '
+      '${two(value.hour)}:${two(value.minute)}';
 }

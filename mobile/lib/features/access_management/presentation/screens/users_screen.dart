@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../../company_management/data/models/company_models.dart';
@@ -37,6 +38,7 @@ class _UsersScreenState extends State<UsersScreen> {
   late final UsersController _controller;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  bool _showSearch = false;
 
   @override
   void initState() {
@@ -138,6 +140,11 @@ class _UsersScreenState extends State<UsersScreen> {
         title: const Text('Người dùng'),
         actions: [
           IconButton(
+            tooltip: 'Tìm kiếm',
+            onPressed: () => setState(() => _showSearch = !_showSearch),
+            icon: const Icon(Icons.search_rounded),
+          ),
+          IconButton(
             tooltip: 'Bộ lọc',
             onPressed: _openFilters,
             icon: Badge(
@@ -155,64 +162,62 @@ class _UsersScreenState extends State<UsersScreen> {
         animation: _controller,
         builder: (context, _) => Column(
           children: [
-            AccessConstrainedContent(
-              child: Padding(
-                padding: accessPagePadding(context, top: 12, bottom: 8),
-                child: AccessSearchFilter(
-                  controller: _searchController,
-                  hintText: 'Tìm theo tên, mã, email hoặc số điện thoại',
-                  selectedStatus: _controller.status,
-                  onSearchChanged: _onSearchChanged,
-                  onStatusChanged: _onStatusChanged,
+            if (_showSearch)
+              AccessConstrainedContent(
+                child: Padding(
+                  padding: accessPagePadding(context, top: 12, bottom: 8),
+                  child: AccessSearchFilter(
+                    controller: _searchController,
+                    hintText: 'Tìm theo tên, mã, email hoặc số điện thoại',
+                    selectedStatus: _controller.status,
+                    onSearchChanged: _onSearchChanged,
+                    onStatusChanged: _onStatusChanged,
+                  ),
                 ),
               ),
+            Expanded(
+              child: _buildList(canView: canView, canCreate: canCreate),
             ),
-            Expanded(child: _buildList(canView: canView)),
           ],
         ),
       ),
       floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               onPressed: _openCreate,
-              icon: const Icon(Icons.person_add_alt_1),
-              label: const Text('Tạo người dùng'),
+              tooltip: 'Tạo người dùng',
+              child: const Icon(Icons.add_rounded),
             )
           : null,
     );
   }
 
-  Widget _buildList({required bool canView}) {
+  Widget _buildList({required bool canView, required bool canCreate}) {
     if (_controller.isLoading && _controller.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonList();
     }
     if (_controller.error != null && _controller.items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: ErrorPanel(
-              message: _controller.error!.message,
-              onRetry: _controller.load,
-            ),
-          ),
-        ),
+      return LoadErrorView(
+        message: _controller.error!.message,
+        onRetry: _controller.load,
       );
     }
     if (_controller.items.isEmpty) {
-      return RefreshIndicator(
+      return AccessEmptyList(
         onRefresh: _controller.load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 80),
-            AccessEmptyState(
-              icon: Icons.person_search_outlined,
-              title: 'Không tìm thấy người dùng',
-              message: 'Thử thay đổi từ khóa hoặc bộ lọc trạng thái.',
-            ),
-          ],
-        ),
+        filtered:
+            _controller.search.trim().isNotEmpty ||
+            _controller.status != null ||
+            _controller.companyId != null ||
+            _controller.branchId != null ||
+            _controller.roleId != null ||
+            _controller.withoutRole,
+        icon: Icons.group_outlined,
+        emptyTitle: 'Chưa có người dùng nào',
+        emptyMessage:
+            'Thêm tài khoản đầu tiên để bắt đầu phân quyền cho đội ngũ của bạn.',
+        noMatchTitle: 'Không tìm thấy người dùng',
+        createLabel: 'Thêm người dùng',
+        onCreate: canCreate ? _openCreate : null,
       );
     }
     return RefreshIndicator(
@@ -225,18 +230,25 @@ class _UsersScreenState extends State<UsersScreen> {
           return false;
         },
         child: LayoutBuilder(
-          builder: (context, constraints) => ListView.separated(
+          builder: (context, constraints) => ListView.builder(
             key: const PageStorageKey<String>('users-list'),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: accessPagePadding(context, top: 8, bottom: 104),
             itemCount:
-                _controller.items.length +
+                1 +
+                ((_controller.items.length + 19) ~/ 20) +
                 (_controller.isLoadingMore || _controller.loadMoreError != null
                     ? 1
                     : 0),
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              if (index >= _controller.items.length) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GroupLabel('${_controller.totalCount} tài khoản'),
+                );
+              }
+              final groupCount = (_controller.items.length + 19) ~/ 20;
+              if (index > groupCount) {
                 if (_controller.loadMoreError != null) {
                   return ErrorPanel(
                     message: _controller.loadMoreError!.message,
@@ -253,14 +265,29 @@ class _UsersScreenState extends State<UsersScreen> {
                   ),
                 );
               }
-              final user = _controller.items[index];
+              final start = (index - 1) * 20;
+              final end = (start + 20).clamp(0, _controller.items.length);
               return Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 960),
-                  child: _ModernUserListItem(
-                    user: user,
-                    onTap: canView ? () => _openDetail(user) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InsetCard(
+                      dividerIndent: kLeadingDividerIndent,
+                      children: [
+                        for (final user in _controller.items.sublist(
+                          start,
+                          end,
+                        ))
+                          NavRow(
+                            leading: InitialsAvatar(text: user.displayName),
+                            title: user.displayName,
+                            subtitle: '@${user.userName}',
+                            onTap: canView ? () => _openDetail(user) : null,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -270,145 +297,6 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
   }
-}
-
-class _ModernUserListItem extends StatelessWidget {
-  const _ModernUserListItem({required this.user, required this.onTap});
-
-  final UserResponse user;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accent = theme.colorScheme.primary;
-    final contact = _firstNonEmpty(<String?>[user.email, user.phone]);
-    return Material(
-      color: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.colorScheme.surface,
-                Color.alphaBlend(
-                  accent.withValues(alpha: 0.08),
-                  theme.colorScheme.surface,
-                ),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: accent.withValues(alpha: 0.20)),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 27,
-                backgroundColor: accent.withValues(alpha: 0.15),
-                foregroundColor: accent,
-                child: Text(
-                  _initial(user.displayName),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        if (onTap != null)
-                          Icon(Icons.arrow_forward_rounded, color: accent),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      user.userName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (contact != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        contact,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        AccessStatusChip(isActive: user.isActive),
-                        _UserRoleMetric(value: '${user.roles.length} vai tro'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _initial(String value) {
-    final normalized = value.trim();
-    return normalized.isEmpty ? '?' : normalized[0].toUpperCase();
-  }
-
-  String? _firstNonEmpty(List<String?> values) {
-    for (final value in values) {
-      final normalized = value?.trim();
-      if (normalized != null && normalized.isNotEmpty) return normalized;
-    }
-    return null;
-  }
-}
-
-class _UserRoleMetric extends StatelessWidget {
-  const _UserRoleMetric({required this.value});
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: Theme.of(
-        context,
-      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.badge_outlined, size: 16),
-        const SizedBox(width: 5),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-      ],
-    ),
-  );
 }
 
 class _UserScopeFilters {

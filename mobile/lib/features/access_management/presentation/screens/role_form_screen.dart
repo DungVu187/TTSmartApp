@@ -94,7 +94,13 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Cập nhật vai trò' : 'Tạo vai trò'),
+        title: Text(widget.isEditing ? 'Sửa vai trò' : 'Tạo vai trò'),
+        actions: [
+          TextButton(
+            onPressed: _submitting ? null : _submit,
+            child: Text(_submitting ? 'Đang lưu...' : 'Lưu'),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Form(
@@ -178,24 +184,6 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _submitting ? null : _submit,
-                        icon: _submitting
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(
-                          _submitting ? 'Đang lưu...' : 'Lưu vai trò',
                         ),
                       ),
                     ),

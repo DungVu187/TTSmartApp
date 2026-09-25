@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 @visibleForTesting
 class LineChartAxisScale {
   const LineChartAxisScale({
@@ -267,7 +269,11 @@ class _LineChartPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: labelColor, fontSize: 10),
+        style: TextStyle(
+          color: labelColor,
+          fontSize: 10,
+          fontFamily: AppTheme.fontFamily,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

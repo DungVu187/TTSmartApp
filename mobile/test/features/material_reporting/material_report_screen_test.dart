@@ -8,7 +8,11 @@ import 'package:ttsmart_mobile/features/material_reporting/data/models/material_
 import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 import 'package:ttsmart_mobile/features/material_reporting/presentation/screens/material_report_screen.dart';
 
+import '../../support/phone_viewport.dart';
+
 class _FakeMaterialReportRepository implements MaterialReportRepository {
+  final queries = <MaterialReportQuery>[];
+
   @override
   Future<List<MaterialReportStation>> getStations({int? companyId}) async =>
       const [
@@ -22,63 +26,111 @@ class _FakeMaterialReportRepository implements MaterialReportRepository {
       ];
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async =>
-      _report();
+  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+    queries.add(query);
+    return _report();
+  }
 }
 
 void main() {
-  testWidgets('requires station then shows mobile overview and transactions', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final apiClient = ApiClient(
-      baseUri: Uri.parse('http://localhost'),
-      timeout: const Duration(seconds: 1),
-      httpClient: MockClient(
-        (_) async => throw StateError('Company API must not be called.'),
-      ),
-    );
-    addTearDown(apiClient.close);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: MaterialReportScreen(
-          repository: _FakeMaterialReportRepository(),
-          companyRepository: ApiCompanyRepository(apiClient),
-          isAdmin: false,
+  testWidgets(
+    'phone layout loads the only station, then overview and transactions',
+    (tester) async {
+      usePhoneViewport(tester);
+      final apiClient = ApiClient(
+        baseUri: Uri.parse('http://localhost'),
+        timeout: const Duration(seconds: 1),
+        httpClient: MockClient(
+          (_) async => throw StateError('Company API must not be called.'),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      addTearDown(apiClient.close);
+      final repository = _FakeMaterialReportRepository();
 
-    expect(find.text('Chọn trạm để xem báo cáo'), findsOneWidget);
-    expect(find.text('Tổng quan'), findsNothing);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MaterialReportScreen(
+            repository: repository,
+            companyRepository: ApiCompanyRepository(apiClient),
+            isAdmin: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    final stationField = find.descendant(
-      of: find.byKey(const ValueKey<String>('material-station-null-null')),
-      matching: find.byType(TextFormField),
-    );
-    await tester.tap(stationField);
-    await tester.enterText(stationField, 'Trạm A');
-    await tester.pump();
-    await tester.tap(find.text('Trạm A').last);
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey<String>('material-view-report')),
-    );
-    await tester.pumpAndSettle();
+      // No scope card / search button: the only station loads by itself.
+      expect(
+        find.byKey(const ValueKey<String>('material-view-report')),
+        findsNothing,
+      );
+      expect(repository.queries.single.branchId, 10);
+      expect(find.text('Trạm A'), findsOneWidget);
+      expect(find.text('Tồn hiện tại'), findsOneWidget);
+      expect(find.text('Xi măng PCB40'), findsOneWidget);
 
-    expect(find.text('Tổng quan'), findsOneWidget);
-    expect(find.text('Tồn hiện tại'), findsOneWidget);
-    expect(find.text('Xi măng PCB40'), findsOneWidget);
+      await tester.tap(find.text('Giao dịch'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 GIAO DỊCH'), findsOneWidget);
+      await tester.tap(find.text('Phiếu xuất kho'));
+      await tester.pumpAndSettle();
+      expect(find.text('CHI TIẾT VẬT LIỆU'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-    await tester.tap(find.text('Giao dịch'));
-    await tester.pumpAndSettle();
-    expect(find.text('Phiếu xuất kho'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'wide layout requires station then shows overview and transactions',
+    (tester) async {
+      useViewport(tester, const Size(1024, 900));
+      final apiClient = ApiClient(
+        baseUri: Uri.parse('http://localhost'),
+        timeout: const Duration(seconds: 1),
+        httpClient: MockClient(
+          (_) async => throw StateError('Company API must not be called.'),
+        ),
+      );
+      addTearDown(apiClient.close);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MaterialReportScreen(
+            repository: _FakeMaterialReportRepository(),
+            companyRepository: ApiCompanyRepository(apiClient),
+            isAdmin: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chọn trạm để xem báo cáo'), findsOneWidget);
+      expect(find.text('Tổng quan'), findsNothing);
+
+      final stationField = find.descendant(
+        of: find.byKey(const ValueKey<String>('material-station-null-null')),
+        matching: find.byType(TextFormField),
+      );
+      await tester.tap(stationField);
+      await tester.enterText(stationField, 'Trạm A');
+      await tester.pump();
+      await tester.tap(find.text('Trạm A').last);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('material-view-report')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tổng quan'), findsOneWidget);
+      expect(find.text('Tồn hiện tại'), findsOneWidget);
+      expect(find.text('Xi măng PCB40'), findsOneWidget);
+
+      await tester.tap(find.text('Giao dịch'));
+      await tester.pumpAndSettle();
+      expect(find.text('Phiếu xuất kho'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 MaterialReport _report() => MaterialReport(

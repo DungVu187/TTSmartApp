@@ -21,6 +21,8 @@ import 'package:ttsmart_mobile/features/reports/data/repositories/reports_reposi
 import 'package:ttsmart_mobile/features/reports/data/services/report_export_file_saver.dart';
 import 'package:ttsmart_mobile/features/reports/presentation/screens/reports_screen.dart';
 
+import '../../support/phone_viewport.dart';
+
 class _MemoryTokenStorage implements TokenStorage {
   @override
   Future<void> clear() async {}
@@ -728,6 +730,150 @@ void main() {
       findsOneWidget,
     );
     expect(fileSaver.savedFiles, hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'phone layout loads the only station, filters from the sheet and opens detail',
+    (tester) async {
+      usePhoneViewport(tester);
+      final appController = _appController();
+      final repository = _FakeReportsRepository();
+      addTearDown(appController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: AppScope(
+              controller: appController,
+              child: ReportsScreen(
+                repository: repository,
+                companyRepository: _FakeCompanyRepository(),
+                showHeading: false,
+                now: () => DateTime(2026, 8, 3, 8, 37),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No Search button on phones: the single station loads at once and the
+      // short first page pulls the next one.
+      expect(
+        find.byKey(const ValueKey<String>('statistics-search')),
+        findsNothing,
+      );
+      expect(find.text('Thống kê đơn hàng'), findsOneWidget);
+      expect(repository.searchQueries.map((query) => query.pageNumber), [1, 2]);
+      expect(repository.searchQueries.first.branchId, 10);
+      expect(find.text('11 MẺ TRỘN'), findsOneWidget);
+      expect(find.text('Khách hàng A'), findsNWidgets(2));
+      expect(find.text('08:00'), findsNWidgets(2));
+      expect(find.text('M250 · 51A-12345'), findsNWidgets(2));
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('statistics-extra-filters')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Lọc thêm'), findsWidgets);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('statistics-vehicle')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('51A-12345'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('statistics-extra-search')),
+      );
+      await tester.pumpAndSettle();
+
+      final filtered = repository.searchQueries.where(
+        (query) => query.vehiclePlate == '51A-12345',
+      );
+      expect(filtered.map((query) => query.pageNumber), [1, 2]);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('statistics-extra-filters')),
+          matching: find.text('1'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Khách hàng A').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Chi tiết mẻ trộn'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Chưa có định lượng'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Chưa có định lượng'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('statistics-summary-tile')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Thống kê tổng'), findsOneWidget);
+      expect(find.text('Chưa có tổng vật liệu'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('phone date chip applies a preset range and searches again', (
+    tester,
+  ) async {
+    usePhoneViewport(tester);
+    final appController = _appController();
+    final repository = _FakeReportsRepository();
+    addTearDown(appController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: AppScope(
+            controller: appController,
+            child: ReportsScreen(
+              repository: repository,
+              companyRepository: _FakeCompanyRepository(),
+              showHeading: false,
+              now: () => DateTime(2026, 9, 21, 15, 30),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final searchesBefore = repository.searchQueries.length;
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('statistics-date-range')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tháng 9, 2026'), findsOneWidget);
+    expect(find.text('TỪ NGÀY'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('statistics-date-preset-sevenDays')),
+    );
+    await tester.pump();
+    expect(find.text('15/09/2026 00:00'), findsOneWidget);
+    expect(find.text('21/09/2026 15:30'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('statistics-date-apply')),
+    );
+    await tester.pumpAndSettle();
+
+    final query = repository.searchQueries[searchesBefore];
+    expect(query.from, DateTime(2026, 9, 15));
+    expect(query.to, DateTime(2026, 9, 21, 15, 30));
+    expect(find.text('15/09 – 21/09'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

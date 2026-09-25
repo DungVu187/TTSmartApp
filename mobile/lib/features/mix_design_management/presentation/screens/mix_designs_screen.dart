@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/app_content.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -14,6 +15,7 @@ import '../../data/models/mix_design_models.dart';
 import '../../data/repositories/mix_design_repository.dart';
 import '../controllers/mix_designs_controller.dart';
 import '../widgets/mix_design_widgets.dart';
+import 'mix_design_detail_screen.dart';
 
 class MixDesignsScreen extends StatefulWidget {
   const MixDesignsScreen({
@@ -49,8 +51,19 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       isAdmin: app.hasRole('ADMIN'),
       initialCompanyId: app.session?.user.companyId,
     );
-    unawaited(_controller!.initialize());
+    unawaited(_initialize(_controller!));
   }
+
+  Future<void> _initialize(MixDesignsController controller) async {
+    await controller.initialize();
+    // Phones have no Search button: a station already in scope (the only one)
+    // is loaded straight away.
+    if (mounted && _isCompact && controller.selectedStationId != null) {
+      await controller.search();
+    }
+  }
+
+  bool get _isCompact => MediaQuery.sizeOf(context).width < 600;
 
   @override
   void dispose() {
@@ -92,40 +105,183 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
     }
     return AnimatedBuilder(
       animation: controller,
-      builder: (context, _) => RefreshIndicator(
-        onRefresh: controller.result == null
-            ? controller.retryStations
-            : controller.retryResult,
-        child: ListView(
-          key: const PageStorageKey<String>('mix-designs-scroll'),
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          children: [
-            AppContent(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (context, _) => _isCompact
+          ? _buildMobileBody(controller)
+          : RefreshIndicator(
+              onRefresh: controller.result == null
+                  ? controller.retryStations
+                  : controller.retryResult,
+              child: ListView(
+                key: const PageStorageKey<String>('mix-designs-scroll'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
                 children: [
-                  _buildFilters(controller),
-                  if (controller.scopeError != null) ...[
-                    const SizedBox(height: 12),
-                    ErrorPanel(
-                      message: controller.scopeError!.message,
-                      onRetry: controller.retryScope,
+                  AppContent(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFilters(controller),
+                        if (controller.scopeError != null) ...[
+                          const SizedBox(height: 12),
+                          ErrorPanel(
+                            message: controller.scopeError!.message,
+                            onRetry: controller.retryScope,
+                          ),
+                        ],
+                        if (controller.validationMessage != null) ...[
+                          const SizedBox(height: 12),
+                          ErrorPanel(message: controller.validationMessage!),
+                        ],
+                        const SizedBox(height: 18),
+                        _buildResults(controller),
+                      ],
                     ),
-                  ],
-                  if (controller.validationMessage != null) ...[
-                    const SizedBox(height: 12),
-                    ErrorPanel(message: controller.validationMessage!),
-                  ],
-                  const SizedBox(height: 18),
-                  _buildResults(controller),
+                  ),
                 ],
               ),
             ),
+    );
+  }
+
+  // ---------------------------------------------------------------- mobile
+
+  /// Phone layout (Figma C09): scope chips that load on change, then the
+  /// infinite list of grades.
+  Widget _buildMobileBody(MixDesignsController controller) {
+    final result = controller.result;
+    return InfiniteListView(
+      storageKey: 'mix-designs-mobile-scroll',
+      onLoadMore: () => unawaited(controller.loadMore()),
+      onRefresh: result == null
+          ? controller.retryStations
+          : controller.retryResult,
+      padding: const EdgeInsets.fromLTRB(kPagePadding, 4, kPagePadding, 28),
+      children: [
+        FilterChipBar(
+          children: [
+            if (controller.isAdmin)
+              FilterChipButton(
+                key: const ValueKey<String>('mix-design-company'),
+                icon: Icons.apartment_outlined,
+                label: _companyName(controller) ?? 'Chọn công ty',
+                showChevron: true,
+                onTap: controller.isLoadingCompanies
+                    ? null
+                    : () => _pickCompany(controller),
+              ),
+            FilterChipButton(
+              key: const ValueKey<String>('mix-design-station'),
+              icon: Icons.factory_outlined,
+              label: controller.selectedStation?.displayName ?? 'Chọn trạm',
+              active: controller.selectedStationId != null,
+              showChevron: true,
+              onTap: controller.isLoadingStations
+                  ? null
+                  : () => _pickStation(controller),
+            ),
           ],
         ),
-      ),
+        if (controller.scopeError != null) ...[
+          const SizedBox(height: 10),
+          ErrorBanner(
+            message: controller.scopeError!.message,
+            onRetry: controller.retryScope,
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (result != null)
+          _buildMobileResults(controller, result)
+        else if (controller.isLoadingResult ||
+            controller.isLoadingStations ||
+            controller.isLoadingCompanies)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 64),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (controller.resultError != null)
+          ErrorBanner(
+            message: controller.resultError!.message,
+            onRetry: controller.search,
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(top: 36),
+            child: StateView(
+              icon: Icons.science_outlined,
+              title: 'Chọn trạm',
+              message: 'Chọn trạm để xem danh sách cấp phối bê tông.',
+              actions: [
+                AppButton(
+                  label: 'Chọn trạm',
+                  icon: Icons.factory_outlined,
+                  expand: false,
+                  onPressed: () => _pickStation(controller),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
+  }
+
+  String? _companyName(MixDesignsController controller) {
+    for (final company in controller.companies) {
+      if (company.id == controller.selectedCompanyId) {
+        return company.displayName;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _pickCompany(MixDesignsController controller) async {
+    final picked = await showPickerSheet<int>(
+      context: context,
+      title: 'Chọn công ty',
+      searchHint: 'Tìm công ty',
+      icon: Icons.apartment_outlined,
+      selected: controller.selectedCompanyId,
+      options: [
+        for (final company in controller.companies)
+          PickerOption(
+            value: company.id,
+            title: company.displayName,
+            subtitle: company.code,
+          ),
+      ],
+    );
+    if (!mounted || picked == null) return;
+    await controller.selectCompany(picked.value);
+    if (mounted && controller.selectedStationId != null) {
+      await controller.search();
+    }
+  }
+
+  Future<void> _pickStation(MixDesignsController controller) async {
+    if (controller.isAdmin && controller.selectedCompanyId == null) {
+      await _pickCompany(controller);
+      if (!mounted || controller.selectedCompanyId == null) return;
+      if (controller.selectedStationId != null) return;
+    }
+    final picked = await showPickerSheet<int>(
+      context: context,
+      title: 'Chọn trạm',
+      searchHint: 'Tìm trạm',
+      icon: Icons.factory_outlined,
+      selected: controller.selectedStationId,
+      emptyMessage: 'Không có trạm trong phạm vi được cấp.',
+      options: [
+        for (final station in controller.stations)
+          PickerOption(
+            value: station.id,
+            title: station.displayName,
+            subtitle: 'Mã trạm ${station.id}',
+          ),
+      ],
+    );
+    final stationId = picked?.value;
+    if (!mounted || stationId == null) return;
+    controller.selectStation(stationId);
+    await controller.search();
   }
 
   Widget _buildFilters(MixDesignsController controller) {
@@ -195,7 +351,10 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       ),
       companies: controller.companies,
       selectedCompanyId: controller.selectedCompanyId,
-      onSelected: (company) => controller.selectCompany(company.id),
+      onSelected: (company) async {
+        await controller.selectCompany(company.id);
+        if (controller.selectedStationId != null) await controller.search();
+      },
       onCleared: () => controller.selectCompany(null),
       enabled: !controller.isLoadingCompanies,
       compact: true,
@@ -216,7 +375,10 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       searchStringForOption: (station) =>
           '${station.displayName} ${station.id}',
       optionSubtitle: (station) => 'Mã trạm ${station.id}',
-      onSelected: (station) => controller.selectStation(station.id),
+      onSelected: (station) {
+        controller.selectStation(station.id);
+        unawaited(controller.search());
+      },
       onCleared: () => controller.selectStation(null),
       enabled:
           !controller.isLoadingStations &&
@@ -297,6 +459,9 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
         ),
       );
     }
+    if (MediaQuery.sizeOf(context).width < 600) {
+      return _buildMobileResults(controller, result);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -337,6 +502,49 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
           onPrevious: controller.goToPreviousPage,
           onNext: controller.goToNextPage,
           onLast: controller.goToLastPage,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileResults(
+    MixDesignsController controller,
+    MixDesignPage page,
+  ) {
+    final stationName =
+        controller.selectedStation?.displayName ?? 'Trạm đã chọn';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GroupLabel('${page.totalCount} cấp phối'),
+        const SizedBox(height: 8),
+        InsetCard(
+          dividerIndent: kLeadingDividerIndent,
+          children: [
+            for (final item in controller.loadedItems)
+              NavRow(
+                leading: const IconTile(
+                  icon: Icons.science_outlined,
+                  tone: AppTone.violet,
+                ),
+                title: item.displayConcreteGradeName,
+                subtitle: 'Cường độ ${item.strength} · Độ sụt ${item.slump}',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MixDesignDetailScreen(
+                      item: item,
+                      stationName: stationName,
+                      columns: page.materialColumns,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        LoadMoreFooter(
+          loading: controller.isLoadingResult && page.pageNumber > 0,
+          errorMessage: controller.resultError?.message,
+          onRetry: controller.loadMore,
         ),
       ],
     );

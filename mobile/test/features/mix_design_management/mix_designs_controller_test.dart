@@ -106,6 +106,29 @@ void main() {
     expect(repository.queries.single.stationId, 10);
     controller.dispose();
   });
+
+  test('cuộn nối trang giữ các cấp phối đã tải', () async {
+    final repository = _FakeMixDesignRepository();
+    final controller = MixDesignsController(
+      repository,
+      _FakeCompanyRepository(),
+      isAdmin: false,
+      initialCompanyId: 3,
+    );
+
+    await controller.initialize();
+    await controller.search();
+    await controller.loadMore();
+
+    expect(repository.queries.map((query) => query.pageNumber), [1, 2]);
+    expect(controller.loadedItems.map((item) => item.stt), [1, 11]);
+    expect(controller.result?.pageNumber, 2);
+    expect(controller.canLoadMore, isFalse);
+
+    await controller.resetFilters();
+    expect(controller.loadedItems, isEmpty);
+    controller.dispose();
+  });
 }
 
 CompanyResponse _company(int id, String name) => CompanyResponse(

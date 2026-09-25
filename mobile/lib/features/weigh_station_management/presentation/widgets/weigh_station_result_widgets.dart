@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/ui/app_ui.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/vietnam_time.dart';
 import '../../data/models/weigh_station_result_models.dart';
@@ -1006,6 +1008,24 @@ double _summaryRowHeight(List<WeighStationSummaryItem> items) {
   return 44 + ((maximumLineCount - 1) * 14);
 }
 
+/// Grouped number used by the weigh-station module ("31.800", "21,2").
+String formatWeighNumber(double? value) => _numberOrDash(value);
+
+/// VND amount with grouped digits ("9.222.000 đ", like the other modules).
+String formatWeighCurrency(double? value) => _currencyOrDash(value);
+
+/// Vietnam-time timestamp ("21/09/2026 07:58"), matching the tables.
+String formatWeighDateTime(DateTime? value) => _dateTime(value);
+
+/// Vietnam-time short timestamp for list rows ("21/09 07:58").
+String formatWeighShortDateTime(DateTime? value) {
+  if (value == null) return '—';
+  final vietnam = utcToVietnamTime(value);
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+  return '${twoDigits(vietnam.day)}/${twoDigits(vietnam.month)} '
+      '${twoDigits(vietnam.hour)}:${twoDigits(vietnam.minute)}';
+}
+
 String _text(String? value) {
   final normalized = value?.trim();
   return normalized == null || normalized.isEmpty ? '—' : normalized;
@@ -1029,7 +1049,7 @@ String _number(double value) {
 }
 
 String _currencyOrDash(double? value) =>
-    value == null ? '—' : '${_groupDigits(value.round().toString())} ₫';
+    value == null ? '—' : '${_groupDigits(value.round().toString())} đ';
 
 String _groupDigits(String value) {
   final negative = value.startsWith('-');
@@ -1041,3 +1061,8 @@ String _groupDigits(String value) {
   }
   return '${negative ? '-' : ''}$buffer';
 }
+
+/// Tag tone of a weighing type: exports violet, everything else sky
+/// (Figma C11: "Nhập hàng" / "Xuất hàng").
+AppTone weighingTypeTone(String type) =>
+    type.toLowerCase().contains('xuất') ? AppTone.violet : AppTone.info;

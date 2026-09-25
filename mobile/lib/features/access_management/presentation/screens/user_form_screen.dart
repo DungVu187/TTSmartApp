@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/app_scope.dart';
-import '../../../../core/widgets/error_panel.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/password_field.dart';
 import '../../../company_management/data/models/company_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
-import '../../../company_management/presentation/widgets/company_autocomplete_field.dart';
 import '../../../station_management/data/models/station_models.dart';
 import '../../../station_management/data/repositories/station_repository.dart';
 import '../../data/models/role_models.dart';
 import '../../data/models/user_models.dart';
 import '../controllers/users_controller.dart';
 import '../widgets/access_layout.dart';
+import 'station_picker_screen.dart';
 
 class UserFormScreen extends StatefulWidget {
   const UserFormScreen({
@@ -158,59 +158,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
   }
 
   Future<void> _pickStations(List<StationListItem> stations) async {
-    final selected = Set<int>.from(_selectedBranchIds);
-    final result = await showModalBottomSheet<Set<int>>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * .76,
-            child: Column(
-              children: [
-                const ListTile(
-                  leading: Icon(Icons.factory_outlined),
-                  title: Text('Chọn trạm'),
-                  subtitle: Text('Có thể chọn nhiều trạm thuộc công ty.'),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: stations.isEmpty
-                      ? const Center(
-                          child: Text('Công ty chưa có trạm hiệu lực.'),
-                        )
-                      : ListView.builder(
-                          itemCount: stations.length,
-                          itemBuilder: (context, index) {
-                            final station = stations[index];
-                            return CheckboxListTile(
-                              value: selected.contains(station.id),
-                              title: Text(station.displayName),
-                              subtitle: Text(station.type?.label ?? 'Trạm'),
-                              onChanged: (checked) => setModalState(() {
-                                if (checked == true) {
-                                  selected.add(station.id);
-                                } else {
-                                  selected.remove(station.id);
-                                }
-                              }),
-                            );
-                          },
-                        ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => Navigator.pop(context, selected),
-                      child: const Text('Xong'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    final result = await Navigator.of(context).push<Set<int>>(
+      MaterialPageRoute(
+        builder: (_) => StationPickerScreen(
+          stations: stations,
+          selectedIds: _selectedBranchIds,
         ),
       ),
     );
@@ -238,38 +190,64 @@ class _UserFormScreenState extends State<UserFormScreen> {
   String? _branchIdValue() =>
       _selectedBranchIds.isEmpty ? null : _selectedBranchIds.join(',');
 
+  Future<void> _pickCompany(List<CompanyResponse> companies) async {
+    final picked = await showPickerSheet<int>(
+      context: context,
+      title: 'Chọn công ty',
+      searchHint: 'Tìm công ty',
+      icon: Icons.apartment_outlined,
+      selected: _companyId,
+      options: [
+        for (final company in companies)
+          PickerOption(
+            value: company.id,
+            title: company.displayName,
+            subtitle: company.code,
+          ),
+      ],
+    );
+    final companyId = picked?.value;
+    if (!mounted || companyId == null) return;
+    _selectCompany(companies.firstWhere((company) => company.id == companyId));
+  }
+
   Widget _buildOrganizationScope() {
     return FutureBuilder<List<CompanyResponse>>(
       future: _companiesFuture,
       builder: (context, companySnapshot) {
         final companies = companySnapshot.data ?? const <CompanyResponse>[];
+        final loadingCompanies =
+            companySnapshot.connectionState == ConnectionState.waiting;
+        String? companyName;
+        for (final company in companies) {
+          if (company.id == _companyId) companyName = company.displayName;
+        }
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_canSelectCompany) ...[
-              CompanyAutocompleteField(
-                companies: companies,
-                selectedCompanyId: _companyId,
-                onSelected: _selectCompany,
-                onCleared: _clearCompany,
+              SelectFieldButton(
+                key: const ValueKey<String>('user-form-company'),
+                label: 'Công ty',
+                placeholder: loadingCompanies
+                    ? 'Đang tải công ty…'
+                    : 'Chọn công ty',
+                value:
+                    companyName ??
+                    (_companyId == null ? null : 'Công ty #$_companyId'),
+                icon: Icons.apartment_outlined,
                 enabled:
                     !_submitting &&
                     !companySnapshot.hasError &&
-                    companySnapshot.connectionState != ConnectionState.waiting,
-                hintText: 'Chọn công ty',
-                labelText: 'Công ty',
+                    !loadingCompanies,
                 errorText: _error?.fieldMessage('companyId'),
+                onTap: () => _pickCompany(companies),
+                onClear: _companyId == null ? null : _clearCompany,
               ),
-              if (companySnapshot.connectionState == ConnectionState.waiting)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: LinearProgressIndicator(),
-                ),
-              if (companySnapshot.hasError)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text('Không thể tải danh sách công ty.'),
-                ),
+              if (companySnapshot.hasError) ...[
+                const SizedBox(height: 6),
+                const FieldError('Không thể tải danh sách công ty.'),
+              ],
               const SizedBox(height: 14),
             ],
             FutureBuilder<List<StationListItem>>(
@@ -290,57 +268,40 @@ class _UserFormScreenState extends State<UserFormScreen> {
                           .where((id) => !stationById.containsKey(id))
                           .toList(growable: false)
                     : const <int>[];
+                final loadingStations =
+                    stationSnapshot.connectionState == ConnectionState.waiting;
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    InkWell(
-                      onTap: _companyId == null || stationSnapshot.hasError
+                    SelectFieldButton(
+                      key: const ValueKey<String>('user-form-stations'),
+                      label: 'Trạm trộn / trạm cân',
+                      placeholder: _companyId == null
+                          ? 'Chọn công ty trước'
+                          : loadingStations
+                          ? 'Đang tải trạm…'
+                          : 'Chọn một hoặc nhiều trạm',
+                      value: _selectedBranchIds.isEmpty
                           ? null
-                          : () => _pickStations(stations),
-                      borderRadius: BorderRadius.circular(12),
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: 'Trạm trộn / trạm cân',
-                          prefixIcon: const Icon(Icons.factory_outlined),
-                          suffixIcon: const Icon(Icons.arrow_drop_down),
-                          errorText: _error?.fieldMessage('branchId'),
-                        ),
-                        child: Text(
-                          _selectedBranchIds.isEmpty
-                              ? _companyId == null
-                                    ? 'Chọn công ty trước'
-                                    : 'Chọn một hoặc nhiều trạm'
-                              : 'Đã chọn ${_selectedBranchIds.length} trạm',
-                          style: TextStyle(
-                            color: _companyId == null
-                                ? Theme.of(context).colorScheme.onSurfaceVariant
-                                : null,
-                          ),
-                        ),
-                      ),
+                          : 'Đã chọn ${_selectedBranchIds.length} trạm',
+                      icon: Icons.factory_outlined,
+                      enabled:
+                          !_submitting &&
+                          _companyId != null &&
+                          !loadingStations &&
+                          !stationSnapshot.hasError,
+                      errorText: _error?.fieldMessage('branchId'),
+                      onTap: () => _pickStations(stations),
                     ),
-                    if (stationSnapshot.connectionState ==
-                        ConnectionState.waiting)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: LinearProgressIndicator(),
-                      ),
                     if (stationSnapshot.hasError) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _stationErrorMessage(stationSnapshot.error!),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
+                      const SizedBox(height: 6),
+                      FieldError(_stationErrorMessage(stationSnapshot.error!)),
                     ],
                     if (staleIds.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Có trạm cũ không thuộc công ty hiện tại. Hãy gỡ trước khi lưu.',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                      const SizedBox(height: 6),
+                      const FieldError(
+                        'Có trạm cũ không thuộc công ty hiện tại. '
+                        'Hãy gỡ trước khi lưu.',
                       ),
                     ],
                     if (_selectedBranchIds.isNotEmpty) ...[
@@ -375,59 +336,43 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
   Future<void> _pickRoles(List<RoleListItemResponse> roles) async {
     final selected = Set<int>.from(_selectedRoleIds);
-    final result = await showModalBottomSheet<Set<int>>(
+    final result = await showAppModalSheet<Set<int>>(
       context: context,
-      isScrollControlled: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => SafeArea(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height * .76,
-            child: Column(
-              children: [
-                const ListTile(
-                  leading: Icon(Icons.badge_outlined),
-                  title: Text('Chọn vai trò'),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: roles.isEmpty
-                      ? const Center(child: Text('Chưa có vai trò hiệu lực.'))
-                      : ListView.builder(
-                          itemCount: roles.length,
-                          itemBuilder: (context, index) {
-                            final role = roles[index];
-                            return CheckboxListTile(
-                              value: selected.contains(role.id),
-                              title: Text(role.name),
-                              subtitle: Text(
-                                role.note?.trim().isNotEmpty == true
-                                    ? '${role.code} • ${role.note}'
-                                    : role.code,
-                              ),
-                              onChanged: (checked) => setModalState(() {
-                                if (checked == true) {
-                                  selected.add(role.id);
-                                } else {
-                                  selected.remove(role.id);
-                                }
-                              }),
-                            );
-                          },
-                        ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => Navigator.pop(context, selected),
-                      child: const Text('Xong'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        builder: (context, setModalState) => AppSheetFrame(
+          title: 'Chọn vai trò',
+          footer: AppButton(
+            key: const ValueKey<String>('user-form-roles-done'),
+            label: selected.isEmpty ? 'Xong' : 'Xong · ${selected.length}',
+            onPressed: () => Navigator.pop(context, selected),
           ),
+          child: roles.isEmpty
+              ? const StateView(
+                  icon: Icons.badge_outlined,
+                  title: 'Chưa có vai trò',
+                  message: 'Chưa có vai trò hiệu lực để gán.',
+                )
+              : InsetCard(
+                  children: [
+                    for (final role in roles)
+                      CheckboxListTile(
+                        value: selected.contains(role.id),
+                        title: Text(role.name),
+                        subtitle: Text(
+                          role.note?.trim().isNotEmpty == true
+                              ? '${role.code} • ${role.note}'
+                              : role.code,
+                        ),
+                        onChanged: (checked) => setModalState(() {
+                          if (checked == true) {
+                            selected.add(role.id);
+                          } else {
+                            selected.remove(role.id);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
         ),
       ),
     );
@@ -499,182 +444,109 @@ class _UserFormScreenState extends State<UserFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Đóng',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.maybePop(context),
+        ),
         title: Text(widget.isEditing ? 'Sửa người dùng' : 'Thêm người dùng'),
+        actions: [
+          AccessSaveAction(submitting: _submitting, onPressed: _submit),
+        ],
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: accessPagePadding(context, bottom: 32),
+            padding: accessPagePadding(context, top: 8, bottom: 32),
             children: [
               AccessConstrainedContent(
                 maxWidth: 820,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_error != null) ...[
-                      ErrorPanel(message: _error!.message),
+                      ErrorBanner(message: _error!.message),
                       const SizedBox(height: 16),
                     ],
-                    AccessSection(
-                      title: 'Tài khoản',
-                      icon: Icons.manage_accounts_outlined,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _userNameController,
-                              maxLength: 100,
-                              decoration: InputDecoration(
-                                labelText: 'Tên đăng nhập *',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('userName'),
-                              ),
-                              validator: (value) =>
-                                  value?.trim().isEmpty != false
-                                  ? 'Tên đăng nhập là bắt buộc.'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _fullNameController,
-                              maxLength: 200,
-                              decoration: InputDecoration(
-                                labelText: 'Họ tên',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('fullName'),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _codeController,
-                              maxLength: 100,
-                              decoration: InputDecoration(
-                                labelText: 'Mã người dùng',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('code'),
-                              ),
-                            ),
-                            if (!widget.isEditing) ...[
-                              const SizedBox(height: 14),
-                              PasswordField(
-                                controller: _passwordController,
-                                label: 'Mật khẩu *',
-                                errorText: _error?.fieldMessage('password'),
-                                validator: (value) =>
-                                    value == null || value.length < 4
-                                    ? 'Mật khẩu phải có từ 4 đến 200 ký tự.'
-                                    : null,
-                              ),
-                            ],
-                          ],
+                    FormFieldGroup(
+                      label: 'Tài khoản',
+                      children: [
+                        LabeledTextField(
+                          label: 'Tên đăng nhập *',
+                          controller: _userNameController,
+                          maxLength: 100,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('userName'),
+                          validator: (value) => value?.trim().isEmpty != false
+                              ? 'Tên đăng nhập là bắt buộc.'
+                              : null,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    AccessSection(
-                      title: 'Liên hệ',
-                      icon: Icons.contact_mail_outlined,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _emailController,
-                              maxLength: 50,
-                              decoration: InputDecoration(
-                                labelText: 'Email',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('email'),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _phoneController,
-                              maxLength: 50,
-                              decoration: InputDecoration(
-                                labelText: 'Số điện thoại',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('phone'),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _addressController,
-                              maxLength: 200,
-                              maxLines: 2,
-                              decoration: InputDecoration(
-                                labelText: 'Địa chỉ',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('address'),
-                              ),
-                            ),
-                          ],
+                        LabeledTextField(
+                          label: 'Họ và tên',
+                          controller: _fullNameController,
+                          maxLength: 200,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('fullName'),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    AccessSection(
-                      title: 'Tổ chức',
-                      icon: Icons.apartment_outlined,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildOrganizationScope(),
-                      ),
-                    ),
-                    if (!widget.isEditing) ...[
-                      const SizedBox(height: 20),
-                      AccessSection(
-                        title: 'Vai trò ban đầu',
-                        icon: Icons.badge_outlined,
-                        child: FutureBuilder<List<RoleListItemResponse>>(
-                          future: _rolesFuture,
-                          builder: (context, snapshot) => ListTile(
-                            title: Text(
-                              _selectedRoleIds.isEmpty
-                                  ? 'Chưa chọn vai trò'
-                                  : 'Đã chọn ${_selectedRoleIds.length} vai trò',
-                            ),
-                            subtitle: Text(
-                              snapshot.hasError
-                                  ? 'Không thể tải danh sách vai trò.'
-                                  : 'Vai trò được gửi bằng ID số nguyên.',
-                            ),
-                            trailing:
-                                snapshot.connectionState ==
-                                    ConnectionState.waiting
-                                ? const SizedBox.square(
-                                    dimension: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.chevron_right),
-                            onTap: snapshot.hasData
-                                ? () => _pickRoles(snapshot.data!)
+                        LabeledTextField(
+                          label: 'Mã người dùng',
+                          controller: _codeController,
+                          maxLength: 100,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('code'),
+                        ),
+                        if (!widget.isEditing)
+                          PasswordField(
+                            controller: _passwordController,
+                            label: 'Mật khẩu *',
+                            labelAbove: true,
+                            errorText: _error?.fieldMessage('password'),
+                            validator: (value) =>
+                                value == null || value.length < 4
+                                ? 'Mật khẩu phải có từ 4 đến 200 ký tự.'
                                 : null,
                           ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _submitting ? null : _submit,
-                        icon: _submitting
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(
-                          _submitting ? 'Đang lưu...' : 'Lưu người dùng',
+                    FormFieldGroup(
+                      label: 'Tổ chức',
+                      children: [
+                        _buildOrganizationScope(),
+                        if (!widget.isEditing) _buildRolesField(),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    FormFieldGroup(
+                      label: 'Liên hệ',
+                      children: [
+                        LabeledTextField(
+                          label: 'Email',
+                          controller: _emailController,
+                          maxLength: 50,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('email'),
                         ),
-                      ),
+                        LabeledTextField(
+                          label: 'Số điện thoại',
+                          controller: _phoneController,
+                          maxLength: 50,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('phone'),
+                        ),
+                        LabeledTextField(
+                          label: 'Địa chỉ',
+                          controller: _addressController,
+                          maxLength: 200,
+                          minLines: 1,
+                          maxLines: 3,
+                          errorText: _error?.fieldMessage('address'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -683,6 +555,45 @@ class _UserFormScreenState extends State<UserFormScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Initial roles of a new user (the edit flow manages roles elsewhere).
+  Widget _buildRolesField() {
+    return FutureBuilder<List<RoleListItemResponse>>(
+      future: _rolesFuture,
+      builder: (context, snapshot) {
+        final roles = snapshot.data ?? const <RoleListItemResponse>[];
+        final names = [
+          for (final role in roles)
+            if (_selectedRoleIds.contains(role.id)) role.name,
+        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SelectFieldButton(
+              key: const ValueKey<String>('user-form-roles'),
+              label: 'Vai trò ban đầu',
+              placeholder: snapshot.connectionState == ConnectionState.waiting
+                  ? 'Đang tải vai trò…'
+                  : 'Chưa chọn vai trò',
+              value: _selectedRoleIds.isEmpty
+                  ? null
+                  : names.length == _selectedRoleIds.length
+                  ? names.join(', ')
+                  : 'Đã chọn ${_selectedRoleIds.length} vai trò',
+              icon: Icons.badge_outlined,
+              trailingIcon: Icons.chevron_right_rounded,
+              enabled: snapshot.hasData && !_submitting,
+              onTap: () => _pickRoles(roles),
+            ),
+            if (snapshot.hasError) ...[
+              const SizedBox(height: 6),
+              const FieldError('Không thể tải danh sách vai trò.'),
+            ],
+          ],
+        );
+      },
     );
   }
 

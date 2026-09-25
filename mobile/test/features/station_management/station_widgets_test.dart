@@ -73,7 +73,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Thông tin trạm'), findsOneWidget);
+    expect(find.text('THÔNG TIN TRẠM'), findsOneWidget);
     expect(
       find.text('Thông tin nhận diện và liên hệ của trạm.'),
       findsOneWidget,

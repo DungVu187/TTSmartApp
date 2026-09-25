@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../../../core/ui/app_ui.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_date_picker.dart';
@@ -42,10 +46,29 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       companyRepository: widget.companyRepository,
       isAdmin: widget.isAdmin,
     );
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _controller.initialize(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
   }
+
+  Future<void> _initialize() async {
+    await _controller.initialize();
+    // Phones have no "Tìm kiếm" button: the only station in scope is picked
+    // and its report loads straight away.
+    if (!mounted || !_isCompact || _controller.selectedStationId != null) {
+      return;
+    }
+    if (_controller.stations.length == 1) {
+      _controller.selectStation(_controller.stations.single.id);
+      await _controller.loadReport();
+    }
+  }
+
+  bool get _isCompact => MediaQuery.sizeOf(context).width < 600;
+
+  int get _activeFilterCount => [
+    _controller.materialGroup != MaterialGroupFilter.all,
+    _controller.viewMode != MaterialViewMode.all,
+    _controller.valueMode != MaterialValueMode.quantity,
+  ].where((active) => active).length;
 
   @override
   void dispose() {
@@ -61,13 +84,27 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
         actions: [
           AnimatedBuilder(
             animation: _controller,
-            builder: (context, _) => IconButton(
-              tooltip: 'Làm mới',
-              onPressed:
-                  _controller.report == null || _controller.isLoadingReport
-                  ? null
-                  : _controller.refresh,
-              icon: const Icon(Icons.refresh),
+            builder: (context, _) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppIconButton(
+                  key: const ValueKey<String>('material-refresh'),
+                  tooltip: 'Làm mới',
+                  icon: Icons.refresh_rounded,
+                  onPressed:
+                      _controller.report == null || _controller.isLoadingReport
+                      ? null
+                      : _controller.refresh,
+                ),
+                AppIconButton(
+                  key: const ValueKey<String>('material-filters'),
+                  tooltip: 'Bộ lọc',
+                  icon: Icons.tune_rounded,
+                  badgeCount: _activeFilterCount,
+                  onPressed: () => _showFilters(context),
+                ),
+                const SizedBox(width: 4),
+              ],
             ),
           ),
         ],
@@ -76,95 +113,378 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
         top: false,
         child: AnimatedBuilder(
           animation: _controller,
-          builder: (context, _) => _buildBody(context),
+          builder: (context, _) =>
+              _isCompact ? _buildMobileBody(context) : _buildBody(context),
         ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    final report = _controller.report;
-    return RefreshIndicator(
-      onRefresh: report == null ? () async {} : _controller.refresh,
-      child: ListView(
-        key: const ValueKey<String>('material-report-scroll'),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1040),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildScopeCard(context),
-                  if (_controller.validationMessage != null) ...[
-                    const SizedBox(height: 10),
-                    ErrorPanel(message: _controller.validationMessage!),
-                  ],
-                  if (_controller.scopeError != null) ...[
-                    const SizedBox(height: 10),
-                    ErrorPanel(
-                      message: _controller.scopeError!.message,
-                      onRetry: _controller.retryScope,
-                    ),
-                  ],
-                  if (_controller.reportError != null) ...[
-                    const SizedBox(height: 10),
-                    ErrorPanel(
-                      message: _controller.reportError!.message,
-                      onRetry: _controller.loadReport,
-                    ),
-                  ],
-                  if (_controller.isLoadingReport && report == null) ...[
-                    const SizedBox(height: 36),
-                    const Center(child: CircularProgressIndicator()),
-                  ] else if (report == null) ...[
-                    const SizedBox(height: 20),
-                    AppEmptyState(
-                      icon: Icons.inventory_2_outlined,
-                      title: 'Chọn trạm để xem báo cáo',
-                      message: widget.isAdmin
-                          ? 'Chọn cụ thể công ty, trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.'
-                          : 'Chọn cụ thể trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.',
-                    ),
-                  ] else ...[
-                    const SizedBox(height: 16),
-                    _buildReportHeader(report),
-                    if (report.warnings.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      _WarningsPanel(warnings: report.warnings),
-                    ],
-                    const SizedBox(height: 14),
-                    SegmentedButton<_ReportSection>(
-                      key: const ValueKey<String>('material-report-section'),
-                      segments: const [
-                        ButtonSegment(
-                          value: _ReportSection.overview,
-                          icon: Icon(Icons.dashboard_outlined),
-                          label: Text('Tổng quan'),
-                        ),
-                        ButtonSegment(
-                          value: _ReportSection.transactions,
-                          icon: Icon(Icons.receipt_long_outlined),
-                          label: Text('Giao dịch'),
-                        ),
-                      ],
-                      selected: {_section},
-                      onSelectionChanged: (selection) => setState(() {
-                        _section = selection.single;
-                      }),
-                    ),
-                    const SizedBox(height: 14),
-                    if (_section == _ReportSection.overview)
-                      _buildOverview(report)
-                    else
-                      _buildTransactions(report),
-                  ],
+  // ---------------------------------------------------------------- mobile
+
+  /// Phone layout (Figma C05/C06): date and station chips that reload on
+  /// change, overview / transactions tabs, infinite transaction list.
+  Widget _buildMobileBody(BuildContext context) {
+    final controller = _controller;
+    final report = controller.report;
+    final p = context.palette;
+    return InfiniteListView(
+      storageKey: 'material-report-mobile-scroll',
+      onLoadMore: () {
+        if (_section == _ReportSection.transactions) {
+          unawaited(controller.loadMore());
+        }
+      },
+      onRefresh: report == null ? () async {} : controller.refresh,
+      padding: const EdgeInsets.fromLTRB(kPagePadding, 4, kPagePadding, 28),
+      children: [
+        FilterChipBar(
+          children: [
+            if (widget.isAdmin)
+              FilterChipButton(
+                key: const ValueKey<String>('material-company'),
+                icon: Icons.apartment_outlined,
+                label:
+                    controller.selectedCompany?.displayName ?? 'Chọn công ty',
+                showChevron: true,
+                onTap: controller.isLoadingScope ? null : _pickCompany,
+              ),
+            FilterChipButton(
+              key: const ValueKey<String>('material-date-range'),
+              icon: Icons.calendar_month_outlined,
+              label: _shortRange(controller.from, controller.to),
+              active: true,
+              onTap: () => _pickDateRange(context),
+            ),
+            FilterChipButton(
+              key: const ValueKey<String>('material-station'),
+              icon: Icons.factory_outlined,
+              label:
+                  controller.selectedStation?.displayName ?? 'Chọn trạm trộn',
+              showChevron: true,
+              onTap: controller.isLoadingScope ? null : _pickStation,
+            ),
+          ],
+        ),
+        if (controller.scopeError != null) ...[
+          const SizedBox(height: 10),
+          ErrorBanner(
+            message: controller.scopeError!.message,
+            onRetry: controller.retryScope,
+          ),
+        ],
+        if (controller.reportError != null && report == null) ...[
+          const SizedBox(height: 10),
+          ErrorBanner(
+            message: controller.reportError!.message,
+            onRetry: controller.loadReport,
+          ),
+        ],
+        const SizedBox(height: 12),
+        if (report == null) ...[
+          if (controller.isLoadingReport || controller.isLoadingScope)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 64),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (controller.reportError == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 36),
+              child: StateView(
+                icon: Icons.inventory_2_outlined,
+                title: 'Chọn trạm trộn',
+                message: 'Chọn trạm trộn để xem nhập, xuất và tồn vật liệu.',
+                actions: [
+                  AppButton(
+                    label: 'Chọn trạm trộn',
+                    icon: Icons.factory_outlined,
+                    expand: false,
+                    onPressed: _pickStation,
+                  ),
                 ],
               ),
             ),
+        ] else ...[
+          Text(
+            'Tồn kho tính đến ${formatVietnamDateTime(report.inventoryAsOf)}',
+            style: TextStyle(
+              color: p.text3,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
+          if (report.warnings.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            WarningBanner(title: 'Dữ liệu cần lưu ý', items: report.warnings),
+          ],
+          const SizedBox(height: 14),
+          SegmentedTabs<_ReportSection>(
+            key: const ValueKey<String>('material-report-section'),
+            segments: const [
+              (_ReportSection.overview, 'Tổng quan'),
+              (_ReportSection.transactions, 'Giao dịch'),
+            ],
+            selected: _section,
+            onChanged: (selection) => setState(() => _section = selection),
+          ),
+          const SizedBox(height: 16),
+          if (_section == _ReportSection.overview)
+            _buildMobileOverview(report)
+          else
+            _buildMobileTransactions(report),
         ],
+      ],
+    );
+  }
+
+  Widget _buildMobileOverview(MaterialReport report) {
+    final p = context.palette;
+    final quantity = _controller.valueMode == MaterialValueMode.quantity;
+    final totals = report.totals;
+    String show(double value) =>
+        quantity ? formatWeight(value) : formatCurrency(value);
+    Widget total(IconData icon, AppTone tone, String label, double value) {
+      final (fg, _) = p.tone(tone);
+      return NavRow(
+        leading: IconTile(icon: icon, tone: tone),
+        title: label,
+        showChevron: false,
+        trailing: Text(
+          show(value),
+          style: TextStyle(
+            color: value < 0 ? p.danger : fg,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InsetCard(
+          dividerIndent: kLeadingDividerIndent,
+          children: [
+            total(
+              Icons.south_west_rounded,
+              AppTone.success,
+              quantity ? 'Tổng nhập' : 'Giá trị nhập',
+              quantity ? totals.importQuantityKg : totals.importValueVnd,
+            ),
+            total(
+              Icons.north_east_rounded,
+              AppTone.danger,
+              quantity ? 'Tổng xuất' : 'Giá trị xuất',
+              quantity ? totals.exportQuantityKg : totals.exportValueVnd,
+            ),
+            total(
+              quantity
+                  ? Icons.inventory_2_outlined
+                  : Icons.account_balance_wallet_outlined,
+              AppTone.primary,
+              quantity ? 'Tồn hiện tại' : 'Giá trị tồn',
+              quantity ? totals.inventoryQuantityKg : totals.inventoryValueVnd,
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        Text(
+          'So sánh theo vật liệu',
+          style: TextStyle(
+            color: p.text1,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          quantity
+              ? 'Khối lượng nhập, xuất và tồn lũy kế đến cuối kỳ.'
+              : 'Giá trị FIFO nhập, xuất và tồn lũy kế đến cuối kỳ.',
+          style: TextStyle(color: p.text2, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
+        MaterialComparisonList(
+          items: report.chartItems,
+          valueMode: _controller.valueMode,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileTransactions(MaterialReport report) {
+    final controller = _controller;
+    if (controller.loadedTransactions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 24),
+        child: StateView(
+          icon: Icons.receipt_long_outlined,
+          title: 'Chưa có giao dịch',
+          message:
+              'Không tìm thấy giao dịch phù hợp với bộ lọc và khoảng thời gian.',
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GroupLabel('${report.totalCount} giao dịch'),
+        const SizedBox(height: 8),
+        InsetCard(
+          dividerIndent: kLeadingDividerIndent,
+          children: [
+            for (final transaction in controller.loadedTransactions)
+              _TransactionRow(
+                transaction: transaction,
+                onTap: () =>
+                    showMaterialTransactionDetails(context, transaction),
+              ),
+          ],
+        ),
+        LoadMoreFooter(
+          loading: controller.isRefreshing,
+          errorMessage: controller.reportError?.message,
+          onRetry: controller.loadMore,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickCompany() async {
+    final picked = await showPickerSheet<int>(
+      context: context,
+      title: 'Chọn công ty',
+      searchHint: 'Tìm công ty',
+      icon: Icons.apartment_outlined,
+      selected: _controller.selectedCompanyId,
+      options: [
+        for (final company in _controller.companies)
+          PickerOption(
+            value: company.id,
+            title: company.displayName,
+            subtitle: company.code,
+          ),
+      ],
+    );
+    if (!mounted || picked == null) return;
+    await _controller.selectCompany(picked.value);
+  }
+
+  Future<void> _pickStation() async {
+    if (widget.isAdmin && _controller.selectedCompanyId == null) {
+      await _pickCompany();
+      if (!mounted || _controller.selectedCompanyId == null) return;
+    }
+    final picked = await showPickerSheet<int>(
+      context: context,
+      title: 'Chọn trạm trộn',
+      searchHint: 'Tìm trạm trộn',
+      icon: Icons.factory_outlined,
+      selected: _controller.selectedStationId,
+      emptyMessage: 'Không có trạm trộn trong phạm vi được cấp.',
+      options: [
+        for (final station in _controller.stations)
+          PickerOption(
+            value: station.id,
+            title: station.displayName,
+            subtitle: station.companyName?.trim().isNotEmpty == true
+                ? station.companyName
+                : 'Mã trạm ${station.id}',
+          ),
+      ],
+    );
+    final stationId = picked?.value;
+    if (!mounted || stationId == null) return;
+    _controller.selectStation(stationId);
+    await _controller.loadReport();
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final report = _controller.report;
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (_section == _ReportSection.transactions &&
+            notification.metrics.extentAfter < 300) {
+          _controller.loadMore();
+        }
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: report == null ? () async {} : _controller.refresh,
+        child: ListView(
+          key: const ValueKey<String>('material-report-scroll'),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildScopeCard(context),
+                    if (_controller.validationMessage != null) ...[
+                      const SizedBox(height: 10),
+                      ErrorPanel(message: _controller.validationMessage!),
+                    ],
+                    if (_controller.scopeError != null) ...[
+                      const SizedBox(height: 10),
+                      ErrorPanel(
+                        message: _controller.scopeError!.message,
+                        onRetry: _controller.retryScope,
+                      ),
+                    ],
+                    if (_controller.reportError != null) ...[
+                      const SizedBox(height: 10),
+                      ErrorPanel(
+                        message: _controller.reportError!.message,
+                        onRetry: _controller.loadReport,
+                      ),
+                    ],
+                    if (_controller.isLoadingReport && report == null) ...[
+                      const SizedBox(height: 36),
+                      const Center(child: CircularProgressIndicator()),
+                    ] else if (report == null) ...[
+                      const SizedBox(height: 20),
+                      AppEmptyState(
+                        icon: Icons.inventory_2_outlined,
+                        title: 'Chọn trạm để xem báo cáo',
+                        message: widget.isAdmin
+                            ? 'Chọn cụ thể công ty, trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.'
+                            : 'Chọn cụ thể trạm trộn và khoảng thời gian rồi bấm Xem báo cáo.',
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 16),
+                      _buildReportHeader(report),
+                      if (report.warnings.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _WarningsPanel(warnings: report.warnings),
+                      ],
+                      const SizedBox(height: 14),
+                      SegmentedTabs<_ReportSection>(
+                        key: const ValueKey<String>('material-report-section'),
+                        segments: const [
+                          (_ReportSection.overview, 'Tổng quan'),
+                          (_ReportSection.transactions, 'Giao dịch'),
+                        ],
+                        selected: _section,
+                        onChanged: (selection) => setState(() {
+                          _section = selection;
+                        }),
+                      ),
+                      const SizedBox(height: 14),
+                      if (_section == _ReportSection.overview)
+                        _buildOverview(report)
+                      else
+                        _buildTransactions(report),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -224,7 +544,11 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                   : '${station.displayName} ${station.id} $company';
             },
             optionSubtitle: (station) => station.companyName?.trim(),
-            onSelected: (station) => _controller.selectStation(station.id),
+            onSelected: (station) {
+              final hadReport = _controller.report != null;
+              _controller.selectStation(station.id);
+              if (hadReport) _controller.loadReport();
+            },
             onCleared: () => _controller.selectStation(null),
             enabled:
                 !_controller.isLoadingScope &&
@@ -364,7 +688,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 10),
-        if (report.transactions.isEmpty)
+        if (_controller.loadedTransactions.isEmpty)
           const AppEmptyState(
             icon: Icons.receipt_long_outlined,
             title: 'Chưa có giao dịch',
@@ -372,14 +696,15 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 'Không tìm thấy giao dịch phù hợp với bộ lọc và khoảng thời gian.',
           )
         else
-          for (final transaction in report.transactions) ...[
+          for (final transaction in _controller.loadedTransactions) ...[
             MaterialTransactionCard(
               transaction: transaction,
               onTap: () => showMaterialTransactionDetails(context, transaction),
             ),
             const SizedBox(height: 10),
           ],
-        if (report.totalPages > 1) ...[
+        if (report.totalPages > 1 &&
+            MediaQuery.sizeOf(context).width >= 600) ...[
           const SizedBox(height: 6),
           Row(
             children: [
@@ -419,6 +744,12 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             ],
           ),
         ],
+        if (MediaQuery.sizeOf(context).width < 600)
+          LoadMoreFooter(
+            loading: _controller.isRefreshing && _controller.canLoadMore,
+            errorMessage: _controller.reportError?.message,
+            onRetry: _controller.loadMore,
+          ),
       ],
     );
   }
@@ -431,95 +762,154 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       title: 'Khoảng giao dịch',
       keyPrefix: 'material-date-range-picker',
     );
-    if (result != null) _controller.setDateRange(result.start, result.end);
+    if (result != null) {
+      final shouldLoad = _shouldReloadOnChange;
+      _controller.setDateRange(result.start, result.end);
+      if (shouldLoad) await _controller.loadReport();
+    }
   }
+
+  /// Wide layouts keep the explicit "Tìm kiếm" flow until a report exists;
+  /// phones reload as soon as a station is chosen.
+  bool get _shouldReloadOnChange =>
+      _controller.report != null || (_isCompact && _controller.canViewReport);
 
   Future<void> _showFilters(BuildContext context) async {
     var group = _controller.materialGroup;
     var view = _controller.viewMode;
     var value = _controller.valueMode;
-    final applied = await showModalBottomSheet<bool>(
+    final applied = await showAppSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Bộ lọc báo cáo',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Nhóm vật liệu',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: MaterialGroupFilter.values
-                    .map(
-                      (item) => ChoiceChip(
-                        label: Text(item.label),
-                        selected: group == item,
-                        showCheckmark: false,
-                        onSelected: (_) => setSheetState(() => group = item),
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-              const SizedBox(height: 18),
-              DropdownButtonFormField<MaterialViewMode>(
-                initialValue: view,
-                decoration: const InputDecoration(labelText: 'Loại dữ liệu'),
-                items: MaterialViewMode.values
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(item.label),
-                      ),
-                    )
-                    .toList(growable: false),
-                onChanged: (item) {
-                  if (item != null) setSheetState(() => view = item);
-                },
-              ),
-              const SizedBox(height: 12),
-              SegmentedButton<MaterialValueMode>(
-                segments: MaterialValueMode.values
-                    .map(
-                      (item) =>
-                          ButtonSegment(value: item, label: Text(item.label)),
-                    )
-                    .toList(growable: false),
-                selected: {value},
-                onSelectionChanged: (selection) =>
-                    setSheetState(() => value = selection.single),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Áp dụng bộ lọc'),
-              ),
-            ],
-          ),
+      title: 'Bộ lọc báo cáo',
+      footer: (sheetContext) => AppButton(
+        key: const ValueKey<String>('material-apply-filters'),
+        onPressed: () => Navigator.pop(sheetContext, true),
+        icon: Icons.check_rounded,
+        label: 'Áp dụng bộ lọc',
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 6),
+            const GroupLabel('Nhóm vật liệu'),
+            const SizedBox(height: 8),
+            OptionChipGroup<MaterialGroupFilter>(
+              options: [
+                for (final item in MaterialGroupFilter.values)
+                  (item, item.label),
+              ],
+              selected: group,
+              onChanged: (item) => setSheetState(() => group = item),
+            ),
+            const SizedBox(height: 18),
+            const GroupLabel('Loại dữ liệu'),
+            const SizedBox(height: 8),
+            OptionChipGroup<MaterialViewMode>(
+              options: [
+                for (final item in MaterialViewMode.values) (item, item.label),
+              ],
+              selected: view,
+              onChanged: (item) => setSheetState(() => view = item),
+            ),
+            const SizedBox(height: 18),
+            const GroupLabel('Hiển thị theo'),
+            const SizedBox(height: 8),
+            SegmentedTabs<MaterialValueMode>(
+              segments: [
+                for (final item in MaterialValueMode.values) (item, item.label),
+              ],
+              selected: value,
+              onChanged: (selection) => setSheetState(() => value = selection),
+            ),
+          ],
         ),
       ),
     );
     if (applied == true) {
+      final shouldLoad = _shouldReloadOnChange;
       _controller
         ..setMaterialGroup(group)
         ..setViewMode(view)
         ..setValueMode(value);
+      if (shouldLoad) await _controller.loadReport();
     }
   }
+}
+
+/// One stock movement in the phone list (Figma C06).
+class _TransactionRow extends StatelessWidget {
+  const _TransactionRow({required this.transaction, required this.onTap});
+
+  final MaterialTransaction transaction;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final isImport = transaction.importQuantityKg > 0;
+    final quantity = isImport
+        ? transaction.importQuantityKg
+        : transaction.exportQuantityKg;
+    final tone = transaction.isSummary
+        ? AppTone.primary
+        : isImport
+        ? AppTone.success
+        : AppTone.danger;
+    final (fg, _) = p.tone(tone);
+    final occurredAt = transaction.occurredAt;
+    return NavRow(
+      background: transaction.isSummary ? p.primaryContainer : null,
+      leading: IconTile(
+        icon: transaction.isSummary
+            ? Icons.functions_rounded
+            : isImport
+            ? Icons.south_west_rounded
+            : Icons.north_east_rounded,
+        tone: tone,
+        background: transaction.isSummary ? p.surface : null,
+      ),
+      title: transaction.content,
+      subtitle: occurredAt == null
+          ? transaction.id
+          : '${formatShortVietnamDateTime(occurredAt)} · ${transaction.id}',
+      showChevron: false,
+      trailing: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            formatWeight(quantity),
+            semanticsLabel:
+                '${isImport ? 'Nhập' : 'Xuất'} ${formatWeight(quantity)}',
+            style: TextStyle(
+              color: fg,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (transaction.valueVnd != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              formatCurrency(transaction.valueVnd!),
+              style: TextStyle(
+                color: p.text3,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+String _shortRange(DateTime start, DateTime end) {
+  String two(int number) => number.toString().padLeft(2, '0');
+  String date(DateTime value) => '${two(value.day)}/${two(value.month)}';
+  return '${date(start)} – ${date(end)}';
 }
 
 class _WarningsPanel extends StatelessWidget {

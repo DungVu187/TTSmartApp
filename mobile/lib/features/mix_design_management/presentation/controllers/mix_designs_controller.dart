@@ -24,6 +24,7 @@ class MixDesignsController extends ChangeNotifier {
   int? selectedCompanyId;
   int? selectedStationId;
   MixDesignPage? result;
+  final List<MixDesignItem> loadedItems = <MixDesignItem>[];
   ApiException? scopeError;
   ApiException? resultError;
   String? validationMessage;
@@ -49,6 +50,7 @@ class MixDesignsController extends ChangeNotifier {
   bool get canGoNext =>
       !isLoadingResult && totalPages > 0 && currentPage < totalPages;
   bool get canGoLast => canGoNext;
+  bool get canLoadMore => !isLoadingResult && currentPage < totalPages;
 
   Future<void> initialize() async {
     if (isAdmin) {
@@ -94,6 +96,10 @@ class MixDesignsController extends ChangeNotifier {
   Future<void> goToNextPage() => _loadPage(currentPage + 1);
 
   Future<void> goToLastPage() => _loadPage(totalPages);
+
+  Future<void> loadMore() => canLoadMore
+      ? _loadPage(currentPage + 1, append: true)
+      : Future<void>.value();
 
   Future<void> resetFilters() async {
     validationMessage = null;
@@ -172,7 +178,7 @@ class MixDesignsController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadPage(int pageNumber) async {
+  Future<void> _loadPage(int pageNumber, {bool append = false}) async {
     if (isLoadingResult || pageNumber < 1) return;
     if (isAdmin && selectedCompanyId == null) {
       validationMessage = 'Vui lòng chọn công ty';
@@ -209,6 +215,13 @@ class MixDesignsController extends ChangeNotifier {
         return;
       }
       result = page;
+      if (append) {
+        loadedItems.addAll(page.items);
+      } else {
+        loadedItems
+          ..clear()
+          ..addAll(page.items);
+      }
     } on ApiException catch (error) {
       if (requestVersion != _resultRequestVersion) return;
       result = previousResult;
@@ -224,6 +237,7 @@ class MixDesignsController extends ChangeNotifier {
   void _clearResult() {
     _resultRequestVersion++;
     result = null;
+    loadedItems.clear();
     resultError = null;
     isLoadingResult = false;
   }

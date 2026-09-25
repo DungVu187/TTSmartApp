@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../access_management/data/models/permission_models.dart';
@@ -295,115 +296,58 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         message: 'Trạm có thể đã bị xóa hoặc nằm ngoài phạm vi được cấp.',
       );
     }
+    final p = context.palette;
+    final changes = [
+      if (station.createdAtUtc != null)
+        'Tạo ${formatStationDate(station.createdAtUtc)}',
+      if (station.updatedAtUtc != null)
+        'Cập nhật ${formatStationDate(station.updatedAtUtc)}',
+    ];
+    final note = TextStyle(
+      color: p.text3,
+      fontSize: 13,
+      height: 18 / 13,
+      fontWeight: FontWeight.w500,
+    );
+    // Figma B05: header, station info, account + integrations, the password
+    // note and the created / updated line. Empty values are skipped.
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
         children: [
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 960),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_error != null) ...[
                     ErrorPanel(message: _error!.message),
                     const SizedBox(height: 16),
                   ],
                   _buildHeader(station),
-                  const SizedBox(height: 20),
-                  StationSection(
-                    title: 'Thông tin trạm',
-                    icon: Icons.factory_outlined,
-                    description:
-                        'Thông tin nhận diện, phạm vi và liên hệ của trạm.',
-                    child: Column(
-                      children: [
-                        StationInfoRow(
-                          label: 'Mã trạm',
-                          value: station.code,
-                          icon: Icons.tag_outlined,
-                        ),
-                        StationInfoRow(
-                          label: 'Tên trạm',
-                          value: station.name,
-                          icon: Icons.badge_outlined,
-                        ),
-                        StationInfoRow(
-                          label: 'Công ty',
-                          value: station.companyName,
-                          icon: Icons.apartment_outlined,
-                        ),
-                        StationInfoRow(
-                          label: 'Email',
-                          value: station.email,
-                          icon: Icons.email_outlined,
-                        ),
-                        StationInfoRow(
-                          label: 'Điện thoại',
-                          value: station.phone,
-                          icon: Icons.phone_outlined,
-                        ),
-                        StationInfoRow(
-                          label: 'Địa chỉ',
-                          value: station.address,
-                          icon: Icons.location_on_outlined,
-                        ),
-                      ],
-                    ),
+                  ..._group('Thông tin trạm', [
+                    ('Email', station.email),
+                    ('Điện thoại', station.phone),
+                    ('Địa chỉ', station.address),
+                  ]),
+                  ..._group('Tài khoản và tích hợp', [
+                    ('Tài khoản', station.username),
+                    ('Mật khẩu', stationPasswordStatus(station.password)),
+                    ('Quản lý xe', station.pmqlXe),
+                    ('Camera', station.qlCamera),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Mật khẩu được ẩn để bảo vệ thông tin đăng nhập.',
+                    style: note,
                   ),
-                  const SizedBox(height: 20),
-                  StationSection(
-                    title: 'Tài khoản và tích hợp',
-                    icon: Icons.settings_input_component_outlined,
-                    description:
-                        'Mật khẩu được ẩn để bảo vệ thông tin đăng nhập.',
-                    child: Column(
-                      children: [
-                        StationInfoRow(
-                          label: 'Tài khoản',
-                          value: station.username,
-                          icon: Icons.person_outline,
-                        ),
-                        StationInfoRow(
-                          label: 'Mật khẩu',
-                          value: stationPasswordStatus(station.password),
-                          icon: Icons.lock_outline,
-                        ),
-                        StationInfoRow(
-                          label: 'Quản lý xe',
-                          value: station.pmqlXe,
-                          icon: Icons.local_shipping_outlined,
-                        ),
-                        StationInfoRow(
-                          label: 'Camera',
-                          value: station.qlCamera,
-                          icon: Icons.videocam_outlined,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  StationSection(
-                    title: 'Theo dõi thay đổi',
-                    icon: Icons.history_outlined,
-                    description: 'Thời gian hiển thị theo múi giờ thiết bị.',
-                    child: Column(
-                      children: [
-                        StationInfoRow(
-                          label: 'Tạo lúc',
-                          value: formatStationDate(station.createdAtUtc),
-                          icon: Icons.add_circle_outline,
-                        ),
-                        StationInfoRow(
-                          label: 'Cập nhật lúc',
-                          value: formatStationDate(station.updatedAtUtc),
-                          icon: Icons.update_outlined,
-                        ),
-                      ],
-                    ),
-                  ),
+                  if (changes.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Text(changes.join('  ·  '), style: note),
+                  ],
                 ],
               ),
             ),
@@ -413,8 +357,24 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     );
   }
 
+  List<Widget> _group(String label, List<(String, String?)> rows) {
+    final visible = [
+      for (final (title, value) in rows)
+        if (value?.trim().isNotEmpty == true)
+          FieldRow(label: title, value: value!.trim()),
+    ];
+    if (visible.isEmpty) return const [];
+    return [
+      const SizedBox(height: 20),
+      InsetGroup(label: label, children: visible),
+    ];
+  }
+
   Widget _buildHeader(StationResponse station) {
-    final theme = Theme.of(context);
+    final p = context.palette;
+    final (toneForeground, toneBackground) = p.tone(
+      stationTypeTone(station.type),
+    );
     final avatarValue = station.avatar?.trim();
     final resolvedAvatar = widget.controller.repository is ApiStationRepository
         ? (widget.controller.repository as ApiStationRepository)
@@ -428,87 +388,74 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
       if (station.code?.trim().isNotEmpty == true) 'Mã ${station.code!.trim()}',
       if (station.companyName?.trim().isNotEmpty == true)
         station.companyName!.trim(),
-    ].join(' • ');
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(17),
+    ].join(' · ');
+    final fallbackIcon = Icon(
+      stationTypeIcon(station.type),
+      color: toneForeground,
+      size: 28,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: toneBackground,
+            borderRadius: BorderRadius.circular(17),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: hasAvatarUrl
+              ? Image.network(
+                  avatarUri.toString(),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => fallbackIcon,
+                  loadingBuilder: (context, child, progress) =>
+                      progress == null ? child : fallbackIcon,
+                )
+              : fallbackIcon,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                station.displayName,
+                style: TextStyle(
+                  color: p.text1,
+                  fontSize: 19,
+                  height: 24 / 19,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: hasAvatarUrl
-                  ? Image.network(
-                      avatarUri.toString(),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(
-                        stationTypeIcon(station.type),
-                        color: theme.colorScheme.primary,
-                        size: 30,
-                      ),
-                      loadingBuilder: (context, child, progress) =>
-                          progress == null
-                          ? child
-                          : Icon(
-                              stationTypeIcon(station.type),
-                              color: theme.colorScheme.primary,
-                              size: 30,
-                            ),
-                    )
-                  : Icon(
-                      stationTypeIcon(station.type),
-                      color: theme.colorScheme.primary,
-                      size: 30,
-                    ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              if (metadata.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  metadata,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: p.text2,
+                    fontSize: 14,
+                    height: 19 / 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  Text(
-                    station.displayName,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  if (metadata.isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      metadata,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      StationTypeChip(type: station.type),
-                      StationStatusChip(isDeleted: station.isDeleted),
-                    ],
-                  ),
+                  StationTypeChip(type: station.type),
+                  StationStatusChip(isDeleted: station.isDeleted),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

@@ -50,6 +50,9 @@ class WeighStationController extends ChangeNotifier {
 
   WeighStationPage? detailResult;
   WeighStationSummary? summaryResult;
+  final List<WeighStationItem> loadedDetailItems = <WeighStationItem>[];
+  final List<WeighStationSummaryItem> loadedSummaryItems =
+      <WeighStationSummaryItem>[];
   bool hasSearched = false;
 
   bool isLoadingCompanies = false;
@@ -87,6 +90,12 @@ class WeighStationController extends ChangeNotifier {
   int get detailTotalPages => detailResult?.totalPages ?? 0;
   int get summaryPage => summaryResult?.pageNumber ?? 1;
   int get summaryTotalPages => summaryResult?.totalPages ?? 0;
+  bool get canLoadMoreDetail =>
+      !isLoadingDetail && detailResult != null && detailPage < detailTotalPages;
+  bool get canLoadMoreSummary =>
+      !isLoadingSummary &&
+      summaryResult != null &&
+      summaryPage < summaryTotalPages;
   bool get canLoadOptions => selectedStationId != null;
 
   CompanyResponse? get selectedCompany =>
@@ -198,6 +207,8 @@ class WeighStationController extends ChangeNotifier {
     hasSearched = true;
     detailResult = null;
     summaryResult = null;
+    loadedDetailItems.clear();
+    loadedSummaryItems.clear();
     detailError = null;
     summaryError = null;
     _failedDetailPage = null;
@@ -210,6 +221,14 @@ class WeighStationController extends ChangeNotifier {
   Future<void> goToDetailPage(int pageNumber) => _loadDetailPage(pageNumber);
 
   Future<void> goToSummaryPage(int pageNumber) => _loadSummaryPage(pageNumber);
+
+  Future<void> loadMoreDetail() => canLoadMoreDetail
+      ? _loadDetailPage(detailPage + 1, append: true)
+      : Future<void>.value();
+
+  Future<void> loadMoreSummary() => canLoadMoreSummary
+      ? _loadSummaryPage(summaryPage + 1, append: true)
+      : Future<void>.value();
 
   Future<void> retryDetail() =>
       _loadDetailPage(_failedDetailPage ?? detailPage);
@@ -334,7 +353,7 @@ class WeighStationController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadDetailPage(int pageNumber) async {
+  Future<void> _loadDetailPage(int pageNumber, {bool append = false}) async {
     final appliedQuery = _appliedQuery;
     if (appliedQuery == null || pageNumber < 1 || isLoadingDetail) return;
     if (detailResult != null &&
@@ -356,7 +375,16 @@ class WeighStationController extends ChangeNotifier {
         appliedQuery.withPageNumber(pageNumber),
         cancellation: cancellation,
       );
-      if (requestVersion == _detailRequestVersion) detailResult = result;
+      if (requestVersion == _detailRequestVersion) {
+        detailResult = result;
+        if (append) {
+          loadedDetailItems.addAll(result.items);
+        } else {
+          loadedDetailItems
+            ..clear()
+            ..addAll(result.items);
+        }
+      }
     } on ApiRequestCancelledException {
       return;
     } on ApiException catch (error) {
@@ -374,7 +402,7 @@ class WeighStationController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadSummaryPage(int pageNumber) async {
+  Future<void> _loadSummaryPage(int pageNumber, {bool append = false}) async {
     final appliedQuery = _appliedQuery;
     if (appliedQuery == null || pageNumber < 1 || isLoadingSummary) return;
     if (summaryResult != null &&
@@ -396,7 +424,16 @@ class WeighStationController extends ChangeNotifier {
         appliedQuery.withPageNumber(pageNumber),
         cancellation: cancellation,
       );
-      if (requestVersion == _summaryRequestVersion) summaryResult = result;
+      if (requestVersion == _summaryRequestVersion) {
+        summaryResult = result;
+        if (append) {
+          loadedSummaryItems.addAll(result.items);
+        } else {
+          loadedSummaryItems
+            ..clear()
+            ..addAll(result.items);
+        }
+      }
     } on ApiRequestCancelledException {
       return;
     } on ApiException catch (error) {
@@ -534,6 +571,8 @@ class WeighStationController extends ChangeNotifier {
     hasSearched = false;
     detailResult = null;
     summaryResult = null;
+    loadedDetailItems.clear();
+    loadedSummaryItems.clear();
     detailError = null;
     summaryError = null;
     _failedDetailPage = null;

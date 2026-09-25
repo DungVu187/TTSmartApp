@@ -347,9 +347,10 @@ class _VolumeBox extends StatelessWidget {
   }
 }
 
+/// "120" / "24,5" / "3.940" (one decimal at most, no trailing ",0").
 String formatOrderReportVolume(num? value) {
   if (value == null) return '—';
-  final text = value.toStringAsFixed(1);
+  final text = value.toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '');
   final parts = text.split('.');
   final integer = parts.first;
   final buffer = StringBuffer();

@@ -227,7 +227,10 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
     var longestTextWidth = 0.0;
     for (final value in values) {
       final painter = TextPainter(
-        text: TextSpan(text: value, style: _gradeTextStyle),
+        text: TextSpan(
+          text: value,
+          style: _gradeTextStyle.copyWith(fontFamily: AppTheme.fontFamily),
+        ),
         textDirection: textDirection,
         textScaler: textScaler,
         maxLines: 1,
@@ -532,8 +535,19 @@ class _MixDesignColumn {
   final String? tooltip;
 }
 
+/// "1.080" / "3,85" / "500,25" (Vietnamese grouping, up to 2 decimals).
 String formatMixDesignNumber(num value) {
   var text = value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
   if (text.isEmpty || text == '-0') text = '0';
-  return text.replaceAll('.', ',');
+  final negative = text.startsWith('-');
+  if (negative) text = text.substring(1);
+  final parts = text.split('.');
+  final integer = parts.first;
+  final buffer = StringBuffer(negative ? '-' : '');
+  for (var index = 0; index < integer.length; index++) {
+    if (index > 0 && (integer.length - index) % 3 == 0) buffer.write('.');
+    buffer.write(integer[index]);
+  }
+  if (parts.length > 1) buffer.write(',${parts[1]}');
+  return buffer.toString();
 }

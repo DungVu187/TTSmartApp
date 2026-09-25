@@ -529,7 +529,7 @@ void main() {
     expect(find.text('3 loại'), findsOneWidget);
     expect(find.text('Loại hàng nhiều nhất'), findsOneWidget);
     expect(find.text('299,98 tấn'), findsOneWidget);
-    expect(find.text('48.000.000 ₫'), findsNWidgets(2));
+    expect(find.text('48.000.000 đ'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 }
