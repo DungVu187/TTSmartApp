@@ -184,6 +184,76 @@ public sealed class UserAssignmentValidationTests
         Assert.Equal("100", assignmentUpdated.BranchId);
     }
 
+    [Fact]
+    public async Task SuaUser_BranchIdNullGiuTramCu_ChuoiRongLaGoHetTram()
+    {
+        await using var authDbContext = CreateAuthDbContext();
+        await using var companyDbContext = CreateCompanyDbContext();
+        var admin = new WebUser
+        {
+            UserName = "admin-clear-branch",
+            Password = "hash",
+            Status = WebDataStatus.Active
+        };
+        var owner = new WebUser
+        {
+            UserName = "company-owner-clear-branch",
+            Password = "hash",
+            CompanyId = 10,
+            Status = WebDataStatus.Active
+        };
+        var target = new WebUser
+        {
+            UserName = "station-user",
+            Password = "hash",
+            CompanyId = 10,
+            BranchId = "100,101",
+            Status = WebDataStatus.Active
+        };
+        var childRole = new WebRole
+        {
+            Code = "QUANLY",
+            Name = "Tài khoản quản lý",
+            Status = WebDataStatus.Active
+        };
+        authDbContext.AddRange(admin, owner, target, childRole);
+        await authDbContext.SaveChangesAsync();
+        authDbContext.UserRoles.Add(new WebUserRole
+        {
+            UserId = target.UserId,
+            RoleId = childRole.RoleId,
+            Status = WebDataStatus.Active
+        });
+        await authDbContext.SaveChangesAsync();
+        companyDbContext.Branches.AddRange(
+            CreateBranch(100, 10, WebDataStatus.Active),
+            CreateBranch(101, 10, WebDataStatus.Active));
+        await companyDbContext.SaveChangesAsync();
+
+        // Công ty chỉ gỡ hết trạm thì báo lỗi, không lặng lẽ giữ trạm cũ.
+        var companyService = CreateService(authDbContext, companyDbContext, isSuperAdmin: false);
+        await Assert.ThrowsAsync<ValidationException>(() => companyService.UpdateAsync(
+            target.UserId,
+            new UpdateUserRequest { UserName = target.UserName, CompanyId = 10, BranchId = "" },
+            owner.UserId,
+            CancellationToken.None));
+
+        var service = CreateService(authDbContext, companyDbContext, isSuperAdmin: true);
+        var kept = await service.UpdateAsync(
+            target.UserId,
+            new UpdateUserRequest { UserName = target.UserName, CompanyId = 10, BranchId = null },
+            admin.UserId,
+            CancellationToken.None);
+        Assert.Equal("100,101", kept.BranchId);
+
+        var cleared = await service.UpdateAsync(
+            target.UserId,
+            new UpdateUserRequest { UserName = target.UserName, CompanyId = 10, BranchId = "" },
+            admin.UserId,
+            CancellationToken.None);
+        Assert.Null(cleared.BranchId);
+    }
+
     private static CreateUserRequest CreateRequest(string userName, int roleId, string? branchId) =>
         new()
         {

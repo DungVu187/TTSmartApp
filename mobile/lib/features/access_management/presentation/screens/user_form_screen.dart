@@ -37,6 +37,7 @@ class UserFormScreen extends StatefulWidget {
 
 class _UserFormScreenState extends State<UserFormScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final ScrollController _scrollController = ScrollController();
   late final TextEditingController _userNameController;
   late final TextEditingController _fullNameController;
   late final TextEditingController _codeController;
@@ -124,6 +125,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _positionIdController.dispose();
     _unitIdController.dispose();
     _passwordController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -431,7 +433,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 roleMax: existing.roleMax,
                 roleLevel: existing.roleLevel,
                 isRoleGroup: existing.isRoleGroup,
-                branchId: _branchIdValue(),
+                // The API keeps the stations when branchId is null, so
+                // removing all of them is sent as an empty list.
+                branchId: _selectedBranchIds.join(','),
               ),
             )
           : await widget.controller.create(
@@ -453,7 +457,17 @@ class _UserFormScreenState extends State<UserFormScreen> {
             );
       if (mounted) Navigator.pop(context, response);
     } on ApiException catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (!mounted) return;
+      setState(() => _error = error);
+      // The error banner is at the top; saving from the stations further
+      // down used to look like nothing happened.
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -479,6 +493,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
           child: Form(
             key: _formKey,
             child: ListView(
+              controller: _scrollController,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: accessPagePadding(context, top: 8, bottom: 32),
               children: [

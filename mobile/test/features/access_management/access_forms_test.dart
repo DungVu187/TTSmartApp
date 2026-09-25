@@ -10,6 +10,7 @@ import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/core/ui/app_ui.dart';
 import 'package:ttsmart_mobile/features/access_management/data/models/permission_models.dart';
+import 'package:ttsmart_mobile/features/access_management/data/models/user_models.dart';
 import 'package:ttsmart_mobile/features/access_management/data/repositories/access_management_repository.dart';
 import 'package:ttsmart_mobile/features/access_management/presentation/controllers/functions_controller.dart';
 import 'package:ttsmart_mobile/features/access_management/presentation/controllers/users_controller.dart';
@@ -311,6 +312,172 @@ void main() {
     expect(userRequests, 2);
     expect(find.text('Chưa có người dùng nào'), findsOneWidget);
     expect(find.widgetWithText(AppButton, 'Thêm người dùng'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('removing every station clears them on save instead of '
+      'keeping the old ones', (tester) async {
+    usePhoneViewport(tester);
+    Map<String, Object?>? updated;
+    Map<String, Object?> user(String? branchId) => <String, Object?>{
+      'id': 42,
+      'userName': 'nv-tram',
+      'companyId': 10,
+      'status': 1,
+      'isActive': true,
+      'branchId': branchId,
+      'roles': <Object?>[],
+    };
+    Map<String, Object?> station(int id, String name) => <String, Object?>{
+      'id': id,
+      'companyId': 10,
+      'code': 'TRAM_$id',
+      'name': name,
+      'status': 1,
+      'isActive': true,
+    };
+    final apiClient = _apiClient((request) {
+      if (request.method == 'PUT' && request.url.path == '/api/users/42') {
+        updated = jsonDecode(request.body) as Map<String, Object?>;
+        return user(updated!['branchId'] as String?);
+      }
+      return switch (request.url.path) {
+        '/api/users/assignable-roles' => <Object?>[],
+        '/api/branches' => <String, Object?>{
+          'items': <Object?>[station(20, 'Trạm A'), station(21, 'Trạm B')],
+          'pageNumber': 1,
+          'pageSize': 100,
+          'totalCount': 2,
+          'totalPages': 1,
+        },
+        _ => throw StateError('Unexpected request: ${request.url}'),
+      };
+    });
+    final controller = _CompanyAccountController(apiClient);
+    addTearDown(controller.dispose);
+
+    await _pumpFromLauncher(
+      tester,
+      controller,
+      UserFormScreen(
+        controller: UsersController(AccessManagementRepository(apiClient)),
+        companyRepository: ApiCompanyRepository(apiClient),
+        stationRepository: ApiStationRepository(apiClient),
+        existingUser: UserResponse.fromJson(user('20,21')),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.byTooltip('Bỏ trạm').first,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byTooltip('Bỏ trạm'), findsNWidgets(2));
+    await tester.tap(find.byTooltip('Bỏ trạm').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Bỏ trạm'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Bỏ trạm'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('access-form-save')));
+    await tester.pumpAndSettle();
+
+    // The API reads a null branchId as "keep the stations as they are", so
+    // an empty selection has to be sent as an explicit empty list.
+    expect(updated, isNotNull);
+    expect(updated!.containsKey('branchId'), isTrue);
+    expect(updated!['branchId'], '');
+    expect(find.text('Mở form'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('a save error scrolls back to the banner at the top', (
+    tester,
+  ) async {
+    // Short screen so the form scrolls, as on a phone with the keyboard.
+    usePhoneViewport(tester, size: const Size(360, 520));
+    const message =
+        'Tài khoản không phải CONGTY phải được gán ít nhất một trạm.';
+    final apiClient = ApiClient(
+      baseUri: Uri.parse('http://localhost:5052'),
+      timeout: const Duration(seconds: 1),
+      httpClient: MockClient((request) async {
+        if (request.method == 'PUT') {
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode(<String, Object?>{'status': 400, 'detail': message}),
+            ),
+            400,
+            headers: {'content-type': 'application/problem+json'},
+          );
+        }
+        final Object body = switch (request.url.path) {
+          '/api/users/assignable-roles' => <Object?>[],
+          '/api/branches' => <String, Object?>{
+            'items': <Object?>[
+              <String, Object?>{
+                'id': 20,
+                'companyId': 10,
+                'code': 'TRAM_20',
+                'name': 'Trạm A',
+                'status': 1,
+                'isActive': true,
+              },
+            ],
+            'pageNumber': 1,
+            'pageSize': 100,
+            'totalCount': 1,
+            'totalPages': 1,
+          },
+          _ => throw StateError('Unexpected request: ${request.url}'),
+        };
+        return http.Response.bytes(utf8.encode(jsonEncode(body)), 200);
+      }),
+    )..accessToken = 'test-token';
+    final controller = _CompanyAccountController(apiClient);
+    addTearDown(controller.dispose);
+
+    await _pumpFromLauncher(
+      tester,
+      controller,
+      UserFormScreen(
+        controller: UsersController(AccessManagementRepository(apiClient)),
+        companyRepository: ApiCompanyRepository(apiClient),
+        stationRepository: ApiStationRepository(apiClient),
+        existingUser: UserResponse.fromJson(<String, Object?>{
+          'id': 42,
+          'userName': 'nv-tram',
+          'companyId': 10,
+          'status': 1,
+          'isActive': true,
+          'branchId': '20',
+          'roles': <Object?>[],
+        }),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.byTooltip('Bỏ trạm'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byTooltip('Bỏ trạm'));
+    await tester.pumpAndSettle();
+    // Save from the bottom of the form, far from the banner.
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('access-form-save')));
+    await tester.pumpAndSettle();
+
+    final banner = find.text(message);
+    expect(banner, findsOneWidget);
+    // Back at the top: the banner is on screen, below the app bar.
+    final top = tester.getTopLeft(banner).dy;
+    expect(top, greaterThan(kToolbarHeight));
+    expect(
+      top,
+      lessThan(
+        tester.view.physicalSize.height / tester.view.devicePixelRatio / 2,
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 }
