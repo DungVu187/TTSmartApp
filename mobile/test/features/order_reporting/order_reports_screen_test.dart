@@ -524,13 +524,20 @@ void main() {
       expect(find.widgetWithText(TabTitleBar, 'Đơn hàng'), findsOneWidget);
       expect(orderRepository.employeeRequests.single.branchId, 10);
       expect(orderRepository.queries.single.branchId, 10);
-      expect(find.text('Đơn #101'), findsOneWidget);
+      // Compact list (Figma 03): customer, time, ordered volume.
       expect(find.text('Khách hàng A'), findsOneWidget);
       expect(find.text('31/07'), findsOneWidget);
       expect(find.text('10:00'), findsOneWidget);
-      // One order, so the totals and the card show the same volumes.
-      expect(find.text('24,5 m³'), findsWidgets);
-      expect(find.text('20,3 m³'), findsWidgets);
+      expect(find.text('đặt 24,5 m³'), findsOneWidget);
+      // The whole order opens on tap (Figma 03b).
+      await tester.tap(find.text('Khách hàng A'));
+      await tester.pumpAndSettle();
+      expect(find.text('Đơn #101'), findsOneWidget);
+      expect(find.text('24,5 m³'), findsOneWidget);
+      expect(find.text('20,3 m³'), findsOneWidget);
+      expect(find.text('Nhân viên kinh doanh'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
       final employeeChip = find.byKey(
         const ValueKey('order-report-employee-chip'),
@@ -615,7 +622,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(orderRepository.queries.single.branchId, isNull);
     expect(orderRepository.queries.single.companyId, 3);
-    expect(find.text('Đơn #101'), findsOneWidget);
+    expect(find.text('Khách hàng A'), findsOneWidget);
 
     final stationChip = find.byKey(const ValueKey('order-report-station-chip'));
     await tester.ensureVisible(stationChip);

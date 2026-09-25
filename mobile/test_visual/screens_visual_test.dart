@@ -80,6 +80,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('shell-nav-orders')));
     await tester.pumpAndSettle();
     await snap('screens_03_orders');
+    // Figma 03b: the whole order opens from its row.
+    await tester.tap(find.text('Công ty CP Xây dựng Hòa Bình'));
+    await tester.pumpAndSettle();
+    await snap('screens_03b_order_detail');
   });
 
   testWidgets('04 notifications', (tester) async {

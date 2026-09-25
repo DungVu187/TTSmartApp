@@ -312,7 +312,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 36),
               child: StateView(
-                icon: LucideIcons.chartNoAxesColumnIncreasing,
+                icon: LucideIcons.chartColumn,
                 title: 'Chọn trạm',
                 message: 'Chọn trạm và khoảng thời gian để xem các mẻ trộn.',
                 actions: [
@@ -355,7 +355,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       const SizedBox(height: 18),
       if (controller.loadedItems.isEmpty)
         const StateView(
-          icon: LucideIcons.chartNoAxesColumnIncreasing,
+          icon: LucideIcons.chartColumn,
           title: 'Chưa có mẻ trộn',
           message: 'Thử đổi khoảng thời gian hoặc bộ lọc.',
         )

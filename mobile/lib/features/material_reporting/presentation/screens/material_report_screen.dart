@@ -602,7 +602,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
             onPressed: _controller.isLoadingReport
                 ? null
                 : _controller.loadReport,
-            icon: const Icon(LucideIcons.chartNoAxesColumnIncreasing),
+            icon: const Icon(LucideIcons.chartColumn),
             label: const Text('Tìm kiếm'),
           ),
         ],

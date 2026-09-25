@@ -1000,7 +1000,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
     final summary = controller.summaryResult;
     if (!controller.hasSearched) {
       return const AppEmptyState(
-        icon: LucideIcons.chartNoAxesColumnIncreasing,
+        icon: LucideIcons.chartColumn,
         title: 'Chưa có dữ liệu tổng hợp',
         message: 'Kết quả tổng hợp sẽ xuất hiện sau khi bấm Tìm kiếm.',
       );

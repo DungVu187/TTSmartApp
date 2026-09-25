@@ -311,14 +311,14 @@ const operationalModules = <OperationalModule>[
     functionCode: AccessFunctionCodes.orderReports,
     label: 'Đơn hàng',
     description: 'Tra cứu đơn hàng và khối lượng sản xuất theo trạm.',
-    icon: LucideIcons.receiptText,
+    icon: LucideIcons.clipboardList,
   ),
   OperationalModule(
     keyName: 'order-statistics',
     functionCode: AccessFunctionCodes.orderStatistics,
     label: 'Thống kê',
     description: 'Thống kê chi tiết và tổng hợp mẻ trộn theo trạm.',
-    icon: LucideIcons.chartNoAxesColumnIncreasing,
+    icon: LucideIcons.chartColumn,
   ),
   OperationalModule(
     keyName: 'mix-designs',
@@ -451,7 +451,7 @@ IconData _functionIcon(GrantedFunction function, IconData fallback) {
     return LucideIcons.scale;
   }
   if (icon.contains('order') || icon.contains('receipt')) {
-    return LucideIcons.receiptText;
+    return LucideIcons.clipboardList;
   }
   return fallback;
 }

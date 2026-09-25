@@ -137,16 +137,25 @@ void main() {
       for (var hour = 0; hour < 24; hour++)
         '${hour.toString().padLeft(2, '0')}H',
     ];
-    expect(
-      AreaTrendChart.labelIndices(hours).map((index) => hours[index]),
-      ['00H', '04H', '08H', '12H', '16H', '20H'],
-    );
+    expect(AreaTrendChart.labelIndices(hours).map((index) => hours[index]), [
+      '00H',
+      '04H',
+      '08H',
+      '12H',
+      '16H',
+      '20H',
+    ]);
     final days = [
       for (var day = 1; day <= 30; day++) day.toString().padLeft(2, '0'),
     ];
-    expect(
-      AreaTrendChart.labelIndices(days).map((index) => days[index]),
-      ['01', '05', '10', '15', '20', '25', '30'],
-    );
+    expect(AreaTrendChart.labelIndices(days).map((index) => days[index]), [
+      '01',
+      '05',
+      '10',
+      '15',
+      '20',
+      '25',
+      '30',
+    ]);
   });
 }

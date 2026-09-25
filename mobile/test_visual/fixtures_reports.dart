@@ -170,16 +170,17 @@ final visualStatisticsSummary = <OrderStatisticsMaterialSummaryRow>[
 
 class VisualReportsRepository implements ReportsRepository {
   @override
-  Future<List<OrderStatisticsStation>> getStations({int? companyId}) async =>
-      const [
-        OrderStatisticsStation(
-          id: 10,
-          companyId: 3,
-          name: 'Trạm Hà Nam',
-          typeTram: 1,
-          companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
-        ),
-      ];
+  Future<List<OrderStatisticsStation>> getStations({
+    int? companyId,
+  }) async => const [
+    OrderStatisticsStation(
+      id: 10,
+      companyId: 3,
+      name: 'Trạm Hà Nam',
+      typeTram: 1,
+      companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
+    ),
+  ];
 
   @override
   Future<OrderStatisticsFilterOptions> getFilterOptions(

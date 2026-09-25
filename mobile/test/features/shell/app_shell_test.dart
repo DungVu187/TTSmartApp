@@ -28,6 +28,8 @@ import '../../support/empty_reports_repository.dart';
 const _surfaceSize = Size(411, 914);
 const _selectedBackground = Color(0xFFDBEAFE);
 const _selectedColor = Color(0xFF2563EB);
+// Figma: the icon inside the pill uses on-primary-container.
+const _selectedIconColor = Color(0xFF1D4ED8);
 // Figma text-2 after the contrast pass (7.6:1 on white).
 const _unselectedColor = Color(0xFF475569);
 
@@ -394,7 +396,12 @@ void _expectNavigationColors(
     (selectedContainer.decoration! as BoxDecoration).color,
     _selectedBackground,
   );
-  _expectNavigationForeground(tester, selectedItem, _selectedColor);
+  _expectNavigationForeground(
+    tester,
+    selectedItem,
+    _selectedColor,
+    iconColor: _selectedIconColor,
+  );
 
   final unselectedItem = find.byKey(
     ValueKey<String>('shell-nav-$unselectedKey'),
@@ -405,13 +412,14 @@ void _expectNavigationColors(
 void _expectNavigationForeground(
   WidgetTester tester,
   Finder item,
-  Color expectedColor,
-) {
+  Color expectedColor, {
+  Color? iconColor,
+}) {
   final iconFinder = find.descendant(of: item, matching: find.byType(Icon));
   final textFinder = find.descendant(of: item, matching: find.byType(Text));
 
   expect(iconFinder, findsOneWidget);
   expect(textFinder, findsOneWidget);
-  expect(tester.widget<Icon>(iconFinder).color, expectedColor);
+  expect(tester.widget<Icon>(iconFinder).color, iconColor ?? expectedColor);
   expect(tester.widget<Text>(textFinder).style?.color, expectedColor);
 }

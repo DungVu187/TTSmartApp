@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../data/models/order_report_models.dart';
 import '../../../../core/ui/app_palette.dart';
+import '../../../../core/utils/vietnam_time.dart';
 
 class OrderReportPartialWarning extends StatelessWidget {
   const OrderReportPartialWarning({
@@ -157,7 +158,7 @@ class OrderReportItemCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Icon(
-                    LucideIcons.receiptText,
+                    LucideIcons.clipboardList,
                     color: theme.colorScheme.onPrimaryContainer,
                   ),
                 ),
@@ -373,4 +374,51 @@ String formatVietnamOrderDateTime(DateTime value) {
 String _display(String? value, String fallback) {
   final normalized = value?.trim();
   return normalized == null || normalized.isEmpty ? fallback : normalized;
+}
+
+/// "21/09/2026 08:15" in Vietnam time, or null when the server sent none.
+String? formatOrderDateTime(DateTime? utc) {
+  if (utc == null) return null;
+  final value = utcToVietnamTime(utc);
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(value.day)}/${two(value.month)}/${value.year} '
+      '${two(value.hour)}:${two(value.minute)}';
+}
+
+/// Production progress of an order: bar ratio, tone and the same in words
+/// ("Còn 24 m³ · đạt 80% khối lượng đặt"), so it never relies on colour only.
+({double ratio, AppTone tone, String label}) orderProgressOf(
+  num ordered,
+  num produced,
+) {
+  if (ordered <= 0) {
+    return (
+      ratio: produced > 0 ? 1 : 0,
+      tone: produced > 0 ? AppTone.success : AppTone.neutral,
+      label: produced > 0
+          ? 'Đã sản xuất ${formatOrderReportVolume(produced)} m³'
+          : 'Chưa có khối lượng đặt',
+    );
+  }
+  if (produced <= 0) {
+    return (ratio: 0, tone: AppTone.neutral, label: 'Chưa sản xuất');
+  }
+  if (produced >= ordered) {
+    final extra = produced - ordered;
+    return (
+      ratio: 1,
+      tone: AppTone.success,
+      label: extra > 0
+          ? 'Đủ khối lượng · vượt ${formatOrderReportVolume(extra)} m³'
+          : 'Đã đủ khối lượng đặt',
+    );
+  }
+  final percent = (produced / ordered * 100).floor();
+  return (
+    ratio: produced / ordered,
+    tone: AppTone.primary,
+    label:
+        'Còn ${formatOrderReportVolume(ordered - produced)} m³ · '
+        'đạt $percent% khối lượng đặt',
+  );
 }

@@ -49,7 +49,12 @@ CompanyResponse visualCompany(
 );
 
 final visualCompanies = <CompanyResponse>[
-  visualCompany(3, 'TTS', 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam', users: 24),
+  visualCompany(
+    3,
+    'TTS',
+    'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
+    users: 24,
+  ),
   visualCompany(
     4,
     'HBC',

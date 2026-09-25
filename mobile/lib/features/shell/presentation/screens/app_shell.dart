@@ -182,8 +182,8 @@ class _AppShellState extends State<AppShell> {
         _ShellTabDefinition(
           keyName: _ShellTabKey.orders,
           label: 'Đơn hàng',
-          icon: LucideIcons.receiptText,
-          selectedIcon: LucideIcons.receiptText,
+          icon: LucideIcons.clipboardList,
+          selectedIcon: LucideIcons.clipboardList,
           child: OrderReportsScreen(
             repository: widget.repositories.orderReports,
             companyRepository: widget.repositories.companies,
@@ -194,8 +194,8 @@ class _AppShellState extends State<AppShell> {
         _ShellTabDefinition(
           keyName: _ShellTabKey.statistics,
           label: 'Thống kê',
-          icon: LucideIcons.chartNoAxesColumnIncreasing,
-          selectedIcon: LucideIcons.chartNoAxesColumnIncreasing,
+          icon: LucideIcons.chartColumn,
+          selectedIcon: LucideIcons.chartColumn,
           child: ReportsScreen(
             repository: widget.repositories.reports,
             companyRepository: widget.repositories.companies,
@@ -206,8 +206,9 @@ class _AppShellState extends State<AppShell> {
         _ShellTabDefinition(
           keyName: _ShellTabKey.system,
           label: 'Hệ thống',
-          icon: LucideIcons.settings,
-          selectedIcon: LucideIcons.settings,
+          // Accounts and permissions; the gear stays for Cài đặt.
+          icon: LucideIcons.userCog,
+          selectedIcon: LucideIcons.userCog,
           child: SystemScreen(repositories: widget.repositories),
         ),
       const _ShellTabDefinition(
@@ -351,21 +352,26 @@ class _ShellNavigationItem extends StatelessWidget {
                 child: Icon(
                   selected ? tab.selectedIcon : tab.icon,
                   size: 22,
-                  color: foregroundColor,
+                  color: selected ? p.onPrimaryContainer : p.text2,
                 ),
               ),
               const SizedBox(height: 3),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  tab.label,
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: foregroundColor,
-                    fontSize: 12,
-                    height: 15 / 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              // Side padding keeps neighbouring labels apart on 360dp
+              // phones with a large font (they touched at 1.3×).
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    tab.label,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: foregroundColor,
+                      fontSize: 12,
+                      height: 15 / 12,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

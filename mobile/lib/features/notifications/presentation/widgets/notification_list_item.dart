@@ -79,7 +79,7 @@ class NotificationListItem extends StatelessWidget {
                         borderRadius: BorderRadius.circular(13),
                       ),
                       child: Icon(
-                        order ? LucideIcons.receiptText : LucideIcons.info,
+                        order ? LucideIcons.clipboardList : LucideIcons.info,
                         size: 22,
                         color: iconColor,
                       ),

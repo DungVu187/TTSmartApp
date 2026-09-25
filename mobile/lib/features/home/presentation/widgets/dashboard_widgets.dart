@@ -103,7 +103,7 @@ class DashboardMetricCard extends StatelessWidget {
   }
 
   static IconData _iconFor(DashboardMetricType type) => switch (type) {
-    DashboardMetricType.orders => LucideIcons.receiptText,
+    DashboardMetricType.orders => LucideIcons.clipboardList,
     DashboardMetricType.concreteGrades => LucideIcons.flaskConical,
     DashboardMetricType.mixerTrucks => LucideIcons.truck,
     DashboardMetricType.salesWithOrders => LucideIcons.users,

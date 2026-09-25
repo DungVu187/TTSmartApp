@@ -72,16 +72,17 @@ final _chartItems = <MaterialChartItem>[
 
 class VisualMaterialRepository implements MaterialReportRepository {
   @override
-  Future<List<MaterialReportStation>> getStations({int? companyId}) async =>
-      const [
-        MaterialReportStation(
-          id: 10,
-          companyId: 3,
-          name: 'Trạm Hà Nam',
-          companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
-          typeTram: 1,
-        ),
-      ];
+  Future<List<MaterialReportStation>> getStations({
+    int? companyId,
+  }) async => const [
+    MaterialReportStation(
+      id: 10,
+      companyId: 3,
+      name: 'Trạm Hà Nam',
+      companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
+      typeTram: 1,
+    ),
+  ];
 
   @override
   Future<MaterialReport> getReport(MaterialReportQuery query) async =>
