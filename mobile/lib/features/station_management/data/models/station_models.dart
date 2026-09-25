@@ -93,6 +93,7 @@ class StationResponse {
     required this.companyName,
     required this.code,
     required this.name,
+    required this.avatar,
     required this.email,
     required this.phone,
     required this.address,
@@ -115,6 +116,7 @@ class StationResponse {
       companyName: optionalString(json, 'companyName'),
       code: optionalString(json, 'code'),
       name: optionalString(json, 'name'),
+      avatar: optionalString(json, 'avatar'),
       email: optionalString(json, 'email'),
       phone: optionalString(json, 'phone'),
       address: optionalString(json, 'address'),
@@ -135,6 +137,7 @@ class StationResponse {
   final String? companyName;
   final String? code;
   final String? name;
+  final String? avatar;
   final String? email;
   final String? phone;
   final String? address;

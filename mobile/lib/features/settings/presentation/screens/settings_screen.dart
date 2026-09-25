@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/app_content.dart';
 import '../../../auth/presentation/screens/account_screen.dart';
 import '../../../auth/presentation/screens/change_password_screen.dart';
@@ -25,30 +27,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _confirmLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Đăng xuất?'),
-        content: const Text('Phiên đăng nhập trên thiết bị sẽ được xóa.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Đăng xuất'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      icon: LucideIcons.logOut,
+      title: 'Đăng xuất?',
+      message: 'Phiên đăng nhập trên thiết bị sẽ được xóa.',
+      confirmLabel: 'Đăng xuất',
     );
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await AppScope.read(context).logout();
     }
   }
 
+  void _openAccount() => Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Thông tin tài khoản')),
+        body: const SafeArea(child: AccountScreen()),
+      ),
+    ),
+  );
+
+  static String _initial(String name) {
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? '?' : trimmed.characters.first.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = AppScope.of(context).session!.user;
     return Scaffold(
       appBar: AppBar(title: const Text('Cài đặt')),
       body: SafeArea(
@@ -56,63 +63,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             AppContent(
               maxWidth: 760,
+              topPadding: 6,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SettingsSection(
-                    title: 'Tài khoản và bảo mật',
+                  InsetGroup(
+                    label: 'Tài khoản và bảo mật',
+                    dividerIndent: 73,
                     children: [
-                      ListTile(
-                        minTileHeight: 64,
-                        leading: const Icon(Icons.person_outline),
-                        title: const Text('Thông tin tài khoản'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => Scaffold(
-                              appBar: AppBar(
-                                title: const Text('Thông tin tài khoản'),
-                              ),
-                              body: const SafeArea(child: AccountScreen()),
-                            ),
-                          ),
+                      NavRow(
+                        leading: InitialsAvatar(
+                          text: user.displayName,
+                          initials: _initial(user.displayName),
+                          tone: AppTone.info,
+                          size: 48,
+                          radius: 14,
+                          fontSize: 18,
                         ),
+                        title: user.displayName,
+                        titleStyle: TextStyle(
+                          color: context.palette.text1,
+                          fontSize: 17,
+                          height: 22 / 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        subtitle: 'Thông tin tài khoản',
+                        onTap: _openAccount,
                       ),
-                      const Divider(),
-                      ListTile(
-                        minTileHeight: 64,
-                        leading: const Icon(Icons.password_outlined),
-                        title: const Text('Đổi mật khẩu'),
-                        trailing: const Icon(Icons.chevron_right),
+                      NavRow(
+                        leading: const IconTile(
+                          icon: LucideIcons.keyRound,
+                          tone: AppTone.warning,
+                        ),
+                        title: 'Đổi mật khẩu',
                         onTap: _openChangePassword,
                       ),
-                      const Divider(),
-                      ListTile(
-                        minTileHeight: 64,
-                        leading: Icon(
-                          Icons.logout,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                        title: Text(
-                          'Đăng xuất',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  InsetCard(
+                    children: [
+                      ActionRow(
+                        icon: LucideIcons.logOut,
+                        label: 'Đăng xuất',
+                        destructive: true,
                         onTap: _confirmLogout,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 22),
-                  const _SettingsSection(
-                    title: 'Ứng dụng',
+                  const SizedBox(height: 20),
+                  const InsetGroup(
+                    label: 'Ứng dụng',
                     children: [
-                      ListTile(
-                        minTileHeight: 64,
-                        leading: Icon(Icons.info_outline),
-                        title: Text('Phiên bản'),
-                        trailing: Text('1.0.0'),
+                      NavRow(
+                        leading: IconTile(
+                          icon: LucideIcons.info,
+                          tone: AppTone.neutral,
+                        ),
+                        title: 'Phiên bản',
+                        value: '1.0.0',
                       ),
                     ],
                   ),
@@ -122,32 +131,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-        ),
-        Card(child: Column(children: children)),
-      ],
     );
   }
 }

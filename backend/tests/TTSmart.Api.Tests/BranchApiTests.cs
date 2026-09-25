@@ -177,6 +177,57 @@ public sealed class BranchApiTests(TTSmartApiFactory factory) : IClassFixture<TT
     }
 
     [Fact]
+    public async Task CongTy_CoBranchIds_ChiDocVaSuaCacTramDuocGan()
+    {
+        BranchTestIdentity companyUser = null!;
+        await factory.ResetDatabaseAsync(async (services, authDbContext) =>
+        {
+            companyUser = await BranchTestSupport.SeedIdentityAsync(
+                services,
+                authDbContext,
+                SystemRoleCodes.Company,
+                1,
+                "10, 12,undefined,10",
+                ActiveKeyPermission.DSach,
+                ActiveKeyPermission.View,
+                ActiveKeyPermission.Update);
+            var companyDbContext = services.GetRequiredService<CompanyDbContext>();
+            companyDbContext.Companies.AddRange(
+                BranchTestSupport.CreateCompany(1, "CT_1", "Công ty 1"),
+                BranchTestSupport.CreateCompany(2, "CT_2", "Công ty 2"));
+            companyDbContext.Branches.AddRange(
+                BranchTestSupport.CreateBranch(10, 1, "ASSIGNED_10", "Trạm được gán 10"),
+                BranchTestSupport.CreateBranch(11, 1, "NOT_ASSIGNED", "Trạm chưa được gán"),
+                BranchTestSupport.CreateBranch(12, 1, "ASSIGNED_12", "Trạm được gán 12"),
+                BranchTestSupport.CreateBranch(20, 2, "OTHER_COMPANY", "Trạm công ty khác"));
+            await companyDbContext.SaveChangesAsync();
+        });
+        using var client = factory.CreateClient();
+        await BranchTestSupport.LoginAsync(client, companyUser);
+
+        var page = await client.GetFromJsonAsync<PagedResponse<BranchListItemResponse>>(
+            "/api/branches",
+            BranchTestSupport.JsonOptions);
+
+        Assert.NotNull(page);
+        Assert.Equal([10, 12], page.Items.Select(item => item.Id).Order().ToArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/branches/11")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/branches/20")).StatusCode);
+
+        var deniedUpdate = await client.PutAsJsonAsync("/api/branches/11", new
+        {
+            name = "Không được sửa"
+        });
+        Assert.Equal(HttpStatusCode.NotFound, deniedUpdate.StatusCode);
+
+        var allowedUpdate = await client.PutAsJsonAsync("/api/branches/10", new
+        {
+            name = "Trạm được phép sửa"
+        });
+        allowedUpdate.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
     public async Task RoleThapHon_ChiDocTramDuocGan_DuCoBitCapNhat()
     {
         BranchTestIdentity manager = null!;

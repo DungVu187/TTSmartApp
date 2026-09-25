@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Reflection;
+using TTSmart.Api.Controllers;
 using TTSmart.Api.Data.WebAuth;
 using TTSmart.Api.Features.Authorization;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +11,16 @@ namespace TTSmart.Api.Tests;
 
 public sealed class AuthorizationTests
 {
+    [Fact]
+    public void ResetPassword_UsesDeletePermissionPolicyLikeWebsite()
+    {
+        var method = typeof(UsersController).GetMethod(nameof(UsersController.ResetPassword));
+        var attribute = method?.GetCustomAttribute<AuthorizeAttribute>();
+
+        Assert.NotNull(attribute);
+        Assert.Equal(AccessPolicies.UsersResetPassword, attribute.Policy);
+    }
+
     [Fact]
     public async Task Handler_KiemTraDungBitVaCapNhatQuyenNgayLapTuc()
     {

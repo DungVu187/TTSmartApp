@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../../../core/widgets/error_panel.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../data/models/permission_models.dart';
 import '../../data/models/role_models.dart';
 import '../controllers/roles_controller.dart';
 import '../widgets/access_layout.dart';
+import 'function_permission_screen.dart';
 
 class RoleFunctionsScreen extends StatefulWidget {
   const RoleFunctionsScreen({
@@ -31,7 +33,6 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
   Map<int, RoleFunctionMatrixItemResponse> _items =
       <int, RoleFunctionMatrixItemResponse>{};
   Map<int, String> _baseline = <int, String>{};
-  final Set<int> _expanded = <int>{};
   ApiException? _error;
   bool _submitting = false;
 
@@ -59,12 +60,6 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
       for (final item in result)
         item.functionId: '${item.isAssigned}:${item.activeKey}',
     };
-    final parentIds = result
-        .where((item) => item.parentFunctionId == null)
-        .map((item) => item.functionId);
-    _expanded
-      ..clear()
-      ..addAll(parentIds);
     return result;
   }
 
@@ -82,27 +77,96 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
     });
   }
 
-  void _setAssigned(int functionId, bool assigned) {
-    final current = _items[functionId];
-    if (current == null || !widget.canEdit || _submitting) return;
+  Future<void> _openPermissionDetail(int functionId) async {
+    final item = _items[functionId];
+    if (item == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => FunctionPermissionScreen(
+          item: item,
+          canEdit: widget.canEdit && !_submitting,
+          onChanged: (permissions) => _setPermissions(functionId, permissions),
+        ),
+      ),
+    );
+  }
+
+  void _applyAllPermissions(PermissionSet permissions) {
+    if (!widget.canEdit || _submitting) return;
     setState(() {
-      _items[functionId] = current.withAssignment(assigned);
+      for (final current in _items.values.toList()) {
+        _items[current.functionId] = permissions.isEmpty
+            ? current.withAssignment(false)
+            : current.withPermissions(permissions);
+      }
       _error = null;
     });
   }
 
-  void _setVisiblePermissions(
-    List<_VisibleMatrixNode> visible,
-    PermissionSet permissions,
-  ) {
+  Future<void> _showBulkActions() async {
     if (!widget.canEdit || _submitting) return;
-    setState(() {
-      for (final node in visible) {
-        final current = _items[node.item.functionId]!;
-        _items[node.item.functionId] = current.withPermissions(permissions);
-      }
-      _error = null;
-    });
+    final choice = await showAppSheet<_BulkPermissionAction>(
+      context: context,
+      title: 'Áp dụng cho tất cả chức năng',
+      footer: (sheetContext) => AppButton(
+        label: 'Hủy',
+        variant: AppButtonVariant.ghost,
+        onPressed: () => Navigator.pop(sheetContext),
+      ),
+      builder: (sheetContext) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Thay đổi sẽ ghi đè quyền hiện tại của ${_items.length} chức năng. Chỉ lưu lên máy chủ khi bấm Lưu phân quyền.',
+            style: TextStyle(color: sheetContext.palette.text2),
+          ),
+          const SizedBox(height: 16),
+          InsetCard(
+            children: [
+              NavRow(
+                title: 'Cấp toàn quyền',
+                subtitle: 'Bật cả 9 quyền cho mọi chức năng',
+                onTap: () =>
+                    Navigator.pop(sheetContext, _BulkPermissionAction.full),
+              ),
+              NavRow(
+                title: 'Chỉ cho xem',
+                subtitle: 'Chỉ bật quyền Xem và D.Sách',
+                onTap: () =>
+                    Navigator.pop(sheetContext, _BulkPermissionAction.readOnly),
+              ),
+              NavRow(
+                title: 'Bỏ toàn bộ quyền',
+                subtitle: 'Tắt hết, vai trò sẽ không vào được mục nào',
+                titleStyle: TextStyle(
+                  color: sheetContext.palette.danger,
+                  fontWeight: FontWeight.w600,
+                ),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _BulkPermissionAction.none),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null) return;
+    final permissions = switch (choice) {
+      _BulkPermissionAction.full => const PermissionSet.full(),
+      _BulkPermissionAction.readOnly => const PermissionSet(
+        view: true,
+        create: false,
+        update: false,
+        delete: false,
+        importData: false,
+        exportData: false,
+        print: false,
+        other: false,
+        dSach: true,
+      ),
+      _BulkPermissionAction.none => const PermissionSet.none(),
+    };
+    _applyAllPermissions(permissions);
   }
 
   Future<void> _save() async {
@@ -121,9 +185,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
           item.functionId: '${item.isAssigned}:${item.activeKey}',
       };
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã lưu ma trận quyền và cập nhật phiên.'),
-        ),
+        const SnackBar(content: Text('Đã lưu phân quyền và cập nhật phiên.')),
       );
       Navigator.pop(context, true);
     } on ApiException catch (error) {
@@ -138,26 +200,15 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
       Navigator.pop(context, false);
       return;
     }
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Bỏ thay đổi chưa lưu?'),
-        content: const Text(
-          'Các thay đổi trong ma trận quyền sẽ không được lưu.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Ở lại'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Bỏ thay đổi'),
-          ),
-        ],
-      ),
+    final discard = await showAppConfirmDialog(
+      context,
+      icon: LucideIcons.penOff,
+      title: 'Bỏ thay đổi chưa lưu?',
+      message: 'Các thay đổi phân quyền sẽ không được lưu.',
+      confirmLabel: 'Bỏ thay đổi',
+      cancelLabel: 'Ở lại',
     );
-    if (discard == true && mounted) Navigator.pop(context, false);
+    if (discard && mounted) Navigator.pop(context, false);
   }
 
   @override
@@ -168,212 +219,126 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
         if (!didPop) _requestPop();
       },
       child: Scaffold(
+        // Figma S06: the role name as title, ⋮ opens the bulk sheet (S17).
         appBar: AppBar(
-          title: Text(widget.canEdit ? 'Ma trận quyền' : 'Xem ma trận quyền'),
+          title: Text(widget.roleName),
           actions: [
-            IconButton(
-              tooltip: 'Mở tất cả',
-              onPressed: () => setState(() {
-                _expanded.addAll(
-                  _items.values
-                      .where(
-                        (item) => _items.values.any(
-                          (child) => child.parentFunctionId == item.functionId,
-                        ),
-                      )
-                      .map((item) => item.functionId),
-                );
-              }),
-              icon: const Icon(Icons.unfold_more),
-            ),
-            IconButton(
-              tooltip: 'Thu gọn',
-              onPressed: () => setState(_expanded.clear),
-              icon: const Icon(Icons.unfold_less),
-            ),
+            if (widget.canEdit)
+              IconButton(
+                key: const ValueKey<String>('role-functions-bulk'),
+                tooltip: 'Áp dụng cho tất cả chức năng',
+                onPressed: _submitting ? null : _showBulkActions,
+                icon: const Icon(LucideIcons.ellipsisVertical),
+              ),
           ],
         ),
         body: FutureBuilder<List<RoleFunctionMatrixItemResponse>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const SkeletonList();
             }
             if (snapshot.hasError) {
               final error = snapshot.error;
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: ErrorPanel(
-                      message: error is ApiException
-                          ? error.message
-                          : 'Không thể tải ma trận quyền.',
-                      onRetry: _retry,
-                    ),
-                  ),
-                ),
+              return LoadErrorView(
+                title: 'Không tải được phân quyền',
+                message: error is ApiException
+                    ? error.message
+                    : 'Không thể tải danh sách phân quyền.',
+                onRetry: _retry,
               );
             }
             final roots = _buildTree(_items.values);
-            final visible = _visibleNodes(roots);
-            if (visible.isEmpty) {
+            if (roots.isEmpty) {
               return const AccessEmptyState(
-                icon: Icons.rule_folder_outlined,
-                title: 'Chưa có function',
-                message: 'Backend chưa trả function cho ma trận quyền.',
+                icon: LucideIcons.folder,
+                title: 'Chưa có chức năng',
+                message: 'Chưa có chức năng nào để phân quyền.',
               );
             }
-            return Column(
+            final groups = roots
+                .where((root) => root.children.isNotEmpty)
+                .toList(growable: false);
+            final loose = roots
+                .where((root) => root.children.isEmpty)
+                .toList(growable: false);
+            final p = context.palette;
+            return ListView(
+              key: const PageStorageKey<String>('role-function-matrix'),
+              padding: accessPagePadding(context, top: 8, bottom: 24),
               children: [
                 AccessConstrainedContent(
                   maxWidth: 1080,
-                  child: Padding(
-                    padding: accessPagePadding(context, top: 12, bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!widget.canEdit) ...[
                         Text(
-                          widget.roleName,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                          'Bạn đang xem ở chế độ chỉ đọc.',
+                          style: TextStyle(color: p.text2, fontSize: 14),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.canEdit
-                              ? 'Chọn trạng thái gán và các quyền cho từng function.'
-                              : 'Bạn đang xem ở chế độ chỉ đọc.',
-                        ),
-                        if (widget.canEdit) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: _submitting
-                                    ? null
-                                    : () => _setVisiblePermissions(
-                                        visible,
-                                        const PermissionSet.full(),
-                                      ),
-                                icon: const Icon(Icons.done_all),
-                                label: const Text('Đầy đủ phần đang hiển thị'),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: _submitting
-                                    ? null
-                                    : () => _setVisiblePermissions(
-                                        visible,
-                                        const PermissionSet.none(),
-                                      ),
-                                icon: const Icon(Icons.remove_done),
-                                label: const Text('Xóa quyền đang hiển thị'),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (_error != null) ...[
-                          const SizedBox(height: 12),
-                          ErrorPanel(message: _error!.message),
-                        ],
+                        const SizedBox(height: 12),
                       ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: ListView.separated(
-                    key: const PageStorageKey<String>('role-function-matrix'),
-                    padding: accessPagePadding(context, top: 4, bottom: 104),
-                    itemCount: visible.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final node = visible[index];
-                      return Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1080),
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: (node.depth * 12).clamp(0, 48).toDouble(),
-                            ),
-                            child: _PermissionNodeCard(
-                              item: _items[node.item.functionId]!,
-                              hasChildren: node.hasChildren,
-                              expanded: _expanded.contains(
-                                node.item.functionId,
-                              ),
-                              canEdit: widget.canEdit && !_submitting,
-                              onExpand: node.hasChildren
-                                  ? () => setState(() {
-                                      if (!_expanded.add(
-                                        node.item.functionId,
-                                      )) {
-                                        _expanded.remove(node.item.functionId);
-                                      }
-                                    })
-                                  : null,
-                              onAssigned: (value) =>
-                                  _setAssigned(node.item.functionId, value),
-                              onPermission: (permission, value) {
-                                final current = _items[node.item.functionId]!;
-                                _setPermissions(
-                                  node.item.functionId,
-                                  current.permissions.withPermission(
-                                    permission,
-                                    value,
-                                  ),
-                                );
-                              },
-                              onFull: (value) => _setPermissions(
-                                node.item.functionId,
-                                _items[node.item.functionId]!.permissions
-                                    .withFull(value),
-                              ),
-                            ),
-                          ),
+                      if (_error != null) ...[
+                        ErrorBanner(message: _error!.message),
+                        const SizedBox(height: 12),
+                      ],
+                      for (final group in groups) ...[
+                        _GroupHeader(
+                          item: _items[group.item.functionId]!,
+                          onTap: () =>
+                              _openPermissionDetail(group.item.functionId),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 8),
+                        InsetCard(
+                          children: [
+                            for (final (node, depth) in _descendants(group))
+                              _PermissionRow(
+                                item: _items[node.item.functionId]!,
+                                depth: depth,
+                                onTap: () =>
+                                    _openPermissionDetail(node.item.functionId),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                      if (loose.isNotEmpty) ...[
+                        GroupLabel(groups.isEmpty ? 'Chức năng' : 'Khác'),
+                        const SizedBox(height: 8),
+                        InsetCard(
+                          children: [
+                            for (final node in loose)
+                              _PermissionRow(
+                                item: _items[node.item.functionId]!,
+                                depth: 0,
+                                onTap: () =>
+                                    _openPermissionDetail(node.item.functionId),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
             );
           },
         ),
-        bottomNavigationBar: widget.canEdit
+        // Drafts only: the save bar appears once something changed.
+        bottomNavigationBar: widget.canEdit && (_hasChanges || _submitting)
             ? SafeArea(
                 top: false,
                 child: Material(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: context.palette.surface,
                   child: Padding(
                     padding: accessPagePadding(context, top: 10, bottom: 12),
-                    child: Align(
-                      alignment: Alignment.center,
-                      heightFactor: 1,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1080),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: _submitting || !_hasChanges
-                                ? null
-                                : _save,
-                            icon: _submitting
-                                ? const SizedBox.square(
-                                    dimension: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.save_outlined),
-                            label: Text(
-                              _submitting ? 'Đang lưu...' : 'Lưu ma trận quyền',
-                            ),
-                          ),
-                        ),
-                      ),
+                    child: AppButton(
+                      key: const ValueKey<String>('role-functions-save'),
+                      label: _submitting ? 'Đang lưu...' : 'Lưu phân quyền',
+                      icon: LucideIcons.save,
+                      loading: _submitting,
+                      onPressed: _submitting ? null : _save,
                     ),
                   ),
                 ),
@@ -412,29 +377,24 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
     return roots;
   }
 
-  List<_VisibleMatrixNode> _visibleNodes(List<_MatrixNode> roots) {
-    final result = <_VisibleMatrixNode>[];
+  /// Children and grandchildren of [root] with their depth (1 = child).
+  List<(_MatrixNode, int)> _descendants(_MatrixNode root) {
+    final result = <(_MatrixNode, int)>[];
     void visit(_MatrixNode node, int depth) {
-      result.add(
-        _VisibleMatrixNode(
-          item: node.item,
-          depth: depth,
-          hasChildren: node.children.isNotEmpty,
-        ),
-      );
-      if (_expanded.contains(node.item.functionId)) {
-        for (final child in node.children) {
-          visit(child, depth + 1);
-        }
+      result.add((node, depth));
+      for (final child in node.children) {
+        visit(child, depth + 1);
       }
     }
 
-    for (final root in roots) {
-      visit(root, 0);
+    for (final child in root.children) {
+      visit(child, 1);
     }
     return result;
   }
 }
+
+enum _BulkPermissionAction { full, readOnly, none }
 
 class _MatrixNode {
   _MatrixNode(this.item);
@@ -443,122 +403,97 @@ class _MatrixNode {
   final List<_MatrixNode> children = <_MatrixNode>[];
 }
 
-class _VisibleMatrixNode {
-  const _VisibleMatrixNode({
+/// "Toàn quyền" (green), "Chỉ xem", "Chưa cấp quyền" (muted) or the list of
+/// granted permissions (D.Sách only when it is the sole one).
+(String, Color) _summaryOf(BuildContext context, PermissionSet permissions) {
+  final p = context.palette;
+  if (permissions.full) return ('Toàn quyền', p.success);
+  if (permissions.isEmpty) return ('Chưa cấp quyền', p.text3);
+  final granted = PermissionSet.definitions
+      .where((definition) => permissions.allows(definition.permission))
+      .toList(growable: false);
+  final withoutList = granted
+      .where((definition) => definition.permission != AccessPermission.dSach)
+      .toList(growable: false);
+  if (withoutList.length == 1 &&
+      withoutList.single.permission == AccessPermission.view) {
+    return ('Chỉ xem', p.text2);
+  }
+  final shown = withoutList.isEmpty ? granted : withoutList;
+  return (shown.map((definition) => definition.label).join(' · '), p.text2);
+}
+
+/// Group label of a parent function plus its own permission (tap to edit).
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({required this.item, required this.onTap});
+
+  final RoleFunctionMatrixItemResponse item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (summary, color) = _summaryOf(context, item.permissions);
+    return Row(
+      children: [
+        Expanded(child: GroupLabel(item.name)),
+        Semantics(
+          button: true,
+          label: 'Quyền của nhóm ${item.name}: $summary',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    summary,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Icon(
+                    LucideIcons.chevronRight,
+                    size: 16,
+                    color: context.palette.text3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PermissionRow extends StatelessWidget {
+  const _PermissionRow({
     required this.item,
     required this.depth,
-    required this.hasChildren,
+    required this.onTap,
   });
 
   final RoleFunctionMatrixItemResponse item;
   final int depth;
-  final bool hasChildren;
-}
-
-class _PermissionNodeCard extends StatelessWidget {
-  const _PermissionNodeCard({
-    required this.item,
-    required this.hasChildren,
-    required this.expanded,
-    required this.canEdit,
-    required this.onExpand,
-    required this.onAssigned,
-    required this.onPermission,
-    required this.onFull,
-  });
-
-  final RoleFunctionMatrixItemResponse item;
-  final bool hasChildren;
-  final bool expanded;
-  final bool canEdit;
-  final VoidCallback? onExpand;
-  final ValueChanged<bool> onAssigned;
-  final void Function(AccessPermission permission, bool value) onPermission;
-  final ValueChanged<bool> onFull;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: item.isAssigned
-          ? theme.colorScheme.surface
-          : theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (hasChildren)
-                  IconButton(
-                    tooltip: expanded ? 'Thu gọn' : 'Mở rộng',
-                    onPressed: onExpand,
-                    icon: Icon(
-                      expanded ? Icons.expand_less : Icons.expand_more,
-                    ),
-                  )
-                else
-                  const SizedBox(width: 48),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.code,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(item.isAssigned ? 'Đã gán' : 'Chưa gán'),
-                Switch(
-                  value: item.isAssigned,
-                  onChanged: canEdit ? onAssigned : null,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            FilterChip(
-              label: const Text('Đầy đủ'),
-              avatar: const Icon(Icons.done_all, size: 18),
-              selected: item.permissions.full,
-              onSelected: canEdit ? onFull : null,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: PermissionSet.definitions
-                  .map(
-                    (definition) => FilterChip(
-                      label: Text(definition.label),
-                      selected: item.permissions.allows(definition.permission),
-                      onSelected: canEdit
-                          ? (value) =>
-                                onPermission(definition.permission, value)
-                          : null,
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-          ],
-        ),
-      ),
+    final (summary, color) = _summaryOf(context, item.permissions);
+    final row = NavRow(
+      title: item.name,
+      subtitle: summary,
+      subtitleColor: color,
+      onTap: onTap,
+    );
+    if (depth <= 1) return row;
+    return Padding(
+      padding: EdgeInsets.only(left: 16.0 * (depth - 1)),
+      child: row,
     );
   }
 }

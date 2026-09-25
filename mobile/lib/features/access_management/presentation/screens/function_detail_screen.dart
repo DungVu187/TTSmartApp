@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
 import '../../data/models/function_models.dart';
@@ -62,11 +64,11 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(nextActive ? 'Kích hoạt function?' : 'Ngừng function?'),
+        title: Text(nextActive ? 'Bật chức năng?' : 'Tắt chức năng?'),
         content: Text(
           nextActive
-              ? 'Function sẽ xuất hiện trong cấu trúc hiệu lực.'
-              : 'Function sẽ ngừng hiệu lực; backend sẽ kiểm tra các function con.',
+              ? 'Chức năng sẽ được dùng trong menu.'
+              : 'Chức năng sẽ bị tắt; các mục con vẫn được giữ lại.',
         ),
         actions: [
           TextButton(
@@ -83,10 +85,12 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     if (confirmed != true || !mounted || _busy) return;
     setState(() => _busy = true);
     try {
+      final appController = AppScope.read(context);
       final updated = await widget.controller.setActive(
         function.id,
         nextActive,
       );
+      await appController.refreshCurrentSession();
       if (mounted) {
         setState(() {
           _changed = true;
@@ -104,11 +108,11 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa function?'),
+        title: const Text('Xóa chức năng?'),
         content: Text(
           function.isContainer
-              ? 'Function này còn ${function.childCount} function con. Backend có thể từ chối thao tác xóa.'
-              : 'Xóa ${function.name} khỏi cấu trúc function.',
+              ? 'Mục này còn ${function.childCount} mục con. Khi xóa, các mục con sẽ chuyển lên cấp cao hơn.'
+              : 'Xóa ${function.name} khỏi menu.',
         ),
         actions: [
           TextButton(
@@ -125,7 +129,9 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
     if (confirmed != true || !mounted || _busy) return;
     setState(() => _busy = true);
     try {
+      final appController = AppScope.read(context);
       await widget.controller.delete(function.id);
+      await appController.refreshCurrentSession();
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (error) {
       if (mounted) _showMessage(error.message);
@@ -163,7 +169,7 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
         if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Chi tiết function')),
+        appBar: AppBar(),
         body: FutureBuilder<FunctionResponse>(
           future: _future,
           builder: (context, snapshot) {
@@ -196,147 +202,137 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
                     AccessConstrainedContent(
                       maxWidth: 820,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          // Same layout as the role / user details.
+                          Row(
+                            children: [
+                              IconTile(
+                                icon: function.isContainer
+                                    ? LucideIcons.folder
+                                    : LucideIcons.link,
+                                tone: function.isContainer
+                                    ? AppTone.primary
+                                    : AppTone.neutral,
+                                size: 60,
+                                radius: 18,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    CircleAvatar(
-                                      radius: 26,
-                                      child: Icon(
-                                        function.isContainer
-                                            ? Icons.folder_outlined
-                                            : Icons.webhook_outlined,
+                                    Text(
+                                      function.name,
+                                      style: TextStyle(
+                                        color: context.palette.text1,
+                                        fontSize: 19,
+                                        height: 24 / 19,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            function.name,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(function.code),
-                                        ],
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      function.code,
+                                      style: TextStyle(
+                                        color: context.palette.text2,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
                                       ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    AccessStatusChip(
+                                      isActive: function.isActive,
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
-                                AccessStatusChip(isActive: function.isActive),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 20),
-                          AccessSection(
-                            title: 'Tổng quan',
-                            icon: Icons.analytics_outlined,
-                            child: Column(
-                              children: [
-                                AccessInfoRow(
-                                  label: 'Function con',
-                                  value: '${function.childCount}',
+                          InsetGroup(
+                            label: 'Tổng quan',
+                            children: [
+                              PairFieldRow(
+                                first: (
+                                  'Chức năng cha',
+                                  _parentName(function.parentFunctionId),
                                 ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Vai trò gán',
-                                  value: '${function.assignedRoleCount}',
+                                second: (
+                                  'Số mục con',
+                                  '${function.childCount}',
                                 ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Vai trò có quyền',
-                                  value: '${function.grantedRoleCount}',
+                              ),
+                              PairFieldRow(
+                                first: (
+                                  'Vai trò được gán',
+                                  '${function.assignedRoleCount}',
                                 ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Function cha',
-                                  value:
-                                      function.parentFunctionId?.toString() ??
-                                      'Function gốc',
+                                second: (
+                                  'Vai trò có quyền',
+                                  '${function.grantedRoleCount}',
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 20),
-                          AccessSection(
-                            title: 'Thông tin hiển thị',
-                            icon: Icons.open_in_new_outlined,
-                            child: Column(
-                              children: [
-                                AccessInfoRow(
-                                  label: 'URL',
-                                  value: _display(function.url),
+                          InsetGroup(
+                            label: 'Hiển thị trong menu',
+                            children: [
+                              FieldRow(
+                                label: 'Đường dẫn',
+                                value: _display(function.url),
+                              ),
+                              PairFieldRow(
+                                first: (
+                                  'Vị trí',
+                                  function.location?.toString() ??
+                                      'Chưa cập nhật',
                                 ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Icon',
-                                  value: _display(function.icon),
-                                ),
-                                const Divider(height: 1),
-                                AccessInfoRow(
-                                  label: 'Ghi chú',
-                                  value: _display(function.note),
-                                ),
-                              ],
-                            ),
+                                second: ('Icon', _display(function.icon)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          InsetGroup(
+                            label: 'Khác',
+                            children: [
+                              FieldRow(
+                                label: 'Chú thích',
+                                value: _display(function.note),
+                              ),
+                            ],
                           ),
                           if (canUpdate || canDelete) ...[
                             const SizedBox(height: 24),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                            InsetCard(
                               children: [
                                 if (canUpdate)
-                                  OutlinedButton.icon(
-                                    onPressed: _busy
-                                        ? null
-                                        : () => _edit(function),
-                                    icon: const Icon(Icons.edit_outlined),
-                                    label: const Text('Cập nhật'),
+                                  ActionRow(
+                                    icon: LucideIcons.pencil,
+                                    label: 'Sửa chức năng',
+                                    onTap: _busy ? null : () => _edit(function),
                                   ),
                                 if (canUpdate)
-                                  OutlinedButton.icon(
-                                    onPressed: _busy
+                                  ActionRow(
+                                    icon: function.isActive
+                                        ? LucideIcons.circlePause
+                                        : LucideIcons.circlePlay,
+                                    label: function.isActive
+                                        ? 'Ngừng hiệu lực'
+                                        : 'Kích hoạt',
+                                    onTap: _busy
                                         ? null
                                         : () => _toggleStatus(function),
-                                    icon: Icon(
-                                      function.isActive
-                                          ? Icons.pause_circle_outline
-                                          : Icons.play_circle_outline,
-                                    ),
-                                    label: Text(
-                                      function.isActive
-                                          ? 'Ngừng hiệu lực'
-                                          : 'Kích hoạt',
-                                    ),
                                   ),
                                 if (canDelete)
-                                  TextButton.icon(
-                                    onPressed: _busy
+                                  ActionRow(
+                                    icon: LucideIcons.trash2,
+                                    label: 'Xóa chức năng',
+                                    destructive: true,
+                                    onTap: _busy
                                         ? null
                                         : () => _delete(function),
-                                    icon: const Icon(Icons.delete_outline),
-                                    label: const Text('Xóa'),
                                   ),
                               ],
                             ),
@@ -353,6 +349,17 @@ class _FunctionDetailScreenState extends State<FunctionDetailScreen> {
         ),
       ),
     );
+  }
+
+  /// Name of the parent from the loaded tree ("Chức năng gốc" at the top).
+  String _parentName(int? parentId) {
+    if (parentId == null) return 'Chức năng gốc';
+    for (final node in widget.controller.items.expand(
+      (item) => item.flatten(),
+    )) {
+      if (node.id == parentId) return node.name;
+    }
+    return 'Chức năng #$parentId';
   }
 
   String _display(String? value) {

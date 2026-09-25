@@ -17,6 +17,9 @@ class AccessManagementRepository {
     String? search,
     int? status,
     int? roleId,
+    int? companyId,
+    int? branchId,
+    bool? withoutRole,
   }) async {
     _validateStatus(status);
     final response = await _apiClient.get(
@@ -27,6 +30,9 @@ class AccessManagementRepository {
         'search': _normalizedSearch(search),
         'status': status,
         'roleId': roleId,
+        'companyId': companyId,
+        'branchId': branchId,
+        'withoutRole': withoutRole,
       },
     );
     return _parse(
@@ -108,6 +114,16 @@ class AccessManagementRepository {
       }
       pageNumber++;
     }
+  }
+
+  Future<List<RoleListItemResponse>> getAssignableRoles() async {
+    final response = await _apiClient.get('/api/users/assignable-roles');
+    return _parse(
+      () => requireJsonList(
+        response,
+        'vai trò được phép gán',
+      ).map(RoleListItemResponse.fromJson).toList(growable: false),
+    );
   }
 
   Future<RoleResponse> getRole(int id) =>

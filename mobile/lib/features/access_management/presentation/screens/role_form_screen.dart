@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -94,7 +95,13 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Cập nhật vai trò' : 'Tạo vai trò'),
+        title: Text(widget.isEditing ? 'Sửa vai trò' : 'Tạo vai trò'),
+        actions: [
+          TextButton(
+            onPressed: _submitting ? null : _submit,
+            child: Text(_submitting ? 'Đang lưu...' : 'Lưu'),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Form(
@@ -113,7 +120,7 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
                     ],
                     AccessSection(
                       title: 'Thông tin vai trò',
-                      icon: Icons.admin_panel_settings_outlined,
+                      icon: LucideIcons.shield,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -154,14 +161,14 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
                               keyboardType: TextInputType.number,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                labelText: 'Cấp vai trò',
+                                labelText: 'Cấp quản lý',
                                 errorText: _error?.fieldMessage('levelRole'),
                               ),
                               validator: (value) {
                                 final text = value?.trim() ?? '';
                                 if (text.isNotEmpty &&
                                     int.tryParse(text) == null) {
-                                  return 'Cấp vai trò phải là số nguyên.';
+                                  return 'Cấp quản lý phải là số nguyên.';
                                 }
                                 return null;
                               },
@@ -178,24 +185,6 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _submitting ? null : _submit,
-                        icon: _submitting
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(
-                          _submitting ? 'Đang lưu...' : 'Lưu vai trò',
                         ),
                       ),
                     ),

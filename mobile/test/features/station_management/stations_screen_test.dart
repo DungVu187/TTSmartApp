@@ -157,28 +157,26 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Phạm vi: Toàn bộ công ty'), findsOneWidget);
-    expect(find.text('1 trạm • Đang hoạt động'), findsOneWidget);
+    // Figma B03: scope + count as the group label, filter in the app bar.
+    expect(find.text('TOÀN BỘ CÔNG TY · 1 TRẠM'), findsOneWidget);
     expect(find.text('Trạm Bình Chánh'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Bộ lọc'));
+    await tester.tap(find.byTooltip('Bộ lọc'));
     await tester.pumpAndSettle();
 
     expect(find.text('Bộ lọc trạm'), findsOneWidget);
-    expect(find.text('Tất cả loại'), findsOneWidget);
+    expect(find.text('Tất cả'), findsOneWidget);
     expect(find.text('Tất cả công ty'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('station-type-null')));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Trạm cân').last);
     await tester.pumpAndSettle();
     expect(find.text('Trạm cân'), findsOneWidget);
 
     await tester.tap(find.text('Đặt lại'));
     await tester.pumpAndSettle();
-    expect(find.text('Tất cả loại'), findsOneWidget);
+    expect(find.text('Tất cả'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Áp dụng'));
+    await tester.tap(find.text('Áp dụng'));
     await tester.pumpAndSettle();
 
     expect(stationRepository.requestedTypes.last, isNull);

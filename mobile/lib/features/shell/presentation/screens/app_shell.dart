@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../app_dependencies.dart';
 import '../../../../core/app_scope.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../auth/presentation/screens/account_screen.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import '../../../more/presentation/screens/more_screen.dart';
 import '../../../more/presentation/screens/system_screen.dart';
 import '../../../order_reporting/presentation/screens/order_reports_screen.dart';
+import '../../../notifications/data/models/notification_models.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
+import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../widgets/app_header.dart';
@@ -41,82 +45,43 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell>
-    with SingleTickerProviderStateMixin {
+class _AppShellState extends State<AppShell> {
   _ShellTabKey _selectedTab = _ShellTabKey.home;
-  _ShellTabKey _contentTab = _ShellTabKey.home;
-  _ShellTabKey? _panelTab;
+
+  /// Tabs are built on first visit so hidden tabs do not call the API at
+  /// start-up; once built they keep their state.
+  final Set<_ShellTabKey> _visitedTabs = <_ShellTabKey>{_ShellTabKey.home};
   late final HomeController _homeController;
-  late final AnimationController _panelController;
-  late final Animation<Offset> _panelSlideAnimation;
-  late final Animation<double> _panelScrimAnimation;
+  late final NotificationsController _notificationsController;
 
   @override
   void initState() {
     super.initState();
-    _panelController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 280),
-      reverseDuration: const Duration(milliseconds: 240),
-    )..addStatusListener(_handlePanelAnimationStatus);
-    _panelSlideAnimation =
-        Tween<Offset>(begin: const Offset(0, 1.02), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _panelController,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          ),
-        );
-    _panelScrimAnimation = CurvedAnimation(
-      parent: _panelController,
-      curve: Curves.easeOut,
-      reverseCurve: Curves.easeIn,
-    );
     _homeController = HomeController(widget.repositories.home);
+    _notificationsController = NotificationsController(
+      widget.repositories.notifications,
+    )..initialize();
   }
 
   @override
   void dispose() {
-    _panelController
-      ..removeStatusListener(_handlePanelAnimationStatus)
-      ..dispose();
     _homeController.dispose();
+    _notificationsController.dispose();
     super.dispose();
   }
 
   void _selectTab(_ShellTabKey tab) {
     FocusManager.instance.primaryFocus?.unfocus();
-    if (_isPanelTab(tab)) {
-      if (_selectedTab == tab && _panelController.isCompleted) return;
-      setState(() {
-        _selectedTab = tab;
-        _panelTab = tab;
-      });
-      _panelController.forward();
+    // "Xem thêm" is a sheet over the current tab (Figma 05 More).
+    if (tab == _ShellTabKey.more) {
+      showMoreSheet(context, widget.repositories);
       return;
     }
-    if (_selectedTab == tab && _panelTab == null) return;
+    if (_selectedTab == tab) return;
     setState(() {
       _selectedTab = tab;
-      _contentTab = tab;
+      _visitedTabs.add(tab);
     });
-    if (_panelTab != null) _panelController.reverse();
-  }
-
-  bool _isPanelTab(_ShellTabKey tab) =>
-      tab == _ShellTabKey.system || tab == _ShellTabKey.more;
-
-  void _closePanel() {
-    if (_panelTab == null) return;
-    setState(() => _selectedTab = _contentTab);
-    _panelController.reverse();
-  }
-
-  void _handlePanelAnimationStatus(AnimationStatus status) {
-    if (status != AnimationStatus.dismissed || _panelTab == null || !mounted) {
-      return;
-    }
-    setState(() => _panelTab = null);
   }
 
   void _openAccount() {
@@ -136,284 +101,150 @@ class _AppShellState extends State<AppShell>
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
 
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          controller: _notificationsController,
+          onOpenOrder: _openNotificationOrder,
+        ),
+      ),
+    );
+  }
+
+  void _openNotificationOrder(AppNotification notification) {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        // The screen draws its own "Đơn hàng" title bar with a back button.
+        builder: (_) => Scaffold(
+          body: OrderReportsScreen(
+            repository: widget.repositories.orderReports,
+            companyRepository: widget.repositories.companies,
+            showHeading: false,
+            initialStationId: notification.stationId,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final session = app.session!;
     final visibleOperations = visibleOperationalModules(app);
-    final canViewOrderReports = visibleOperations.any(
-      (module) => module.keyName == 'order-reports',
-    );
-    final canViewOrderStatistics = visibleOperations.any(
-      (module) => module.keyName == 'order-statistics',
-    );
+    final orderReportsModule = visibleOperations
+        .where((module) => module.keyName == 'order-reports')
+        .firstOrNull;
+    final orderStatisticsModule = visibleOperations
+        .where((module) => module.keyName == 'order-statistics')
+        .firstOrNull;
+    final canViewOrderReports = orderReportsModule != null;
+    final canViewOrderStatistics = orderStatisticsModule != null;
+    final canViewSystem = visibleAccessModules(app).isNotEmpty;
     final tabs = <_ShellTabDefinition>[
       _ShellTabDefinition(
         keyName: _ShellTabKey.home,
         label: 'Trang chủ',
-        icon: Icons.home_outlined,
-        selectedIcon: Icons.home,
-        child: HomeScreen(
-          controller: _homeController,
-          onOpenOrders: canViewOrderReports
-              ? () => _selectTab(_ShellTabKey.orders)
-              : null,
-          onOpenStatistics: canViewOrderStatistics
-              ? () => _selectTab(_ShellTabKey.statistics)
-              : null,
+        icon: LucideIcons.house,
+        selectedIcon: LucideIcons.house,
+        child: Column(
+          children: [
+            AnimatedBuilder(
+              animation: _notificationsController,
+              builder: (context, _) => AppHeader(
+                displayName: session.user.displayName,
+                onOpenAccount: _openAccount,
+                onOpenSettings: _openSettings,
+                onOpenNotifications: _openNotifications,
+                unreadNotificationCount: _notificationsController.unreadCount,
+              ),
+            ),
+            Expanded(
+              child: HomeScreen(
+                controller: _homeController,
+                onOpenOrders: canViewOrderReports
+                    ? () => _selectTab(_ShellTabKey.orders)
+                    : null,
+                onOpenStatistics: canViewOrderStatistics
+                    ? () => _selectTab(_ShellTabKey.statistics)
+                    : null,
+              ),
+            ),
+          ],
         ),
       ),
       if (canViewOrderReports)
         _ShellTabDefinition(
           keyName: _ShellTabKey.orders,
-          label: 'Đơn hàng',
-          icon: Icons.receipt_long_outlined,
-          selectedIcon: Icons.receipt_long,
+          label: orderReportsModule.label,
+          icon: LucideIcons.receiptText,
+          selectedIcon: LucideIcons.receiptText,
           child: OrderReportsScreen(
             repository: widget.repositories.orderReports,
             companyRepository: widget.repositories.companies,
+            showHeading: false,
           ),
         ),
       if (canViewOrderStatistics)
         _ShellTabDefinition(
           keyName: _ShellTabKey.statistics,
-          label: 'Thống kê',
-          icon: Icons.query_stats_outlined,
-          selectedIcon: Icons.query_stats,
+          label: orderStatisticsModule.label,
+          icon: LucideIcons.chartNoAxesColumnIncreasing,
+          selectedIcon: LucideIcons.chartNoAxesColumnIncreasing,
           child: ReportsScreen(
             repository: widget.repositories.reports,
             companyRepository: widget.repositories.companies,
+            showHeading: false,
           ),
         ),
-      _ShellTabDefinition(
-        keyName: _ShellTabKey.system,
-        label: 'Hệ thống',
-        icon: Icons.settings_outlined,
-        selectedIcon: Icons.settings,
-      ),
-      _ShellTabDefinition(
+      if (canViewSystem)
+        _ShellTabDefinition(
+          keyName: _ShellTabKey.system,
+          label: 'Hệ thống',
+          icon: LucideIcons.settings,
+          selectedIcon: LucideIcons.settings,
+          child: SystemScreen(repositories: widget.repositories),
+        ),
+      const _ShellTabDefinition(
         keyName: _ShellTabKey.more,
         label: 'Xem thêm',
-        icon: Icons.grid_view_outlined,
-        selectedIcon: Icons.grid_view,
+        icon: LucideIcons.layoutGrid,
+        selectedIcon: LucideIcons.layoutGrid,
       ),
     ];
     final contentTabs = tabs
         .where((tab) => tab.child != null)
         .toList(growable: false);
     final contentIndex = contentTabs.indexWhere(
-      (tab) => tab.keyName == _contentTab,
+      (tab) => tab.keyName == _selectedTab,
     );
     final effectiveContentIndex = contentIndex < 0 ? 0 : contentIndex;
-    final selectedIndex = tabs.indexWhere((tab) => tab.keyName == _selectedTab);
-    final effectiveSelectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
-    final panel = switch (_panelTab) {
-      _ShellTabKey.system => const _ShellPanelDefinition(
-        keyName: 'system',
-        title: 'Hệ thống',
-      ),
-      _ShellTabKey.more => const _ShellPanelDefinition(
-        keyName: 'more',
-        title: 'Xem thêm',
-      ),
-      _ => null,
-    };
+    final selectedIndex = tabs.indexWhere(
+      (tab) => tab.keyName == contentTabs[effectiveContentIndex].keyName,
+    );
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Column(
-              children: [
-                AppHeader(
-                  displayName: session.user.displayName,
-                  onOpenAccount: _openAccount,
-                  onOpenSettings: _openSettings,
+      body: RepaintBoundary(
+        child: IndexedStack(
+          index: effectiveContentIndex,
+          children: contentTabs
+              .map(
+                (tab) => KeyedSubtree(
+                  key: ValueKey<_ShellTabKey>(tab.keyName),
+                  child: _visitedTabs.contains(tab.keyName)
+                      ? tab.child!
+                      : const SizedBox.shrink(),
                 ),
-                Expanded(
-                  child: RepaintBoundary(
-                    child: IndexedStack(
-                      index: effectiveContentIndex,
-                      children: contentTabs
-                          .map(
-                            (tab) => KeyedSubtree(
-                              key: ValueKey<_ShellTabKey>(tab.keyName),
-                              child: tab.child!,
-                            ),
-                          )
-                          .toList(growable: false),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (panel != null)
-            Positioned.fill(
-              child: _ShellBottomPanel(
-                key: ValueKey<String>('shell-panel-${panel.keyName}'),
-                title: panel.title,
-                slideAnimation: _panelSlideAnimation,
-                scrimAnimation: _panelScrimAnimation,
-                onClose: _closePanel,
-                child: panel.keyName == 'system'
-                    ? const SystemScreen()
-                    : MoreScreen(
-                        companyRepository: widget.repositories.companies,
-                        mixDesignRepository: widget.repositories.mixDesigns,
-                        materialReportRepository:
-                            widget.repositories.materialReports,
-                        stationRepository: widget.repositories.stations,
-                        weighStationRepository:
-                            widget.repositories.weighStations,
-                      ),
-              ),
-            ),
-        ],
+              )
+              .toList(growable: false),
+        ),
       ),
       bottomNavigationBar: _ShellBottomNavigation(
         tabs: tabs,
-        selectedIndex: effectiveSelectedIndex,
+        selectedIndex: selectedIndex,
         onSelected: (index) => _selectTab(tabs[index].keyName),
       ),
-    );
-  }
-}
-
-class _ShellPanelDefinition {
-  const _ShellPanelDefinition({required this.keyName, required this.title});
-
-  final String keyName;
-  final String title;
-}
-
-class _ShellBottomPanel extends StatelessWidget {
-  const _ShellBottomPanel({
-    super.key,
-    required this.title,
-    required this.slideAnimation,
-    required this.scrimAnimation,
-    required this.onClose,
-    required this.child,
-  });
-
-  final String title;
-  final Animation<Offset> slideAnimation;
-  final Animation<double> scrimAnimation;
-  final VoidCallback onClose;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const minHeight = 340.0;
-        const maxHeight = 520.0;
-        const heightFactor = 0.40;
-        final effectiveMinHeight = constraints.maxHeight < minHeight
-            ? constraints.maxHeight
-            : minHeight;
-        final effectiveMaxHeight = constraints.maxHeight < maxHeight
-            ? constraints.maxHeight
-            : maxHeight;
-        final panelHeight = (constraints.maxHeight * heightFactor)
-            .clamp(effectiveMinHeight, effectiveMaxHeight)
-            .toDouble();
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: FadeTransition(
-                opacity: scrimAnimation,
-                child: GestureDetector(
-                  key: const ValueKey<String>('shell-panel-scrim'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onClose,
-                  child: ColoredBox(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.40),
-                  ),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SlideTransition(
-                position: slideAnimation,
-                child: RepaintBoundary(
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: panelHeight,
-                    child: Material(
-                      key: const ValueKey<String>('shell-panel-surface'),
-                      color: Colors.white,
-                      elevation: 14,
-                      shadowColor: const Color(
-                        0xFF0F172A,
-                      ).withValues(alpha: 0.16),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(16),
-                        ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 16),
-                          Container(
-                            width: 54,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.outline.withValues(
-                                alpha: 0.55,
-                              ),
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.4,
-                                        ),
-                                  ),
-                                ),
-                                SizedBox.square(
-                                  dimension: 32,
-                                  child: IconButton(
-                                    key: const ValueKey<String>(
-                                      'shell-panel-close',
-                                    ),
-                                    tooltip: 'Đóng',
-                                    onPressed: onClose,
-                                    style: IconButton.styleFrom(
-                                      foregroundColor: const Color(0xFF6B7280),
-                                      backgroundColor: const Color(0xFFEEF2FF),
-                                      minimumSize: const Size.square(32),
-                                      maximumSize: const Size.square(32),
-                                      padding: EdgeInsets.zero,
-                                    ),
-                                    icon: const Icon(Icons.close, size: 16),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(child: child),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
@@ -431,16 +262,17 @@ class _ShellBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return DecoratedBox(
       key: const ValueKey<String>('shell-bottom-navigation'),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: p.surface,
+        border: Border(top: BorderSide(color: p.border)),
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 78,
+          height: 54,
           child: Row(
             children: [
               for (var index = 0; index < tabs.length; index++)
@@ -462,6 +294,7 @@ class _ShellBottomNavigation extends StatelessWidget {
   }
 }
 
+/// Figma nav item: 52×30 pill behind the icon only, label below.
 class _ShellNavigationItem extends StatelessWidget {
   const _ShellNavigationItem({
     super.key,
@@ -476,52 +309,48 @@ class _ShellNavigationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foregroundColor = selected
-        ? AppColors.brandBlue
-        : const Color(0xFF6B7280);
+    final p = context.palette;
+    final foregroundColor = selected ? p.primary : p.text2;
     return Semantics(
       button: true,
       selected: selected,
       label: tab.label,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFFEEF2FF) : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                width: 52,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: selected ? p.primaryContainer : Colors.transparent,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  selected ? tab.selectedIcon : tab.icon,
+                  size: 22,
+                  color: foregroundColor,
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    selected ? tab.selectedIcon : tab.icon,
-                    size: 25,
-                    color: foregroundColor,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    tab.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: foregroundColor,
-                      fontSize: 11,
-                      height: 1,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 3),
+              Text(
+                tab.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 11,
+                  height: 13 / 11,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

@@ -12,6 +12,7 @@ class OrderReportsController extends ChangeNotifier {
     required this.companyRepository,
     required this.isAdmin,
     this.initialCompanyId,
+    this.initialStationId,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now {
     final now = _now();
@@ -23,6 +24,7 @@ class OrderReportsController extends ChangeNotifier {
   final CompanyRepository companyRepository;
   final bool isAdmin;
   final int? initialCompanyId;
+  final int? initialStationId;
   final DateTime Function() _now;
 
   final List<CompanyResponse> companies = <CompanyResponse>[];
@@ -242,6 +244,12 @@ class OrderReportsController extends ChangeNotifier {
       );
       if (requestVersion != _scopeRequestVersion) return;
       stations.addAll(loaded);
+      if (initialStationId != null &&
+          loaded.any((station) => station.id == initialStationId)) {
+        selectedStationId = initialStationId;
+        await _loadEmployees();
+        await _loadFirstPage(refreshing: false);
+      }
     } on ApiException catch (caught) {
       if (requestVersion == _scopeRequestVersion) scopeError = caught;
     } finally {

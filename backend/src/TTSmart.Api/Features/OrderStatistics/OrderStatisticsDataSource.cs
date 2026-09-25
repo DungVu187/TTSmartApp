@@ -985,7 +985,10 @@ public sealed class SqlOrderStatisticsDataSource(
             row.DesignQuantity,
             row.TQuantity,
             row.ActualQuantity,
-            row.ActualQuantity - row.DesignQuantity,
+            OrderStatisticsMaterialCalculations.CalculateVariance(
+                row.DesignQuantity,
+                row.TQuantity,
+                row.ActualQuantity),
             row.CategoryCode,
             row.TypePosition);
 
@@ -1013,7 +1016,10 @@ public sealed class SqlOrderStatisticsDataSource(
                     designQuantity,
                     tQuantity,
                     actualQuantity,
-                    actualQuantity - designQuantity,
+                    OrderStatisticsMaterialCalculations.CalculateVariance(
+                        designQuantity,
+                        tQuantity,
+                        actualQuantity),
                     group.Key.CategoryCode,
                     group.Key.TypePosition);
             })

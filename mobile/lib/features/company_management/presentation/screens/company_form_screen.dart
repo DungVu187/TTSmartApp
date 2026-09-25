@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -139,7 +140,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
               ],
               CompanySection(
                 title: 'Thông tin công ty',
-                icon: Icons.apartment_outlined,
+                icon: LucideIcons.building,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: _FieldGrid(
@@ -202,7 +203,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
               const SizedBox(height: 20),
               CompanySection(
                 title: 'Thông tin liên hệ',
-                icon: Icons.contact_phone_outlined,
+                icon: LucideIcons.contact,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: _FieldGrid(
@@ -294,7 +295,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
               const SizedBox(height: 20),
               CompanySection(
                 title: 'Dịch vụ',
-                icon: Icons.workspace_premium_outlined,
+                icon: LucideIcons.award,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: _FieldGrid(
@@ -346,7 +347,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
               const SizedBox(height: 20),
               CompanySection(
                 title: 'Ghi chú',
-                icon: Icons.notes_outlined,
+                icon: LucideIcons.fileText,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: TextFormField(
@@ -370,7 +371,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
                         dimension: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.save_outlined),
+                    : const Icon(LucideIcons.save),
                 label: Text(
                   _submitting
                       ? 'Đang lưu...'

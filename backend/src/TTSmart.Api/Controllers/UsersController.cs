@@ -21,6 +21,13 @@ public sealed class UsersController(IUserAdministrationService service) : Contro
         CancellationToken cancellationToken) =>
         Ok(await service.GetPageAsync(query, User.GetRequiredUserId(), cancellationToken));
 
+    [Authorize(Policy = AccessPolicies.UsersList)]
+    [HttpGet("assignable-roles")]
+    [ProducesResponseType<IReadOnlyList<RoleListItemResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<RoleListItemResponse>>> GetAssignableRoles(
+        CancellationToken cancellationToken) =>
+        Ok(await service.GetAssignableRolesAsync(User.GetRequiredUserId(), cancellationToken));
+
     [Authorize(Policy = AccessPolicies.UsersRead)]
     [HttpGet("{id:int}")]
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
@@ -69,7 +76,7 @@ public sealed class UsersController(IUserAdministrationService service) : Contro
         CancellationToken cancellationToken) =>
         Ok(await service.SetRolesAsync(id, User.GetRequiredUserId(), request, cancellationToken));
 
-    [Authorize(Policy = AccessPolicies.UsersUpdate)]
+    [Authorize(Policy = AccessPolicies.UsersResetPassword)]
     [HttpPost("{id:int}/reset-password")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ResetPassword(

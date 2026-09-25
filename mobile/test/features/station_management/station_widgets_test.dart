@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:ttsmart_mobile/features/station_management/data/models/station_models.dart';
 import 'package:ttsmart_mobile/features/station_management/presentation/widgets/station_widgets.dart';
 
@@ -45,7 +46,7 @@ void main() {
     );
 
     expect(find.text('Chưa xác định'), findsOneWidget);
-    expect(find.byIcon(Icons.help_outline), findsOneWidget);
+    expect(find.byIcon(LucideIcons.circleHelp), findsOneWidget);
   });
 
   testWidgets('station information remains readable on narrow screens', (
@@ -73,7 +74,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Thông tin trạm'), findsOneWidget);
+    expect(find.text('THÔNG TIN TRẠM'), findsOneWidget);
     expect(
       find.text('Thông tin nhận diện và liên hệ của trạm.'),
       findsOneWidget,

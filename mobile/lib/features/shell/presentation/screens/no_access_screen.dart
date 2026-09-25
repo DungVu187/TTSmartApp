@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class NoAccessScreen extends StatelessWidget {
   const NoAccessScreen({super.key});
@@ -14,7 +15,7 @@ class NoAccessScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline, size: 56),
+                Icon(LucideIcons.lock, size: 56),
                 SizedBox(height: 16),
                 Text(
                   'Bạn không có quyền sử dụng chức năng này.',

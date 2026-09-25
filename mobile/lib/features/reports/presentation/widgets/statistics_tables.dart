@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/report_models.dart';
+import '../../../../core/ui/app_palette.dart';
 
 class StatisticsResultsTable extends StatelessWidget {
   const StatisticsResultsTable({super.key, required this.page});
@@ -418,9 +418,9 @@ class _StatisticsLayoutTableState extends State<_StatisticsLayoutTable> {
         height: _headerHeight,
         alignment: center ? Alignment.center : Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: const BoxDecoration(
-          color: Color(0xFFF0F5FF),
-          border: Border(right: BorderSide(color: AppColors.border)),
+        decoration: BoxDecoration(
+          color: context.palette.infoBg,
+          border: Border(right: BorderSide(color: context.palette.border)),
         ),
         child: Text(
           label,
@@ -436,10 +436,10 @@ class _StatisticsLayoutTableState extends State<_StatisticsLayoutTable> {
     height: _rowHeight,
     alignment: center ? Alignment.center : Alignment.centerLeft,
     padding: const EdgeInsets.symmetric(horizontal: 10),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(
-        right: BorderSide(color: AppColors.border),
-        bottom: BorderSide(color: AppColors.border),
+        right: BorderSide(color: context.palette.border),
+        bottom: BorderSide(color: context.palette.border),
       ),
     ),
     child: Text(
@@ -493,12 +493,13 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
                   width: _indexWidth,
                   child: Column(
                     children: [
-                      _summaryHeaderCell('VẬT LIỆU', _indexWidth, 52),
+                      _summaryHeaderCell(context, 'VẬT LIỆU', _indexWidth, 52),
                       if (rows.isEmpty)
-                        _summaryCell('', _indexWidth)
+                        _summaryCell(context, '', _indexWidth)
                       else
                         ...rows.map(
                           (row) => _summaryCell(
+                            context,
                             '${row.rowNumber}',
                             _indexWidth,
                             key: ValueKey<String>(
@@ -507,6 +508,7 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
                           ),
                         ),
                       _summaryCell(
+                        context,
                         'ĐV',
                         _indexWidth,
                         key: const ValueKey<String>(
@@ -527,12 +529,14 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
                       width: dataWidth,
                       child: Column(
                         children: [
-                          _summaryHeader(categories),
+                          _summaryHeader(context, categories),
                           if (rows.isEmpty)
-                            _summaryCell('Không có dữ liệu', dataWidth)
+                            _summaryCell(context, 'Không có dữ liệu', dataWidth)
                           else
-                            ...rows.map((row) => _summaryRow(row, categories)),
-                          _summaryUnitRow(categories),
+                            ...rows.map(
+                              (row) => _summaryRow(context, row, categories),
+                            ),
+                          _summaryUnitRow(context, categories),
                         ],
                       ),
                     ),
@@ -575,13 +579,17 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
     style: const TextStyle(fontWeight: FontWeight.w800),
   );
 
-  Widget _summaryHeader(List<_SummaryCategory> categories) {
+  Widget _summaryHeader(
+    BuildContext context,
+    List<_SummaryCategory> categories,
+  ) {
     return SizedBox(
       height: 52,
       child: Row(
         children: categories
             .map(
               (category) => _summaryHeaderCell(
+                context,
                 category.label.toUpperCase(),
                 _quantityWidth,
                 52,
@@ -593,6 +601,7 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
   }
 
   Widget _summaryRow(
+    BuildContext context,
     OrderStatisticsMaterialSummaryRow row,
     List<_SummaryCategory> categories,
   ) {
@@ -604,6 +613,7 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
       children: [
         for (final category in categories)
           _summaryCell(
+            context,
             _summaryMaterialNumber(
               cellsByKey[_summaryCellKey(category.code, row.rowNumber)]
                       ?.actualQuantity ??
@@ -619,10 +629,14 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
     );
   }
 
-  Widget _summaryUnitRow(List<_SummaryCategory> categories) => Row(
+  Widget _summaryUnitRow(
+    BuildContext context,
+    List<_SummaryCategory> categories,
+  ) => Row(
     children: [
       for (final category in categories)
         _summaryCell(
+          context,
           category.unit,
           _quantityWidth,
           key: ValueKey<String>('statistics-summary-unit-${category.code}'),
@@ -662,38 +676,47 @@ class StatisticsMaterialSummaryTable extends StatelessWidget {
         .toList(growable: false);
   }
 
-  Widget _summaryHeaderCell(String value, double width, double height) =>
-      Container(
-        width: width,
-        height: height,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: const BoxDecoration(
-          color: Color(0xFFF0F5FF),
-          border: Border(
-            right: BorderSide(color: AppColors.border),
-            bottom: BorderSide(color: AppColors.border),
-          ),
-        ),
-        child: Text(
-          value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-        ),
-      );
+  Widget _summaryHeaderCell(
+    BuildContext context,
+    String value,
+    double width,
+    double height,
+  ) => Container(
+    width: width,
+    height: height,
+    alignment: Alignment.center,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    decoration: BoxDecoration(
+      color: context.palette.infoBg,
+      border: Border(
+        right: BorderSide(color: context.palette.border),
+        bottom: BorderSide(color: context.palette.border),
+      ),
+    ),
+    child: Text(
+      value,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+    ),
+  );
 
-  Widget _summaryCell(String value, double width, {Key? key}) => Container(
+  Widget _summaryCell(
+    BuildContext context,
+    String value,
+    double width, {
+    Key? key,
+  }) => Container(
     key: key,
     width: width,
     height: 52,
     alignment: Alignment.center,
     padding: const EdgeInsets.symmetric(horizontal: 6),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       border: Border(
-        right: BorderSide(color: AppColors.border),
-        bottom: BorderSide(color: AppColors.border),
+        right: BorderSide(color: context.palette.border),
+        bottom: BorderSide(color: context.palette.border),
       ),
     ),
     child: Text(
@@ -750,6 +773,56 @@ class _SummaryCategory {
   final String label;
   final String unit;
 }
+
+// Formatting shared with the phone views so a value reads exactly as it does
+// in the web-aligned tables.
+
+/// Concrete / requested volume as shown in the table ("7.5").
+String formatStatisticsVolume(double value) =>
+    _vietnamese(_concreteNumber(value));
+
+/// Per-batch material quantity, decimals by category (CAT/DA 0, XM/NUOC 1).
+String formatStatisticsMaterial(double value, String categoryCode) =>
+    _vietnamese(_materialNumber(value, categoryCode));
+
+/// Grouped total quantity of the phone views ("2.846.120").
+String formatStatisticsTotal(double value, {int digits = 2}) =>
+    _vietnamese(_groupedRoundedNumber(value, digits));
+
+/// Grouped per-material total of the phone summary.
+String formatStatisticsSummaryMaterial(double value, String categoryCode) =>
+    _vietnamese(_summaryMaterialNumber(value, categoryCode));
+
+/// The web tables group with "," and use "." for decimals (some values are
+/// not grouped); the phone views (Figma C01–C03) show "2.846.120",
+/// "1.198,5" and "−4".
+String _vietnamese(String webNumber) {
+  var text = webNumber.replaceAll(',', '');
+  final negative = text.startsWith('-');
+  if (negative) text = text.substring(1);
+  final parts = text.split('.');
+  final integer = parts.first;
+  final buffer = StringBuffer(negative ? '−' : '');
+  for (var index = 0; index < integer.length; index++) {
+    if (index > 0 && (integer.length - index) % 3 == 0) buffer.write('.');
+    buffer.write(integer[index]);
+  }
+  if (parts.length > 1) buffer.write(',${parts[1]}');
+  return buffer.toString();
+}
+
+/// Vietnam-time "HH:mm" of a UTC timestamp, "—" when missing.
+String formatStatisticsTime(DateTime? value) => _time(value);
+
+/// "dd/MM/yyyy" of a mixing date, "—" when missing.
+String formatStatisticsDate(DateTime? value) => _date(value);
+
+/// Phone unit of a material category ("lít" for water, else "kg").
+String statisticsCategoryUnit(String code) => _categoryUnit(code).toLowerCase();
+
+/// Vietnamese label of a material category code.
+String statisticsCategoryLabel(String code, String? fallback) =>
+    _categoryLabel(code, fallback);
 
 String _summaryCellKey(String categoryCode, int typePosition) =>
     '$categoryCode|$typePosition';

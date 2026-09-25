@@ -46,6 +46,61 @@ public sealed class AccessManagementServiceTests
     }
 
     [Fact]
+    public async Task ResetPassword_DatLaiMatKhauMacDinhTheoWeb()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Roles.Add(new WebRole { RoleId = 3, Code = "ROLE", Name = "Vai trÃ²", Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var passwordService = CreatePasswordService();
+        var service = CreateUserService(dbContext, passwordService);
+        var user = await service.CreateAsync(new CreateUserRequest
+        {
+            UserName = "reset-password-user",
+            Password = "password-cu",
+            RoleIds = [3]
+        }, 900, CancellationToken.None);
+
+        await service.ResetPasswordAsync(
+            user.Id,
+            900,
+            new ResetPasswordRequest(),
+            CancellationToken.None);
+
+        var updated = await dbContext.Users.SingleAsync(item => item.UserId == user.Id);
+        Assert.True(passwordService.Verify(updated, "123456"));
+        Assert.NotNull(updated.TokenSince);
+    }
+
+    [Fact]
+    public async Task GetPage_FilterTheoCongTyTramRoleVaNguoiDungChuaCoRole()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Users.AddRange(
+            new WebUser { UserId = 11, UserName = "company-branch-role", CompanyId = 1, BranchId = "10,11", Status = WebDataStatus.Active },
+            new WebUser { UserId = 12, UserName = "other-company", CompanyId = 2, BranchId = "20", Status = WebDataStatus.Active },
+            new WebUser { UserId = 13, UserName = "without-role", CompanyId = 1, BranchId = "10", Status = WebDataStatus.Active });
+        dbContext.Roles.Add(new WebRole { RoleId = 3, Code = "ROLE", Name = "Role", Status = WebDataStatus.Active });
+        dbContext.UserRoles.Add(new WebUserRole { UserId = 11, RoleId = 3, Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var service = CreateUserService(dbContext, CreatePasswordService());
+
+        var scoped = await service.GetPageAsync(new UserListQuery
+        {
+            CompanyId = 1,
+            BranchId = 10,
+            RoleId = 3
+        }, 900, CancellationToken.None);
+        var withoutRole = await service.GetPageAsync(new UserListQuery
+        {
+            CompanyId = 1,
+            WithoutRole = true
+        }, 900, CancellationToken.None);
+
+        Assert.Collection(scoped.Items, user => Assert.Equal(11, user.Id));
+        Assert.Collection(withoutRole.Items, user => Assert.Equal(13, user.Id));
+    }
+
+    [Fact]
     public async Task RoleMatrix_Validate9BitVaCapNhatFunctionRole()
     {
         await using var dbContext = CreateDbContext();
@@ -193,7 +248,7 @@ public sealed class AccessManagementServiceTests
     }
 
     [Fact]
-    public async Task FunctionCrud_LuuCayChaConVaXoaMem()
+    public async Task FunctionCrud_XoaCha_DuaConVeRootVaXoaFunctionRoleVatLy()
     {
         await using var dbContext = CreateDbContext();
         var service = new FunctionAdministrationService(dbContext);
@@ -209,11 +264,107 @@ public sealed class AccessManagementServiceTests
             ParentFunctionId = parent.Id
         }, 900, CancellationToken.None);
 
+        dbContext.FunctionRoles.Add(new WebFunctionRole
+        {
+            TargetId = 1,
+            FunctionId = parent.Id,
+            Type = WebFunctionRoleType.Role,
+            ActiveKey = "100000000",
+            Status = WebDataStatus.Active
+        });
+        await dbContext.SaveChangesAsync();
+
         Assert.Equal(parent.Id, child.ParentFunctionId);
-        await Assert.ThrowsAsync<ConflictException>(() => service.DeleteAsync(parent.Id, 900, CancellationToken.None));
-        await service.DeleteAsync(child.Id, 900, CancellationToken.None);
-        var deleted = await service.GetByIdAsync(child.Id, CancellationToken.None);
+        await service.DeleteAsync(parent.Id, 900, CancellationToken.None);
+
+        var deleted = await service.GetByIdAsync(parent.Id, CancellationToken.None);
         Assert.False(deleted.IsActive);
+        Assert.Empty(await dbContext.FunctionRoles.ToListAsync());
+        Assert.Equal(0, await dbContext.Functions
+            .Where(item => item.FunctionId == child.Id)
+            .Select(item => item.FunctionParentId)
+            .SingleAsync());
+    }
+
+    [Fact]
+    public async Task UserRoleMetadata_LayRoleCoCapThapNhatVaKhongTinGiaTriClientGuiLen()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Roles.AddRange(
+            new WebRole { RoleId = 3, Code = "ROLE_HIGH", Name = "Cấp cao", LevelRole = 5, Status = WebDataStatus.Active },
+            new WebRole { RoleId = 4, Code = "ROLE_LOW", Name = "Cấp thấp", LevelRole = 2, Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var service = CreateUserService(dbContext, CreatePasswordService());
+
+        var created = await service.CreateAsync(new CreateUserRequest
+        {
+            UserName = "role-metadata",
+            Password = "Password@123",
+            RoleIds = [3, 4],
+            RoleMax = 999,
+            RoleLevel = 99
+        }, 900, CancellationToken.None);
+
+        var afterCreate = await dbContext.Users.SingleAsync(item => item.UserId == created.Id);
+        Assert.Equal(4, afterCreate.RoleMax);
+        Assert.Equal((byte)2, afterCreate.RoleLevel);
+
+        await service.SetRolesAsync(
+            created.Id,
+            900,
+            new SetUserRolesRequest { RoleIds = [3] },
+            CancellationToken.None);
+
+        var afterSetRoles = await dbContext.Users.SingleAsync(item => item.UserId == created.Id);
+        Assert.Equal(3, afterSetRoles.RoleMax);
+        Assert.Equal((byte)5, afterSetRoles.RoleLevel);
+    }
+
+    [Fact]
+    public async Task DeleteUser_ChiSuperAdminDuocPhepXoa()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Users.AddRange(
+            new WebUser { UserId = 900, UserName = "company-owner", CompanyId = 10, Status = WebDataStatus.Active },
+            new WebUser { UserId = 901, UserName = "company-child", CompanyId = 10, Status = WebDataStatus.Active });
+        await dbContext.SaveChangesAsync();
+        var service = new UserAdministrationService(
+            dbContext,
+            CreateCompanyDbContext(),
+            CreatePasswordService(),
+            new TestSystemRoleEvaluator(false));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.DeleteAsync(901, 900, CancellationToken.None));
+
+        Assert.Equal(WebDataStatus.Active, await dbContext.Users
+            .Where(item => item.UserId == 901)
+            .Select(item => item.Status)
+            .SingleAsync());
+    }
+
+    [Fact]
+    public async Task FunctionCrud_ChoPhepTrungTenNhungKhongTrungCode()
+    {
+        await using var dbContext = CreateDbContext();
+        var service = new FunctionAdministrationService(dbContext);
+
+        await service.CreateAsync(new CreateFunctionRequest
+        {
+            Code = "FIRST",
+            Name = "Tên dùng chung"
+        }, 900, CancellationToken.None);
+        var second = await service.CreateAsync(new CreateFunctionRequest
+        {
+            Code = "SECOND",
+            Name = "Tên dùng chung"
+        }, 900, CancellationToken.None);
+
+        Assert.Equal("SECOND", second.Code);
+        await Assert.ThrowsAsync<ConflictException>(() => service.CreateAsync(new CreateFunctionRequest
+        {
+            Code = "SECOND",
+            Name = "Tên khác"
+        }, 900, CancellationToken.None));
     }
 
     [Fact]

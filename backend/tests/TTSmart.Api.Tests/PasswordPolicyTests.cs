@@ -6,11 +6,8 @@ namespace TTSmart.Api.Tests;
 public sealed class PasswordPolicyTests
 {
     [Theory]
-    [InlineData("Ab1@")]
-    [InlineData("PASSWORD1@")]
-    [InlineData("password1@")]
-    [InlineData("Password@@")]
-    [InlineData("Password12")]
+    [InlineData("")]
+    [InlineData("123")]
     public void MatKhauKhongDuDieuKien_BiTuChoi(string password)
     {
         Assert.Throws<ValidationException>(() => PasswordPolicy.Validate(password));
@@ -19,6 +16,6 @@ public sealed class PasswordPolicyTests
     [Fact]
     public void MatKhauDuDieuKien_DuocChapNhan()
     {
-        PasswordPolicy.Validate("Password@123");
+        PasswordPolicy.Validate("1234");
     }
 }

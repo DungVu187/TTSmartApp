@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/core/ui/app_palette.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/data/models/weigh_station_result_models.dart';
 import 'package:ttsmart_mobile/features/weigh_station_management/presentation/widgets/weigh_station_result_widgets.dart';
@@ -174,7 +175,7 @@ void main() {
     expect(find.text('Chưa xác định'), findsOneWidget);
     expect(find.text('-'), findsNWidgets(2));
     final warning = tester.widget<Text>(find.text('Chưa xác định'));
-    expect(warning.style?.color, AppColors.warning);
+    expect(warning.style?.color, AppPalette.light.warning);
     expect(tester.takeException(), isNull);
   });
 
@@ -529,7 +530,7 @@ void main() {
     expect(find.text('3 loại'), findsOneWidget);
     expect(find.text('Loại hàng nhiều nhất'), findsOneWidget);
     expect(find.text('299,98 tấn'), findsOneWidget);
-    expect(find.text('48.000.000 ₫'), findsNWidgets(2));
+    expect(find.text('48.000.000 đ'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 }

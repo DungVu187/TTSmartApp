@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../theme/app_theme.dart';
+import '../ui/app_ui.dart';
 
 enum AppDateRangePreset { today, yesterday, sevenDays, thirtyDays, custom }
 
@@ -31,15 +32,8 @@ Future<AppDateRangeSelection?> showAppDateRangePicker({
   final current = now ?? DateTime.now();
   final minimum = _dateOnly(firstDate ?? DateTime(2000));
   final maximum = _dateOnly(lastDate ?? DateTime(current.year + 20, 12, 31));
-  return showModalBottomSheet<AppDateRangeSelection>(
+  return showAppModalSheet<AppDateRangeSelection>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (_) => AppDateRangePickerSheet(
       initialStart: initialStart,
       initialEnd: initialEnd,
@@ -66,15 +60,8 @@ Future<AppDatePickerResult?> showAppDatePicker({
   final current = now ?? DateTime.now();
   final minimum = _dateOnly(firstDate ?? DateTime(current.year - 1));
   final maximum = _dateOnly(lastDate ?? DateTime(current.year + 20, 12, 31));
-  return showModalBottomSheet<AppDatePickerResult>(
+  return showAppModalSheet<AppDatePickerResult>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (_) => AppDatePickerSheet(
       initialDate: initialDate,
       firstDate: minimum,
@@ -87,6 +74,8 @@ Future<AppDatePickerResult?> showAppDatePicker({
   );
 }
 
+/// Figma C15: presets, Từ/Đến fields, month calendar with the range band,
+/// time of the active field, Hủy / Áp dụng.
 class AppDateRangePickerSheet extends StatefulWidget {
   const AppDateRangePickerSheet({
     super.key,
@@ -132,9 +121,18 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final activeDate = _activeField == _AppDateField.start ? _start : _end;
-    return _SheetFrame(
-      keyPrefix: widget.keyPrefix,
+    return AppSheetFrame(
       title: widget.title,
+      closeKey: ValueKey<String>('${widget.keyPrefix}-close'),
+      scrollKey: ValueKey<String>('${widget.keyPrefix}-sheet'),
+      footer: _SheetActions(
+        keyPrefix: widget.keyPrefix,
+        enabled: _end.isAfter(_start),
+        onApply: () => Navigator.pop(
+          context,
+          AppDateRangeSelection(start: _start, end: _end),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -170,7 +168,7 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           _MonthRangeCalendar(
             key: ValueKey<String>(
               '${widget.keyPrefix}-calendar-${activeDate.year}-'
@@ -184,21 +182,15 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
             lastDate: widget.lastDate,
             onDateSelected: _selectDate,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           _TimeSelector(
             keyPrefix: widget.keyPrefix,
+            fieldLabel: _activeField == _AppDateField.start
+                ? 'Từ ngày'
+                : 'Đến ngày',
             value: activeDate,
             onHourChanged: (hour) => _updateActiveTime(hour: hour),
             onMinuteChanged: (minute) => _updateActiveTime(minute: minute),
-          ),
-          const SizedBox(height: 8),
-          _SheetActions(
-            keyPrefix: widget.keyPrefix,
-            enabled: _end.isAfter(_start),
-            onApply: () => Navigator.pop(
-              context,
-              AppDateRangeSelection(start: _start, end: _end),
-            ),
           ),
         ],
       ),
@@ -333,9 +325,14 @@ class _AppDatePickerSheetState extends State<AppDatePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return _SheetFrame(
-      keyPrefix: widget.keyPrefix,
+    return AppSheetFrame(
       title: widget.title,
+      closeKey: ValueKey<String>('${widget.keyPrefix}-close'),
+      scrollKey: ValueKey<String>('${widget.keyPrefix}-sheet'),
+      footer: _SheetActions(
+        keyPrefix: widget.keyPrefix,
+        onApply: () => Navigator.pop(context, AppDatePickerResult(date: _date)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -347,7 +344,7 @@ class _AppDatePickerSheetState extends State<AppDatePickerSheet> {
             showTime: widget.showTime,
             onTap: () {},
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           _MonthRangeCalendar(
             key: ValueKey<String>(
               '${widget.keyPrefix}-calendar-${_date.year}-'
@@ -365,86 +362,30 @@ class _AppDatePickerSheetState extends State<AppDatePickerSheet> {
                   : _dateOnly(value),
             ),
           ),
-          if (widget.allowClear)
+          if (widget.allowClear) ...[
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
+              child: AppButton(
                 key: ValueKey<String>('${widget.keyPrefix}-clear'),
+                label: 'Bỏ giới hạn thời gian',
+                icon: LucideIcons.x,
+                variant: AppButtonVariant.text,
+                expand: false,
                 onPressed: () => Navigator.pop(
                   context,
                   const AppDatePickerResult(cleared: true),
                 ),
-                icon: const Icon(Icons.clear),
-                label: const Text('Bỏ giới hạn thời gian'),
               ),
             ),
-          const SizedBox(height: 8),
-          _SheetActions(
-            keyPrefix: widget.keyPrefix,
-            onApply: () =>
-                Navigator.pop(context, AppDatePickerResult(date: _date)),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _SheetFrame extends StatelessWidget {
-  const _SheetFrame({
-    required this.keyPrefix,
-    required this.title,
-    required this.child,
-  });
-
-  final String keyPrefix;
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      key: ValueKey<String>('$keyPrefix-sheet'),
-      padding: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    key: ValueKey<String>('$keyPrefix-close'),
-                    tooltip: 'Đóng',
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+/// Five equal cells: Hôm nay / Hôm qua / 7 ngày / 30 ngày / Tùy chọn.
 class _PresetRow extends StatelessWidget {
   const _PresetRow({
     required this.keyPrefix,
@@ -458,35 +399,60 @@ class _PresetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final preset in AppDateRangePreset.values) ...[
-            ChoiceChip(
-              key: ValueKey<String>('$keyPrefix-preset-${preset.name}'),
-              label: Text(_presetLabel(preset)),
+    final p = context.palette;
+    return Row(
+      children: [
+        for (final preset in AppDateRangePreset.values) ...[
+          Expanded(
+            child: Semantics(
+              button: true,
               selected: selected == preset,
-              showCheckmark: false,
-              selectedColor: theme.colorScheme.primary,
-              labelStyle: TextStyle(
-                color: selected == preset
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
+              child: Material(
+                key: ValueKey<String>('$keyPrefix-preset-${preset.name}'),
+                color: selected == preset ? p.primary : p.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: selected == preset ? p.primary : p.border,
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onSelected(preset),
+                  child: SizedBox(
+                    height: 44,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _presetLabel(preset),
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: selected == preset ? p.onPrimary : p.text1,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              onSelected: (_) => onSelected(preset),
             ),
-            if (preset != AppDateRangePreset.values.last)
-              const SizedBox(width: 8),
-          ],
+          ),
+          if (preset != AppDateRangePreset.values.last)
+            const SizedBox(width: 6),
         ],
-      ),
+      ],
     );
   }
 }
 
+/// Label above a 48px box; the active field (which the calendar and the
+/// time row edit) gets the primary border.
 class _DateField extends StatelessWidget {
   const _DateField({
     super.key,
@@ -505,131 +471,131 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final borderColor = active ? theme.colorScheme.primary : AppColors.border;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: borderColor, width: active ? 1.5 : 1),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF374151),
-                  fontSize: 10,
-                  height: 14 / 10,
-                  fontWeight: FontWeight.w500,
-                ),
+    final p = context.palette;
+    return Semantics(
+      button: true,
+      selected: active,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The label is part of the tap target too.
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: SizedBox(
+                width: double.infinity,
+                child: FieldLabel(label.toUpperCase()),
               ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_month_outlined,
-                    size: 16,
-                    color: borderColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      _formatDate(value),
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 13,
-                        height: 18 / 13,
-                        fontWeight: FontWeight.w400,
+            ),
+          ),
+          Material(
+            color: p.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: active ? p.primary : p.border,
+                width: active ? 1.5 : 1,
+              ),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: SizedBox(
+                height: 48,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        showTime
+                            ? '${_formatDate(value)} ${_formatTime(value)}'
+                            : _formatDate(value),
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: p.text1,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-              if (showTime) ...[
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_outlined,
-                      size: 16,
-                      color: borderColor,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatTime(value),
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 13,
-                        height: 18 / 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
+/// Hour : minute of the active field.
 class _TimeSelector extends StatelessWidget {
   const _TimeSelector({
     required this.keyPrefix,
+    required this.fieldLabel,
     required this.value,
     required this.onHourChanged,
     required this.onMinuteChanged,
   });
 
   final String keyPrefix;
+  final String fieldLabel;
   final DateTime value;
   final ValueChanged<int> onHourChanged;
   final ValueChanged<int> onMinuteChanged;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final p = context.palette;
+    return Row(
       children: [
+        Icon(LucideIcons.clock, size: 20, color: p.text2),
+        const SizedBox(width: 8),
         Text(
           'Chọn giờ',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+          style: TextStyle(
+            color: p.text1,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _TimeDropdown(
-              key: ValueKey<String>('$keyPrefix-hour'),
-              value: value.hour,
-              max: 23,
-              onChanged: onHourChanged,
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            '· $fieldLabel',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: p.text3,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Text(':', style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
-            _TimeDropdown(
-              key: ValueKey<String>('$keyPrefix-minute'),
-              value: value.minute,
-              max: 59,
-              onChanged: onMinuteChanged,
-            ),
-          ],
+          ),
+        ),
+        _TimeDropdown(
+          key: ValueKey<String>('$keyPrefix-hour'),
+          value: value.hour,
+          max: 23,
+          onChanged: onHourChanged,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Text(
+            ':',
+            style: TextStyle(color: p.text1, fontWeight: FontWeight.w800),
+          ),
+        ),
+        _TimeDropdown(
+          key: ValueKey<String>('$keyPrefix-minute'),
+          value: value.minute,
+          max: 59,
+          onChanged: onMinuteChanged,
         ),
       ],
     );
@@ -650,24 +616,28 @@ class _TimeDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      height: 38,
-      width: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 44,
+      width: 76,
+      padding: const EdgeInsets.only(left: 12, right: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        color: p.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-          style: const TextStyle(
-            color: Color(0xFF111827),
-            fontSize: 13,
-            height: 18 / 13,
+          dropdownColor: p.surface,
+          borderRadius: BorderRadius.circular(12),
+          icon: Icon(LucideIcons.chevronDown, size: 18, color: p.text3),
+          // Merged with the theme so the app font family applies.
+          style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+            color: p.text1,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
           items: [
             for (var item = 0; item <= max; item++)
@@ -685,6 +655,8 @@ class _TimeDropdown extends StatelessWidget {
   }
 }
 
+/// Month grid in a card. Days between start and end sit on a continuous
+/// band; the start and end days are filled circles.
 class _MonthRangeCalendar extends StatefulWidget {
   const _MonthRangeCalendar({
     super.key,
@@ -710,6 +682,9 @@ class _MonthRangeCalendar extends StatefulWidget {
 }
 
 class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
+  static const _rowHeight = 42.0;
+  static const _dayExtent = 38.0;
+
   late DateTime _visibleMonth;
 
   @override
@@ -720,10 +695,15 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final monthStart = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
-    final gridStart = monthStart.subtract(
-      Duration(days: monthStart.weekday - DateTime.monday),
-    );
+    final leading = monthStart.weekday - DateTime.monday;
+    final daysInMonth = DateTime(
+      _visibleMonth.year,
+      _visibleMonth.month + 1,
+      0,
+    ).day;
+    final weeks = ((leading + daysInMonth) / 7).ceil();
     final canGoPrevious = _monthAfter(
       _visibleMonth,
       DateTime(widget.firstDate.year, widget.firstDate.month),
@@ -732,117 +712,160 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
       _visibleMonth,
       DateTime(widget.lastDate.year, widget.lastDate.month),
     );
-    return Column(
-      children: [
-        Row(
-          children: [
-            IconButton(
-              key: ValueKey<String>('${widget.keyPrefix}-month-previous'),
-              onPressed: canGoPrevious ? _previousMonth : null,
-              icon: const Icon(Icons.chevron_left),
-            ),
-            Expanded(
-              child: Center(
-                child: Text(
-                  'Tháng ${_visibleMonth.month}, ${_visibleMonth.year}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                key: ValueKey<String>('${widget.keyPrefix}-month-previous'),
+                tooltip: 'Tháng trước',
+                onPressed: canGoPrevious ? _previousMonth : null,
+                color: p.text1,
+                disabledColor: p.text3,
+                icon: const Icon(LucideIcons.chevronLeft),
               ),
-            ),
-            IconButton(
-              key: ValueKey<String>('${widget.keyPrefix}-month-next'),
-              onPressed: canGoNext ? _nextMonth : null,
-              icon: const Icon(Icons.chevron_right),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            for (final label in const [
-              'T2',
-              'T3',
-              'T4',
-              'T5',
-              'T6',
-              'T7',
-              'CN',
-            ])
               Expanded(
                 child: Center(
                   child: Text(
-                    label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                    'Tháng ${_visibleMonth.month}, ${_visibleMonth.year}',
+                    style: TextStyle(
+                      color: p.text1,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 190,
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            itemCount: 42,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisExtent: 30,
-            ),
-            itemBuilder: (context, index) {
-              final date = gridStart.add(Duration(days: index));
-              return _buildDay(context, date, monthStart.month);
-            },
+              IconButton(
+                key: ValueKey<String>('${widget.keyPrefix}-month-next'),
+                tooltip: 'Tháng sau',
+                onPressed: canGoNext ? _nextMonth : null,
+                color: p.text1,
+                disabledColor: p.text3,
+                icon: const Icon(LucideIcons.chevronRight),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              for (final label in const [
+                'T2',
+                'T3',
+                'T4',
+                'T5',
+                'T6',
+                'T7',
+                'CN',
+              ])
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: p.text3,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (var week = 0; week < weeks; week++)
+            Row(
+              children: [
+                for (var weekday = 0; weekday < 7; weekday++)
+                  Expanded(
+                    child: _buildDay(
+                      context,
+                      week * 7 + weekday - leading + 1,
+                      daysInMonth,
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildDay(BuildContext context, DateTime date, int month) {
-    final inMonth = date.month == month;
+  Widget _buildDay(BuildContext context, int day, int daysInMonth) {
+    if (day < 1 || day > daysInMonth) {
+      return const SizedBox(height: _rowHeight);
+    }
+    final p = context.palette;
+    final date = DateTime(_visibleMonth.year, _visibleMonth.month, day);
     final selectable =
-        !_dateOnly(date).isBefore(widget.firstDate) &&
-        !_dateOnly(date).isAfter(widget.lastDate);
-    final isStart = _sameDay(date, widget.startDate);
-    final isEnd = _sameDay(date, widget.endDate);
-    final inRange =
-        !date.isBefore(_dateOnly(widget.startDate)) &&
-        !date.isAfter(_dateOnly(widget.endDate));
-    final theme = Theme.of(context);
-    final background = isStart
-        ? theme.colorScheme.primary
-        : isEnd || inRange
-        ? theme.colorScheme.primaryContainer
-        : Colors.transparent;
-    final foreground = isStart
-        ? theme.colorScheme.onPrimary
-        : !inMonth || !selectable
-        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
-        : theme.colorScheme.onSurface;
-    return Center(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: selectable ? () => widget.onDateSelected(date) : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Text(
-            '${date.day}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: foreground,
-              fontWeight: isStart || isEnd ? FontWeight.w800 : null,
+        !date.isBefore(widget.firstDate) && !date.isAfter(widget.lastDate);
+    final start = _dateOnly(widget.startDate);
+    final end = _dateOnly(widget.endDate);
+    final isStart = _sameDay(date, start);
+    final isEnd = _sameDay(date, end);
+    final inRange = !date.isBefore(start) && !date.isAfter(end);
+    final hasBand = inRange && !_sameDay(start, end);
+    final bandColor = p.primaryContainer;
+    final selected = isStart || isEnd;
+    return SizedBox(
+      height: _rowHeight,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (hasBand)
+            Positioned.fill(
+              top: (_rowHeight - _dayExtent) / 2,
+              bottom: (_rowHeight - _dayExtent) / 2,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: ColoredBox(
+                      color: isStart ? Colors.transparent : bandColor,
+                    ),
+                  ),
+                  Expanded(
+                    child: ColoredBox(
+                      color: isEnd ? Colors.transparent : bandColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          InkResponse(
+            radius: _dayExtent / 2 + 2,
+            onTap: selectable ? () => widget.onDateSelected(date) : null,
+            child: Container(
+              width: _dayExtent,
+              height: _dayExtent,
+              alignment: Alignment.center,
+              decoration: selected
+                  ? BoxDecoration(color: p.primary, shape: BoxShape.circle)
+                  : null,
+              child: Text(
+                '$day',
+                style: TextStyle(
+                  color: selected
+                      ? p.onPrimary
+                      : selectable
+                      ? p.text1
+                      : p.text3,
+                  fontSize: 15,
+                  fontWeight: selected || inRange
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -872,48 +895,21 @@ class _SheetActions extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
-            height: 38,
-            child: OutlinedButton(
-              key: ValueKey<String>('$keyPrefix-cancel'),
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 38),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  height: 18 / 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              child: const Text('Hủy'),
-            ),
+          child: AppButton(
+            key: ValueKey<String>('$keyPrefix-cancel'),
+            label: 'Hủy',
+            variant: AppButtonVariant.ghost,
+            onPressed: () => Navigator.pop(context),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Expanded(
-          child: SizedBox(
-            height: 38,
-            child: FilledButton(
-              key: ValueKey<String>('$keyPrefix-apply'),
-              onPressed: enabled ? onApply : null,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 38),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  height: 18 / 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              child: const Text('Áp dụng'),
-            ),
+          flex: 2,
+          child: AppButton(
+            key: ValueKey<String>('$keyPrefix-apply'),
+            label: 'Áp dụng',
+            icon: LucideIcons.check,
+            onPressed: enabled ? onApply : null,
           ),
         ),
       ],

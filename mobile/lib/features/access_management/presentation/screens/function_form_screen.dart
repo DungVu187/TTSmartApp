@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/app_scope.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../../../core/widgets/error_panel.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../data/models/function_models.dart';
 import '../../data/models/pagination_models.dart';
 import '../controllers/functions_controller.dart';
@@ -71,6 +73,7 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
       _error = null;
     });
     try {
+      final appController = AppScope.read(context);
       final fields = FunctionFieldsRequest(
         parentFunctionId: _parentFunctionId,
         code: _codeController.text.trim(),
@@ -104,7 +107,12 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
                 icon: fields.icon,
               ),
             );
-      if (mounted) Navigator.pop(context, response);
+      if (mounted) {
+        // Function metadata (name, location, status and tree) is also the
+        // source for the shell menu, so refresh the session before returning.
+        await appController.refreshCurrentSession();
+        if (mounted) Navigator.pop(context, response);
+      }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
@@ -116,196 +124,108 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Cập nhật function' : 'Tạo function'),
+        leading: IconButton(
+          tooltip: 'Đóng',
+          icon: const Icon(LucideIcons.x),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+        title: Text(widget.isEditing ? 'Sửa chức năng' : 'Tạo chức năng'),
+        actions: [
+          AccessSaveAction(submitting: _submitting, onPressed: _submit),
+        ],
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: accessPagePadding(context, bottom: 32),
+            padding: accessPagePadding(context, top: 8, bottom: 32),
             children: [
               AccessConstrainedContent(
                 maxWidth: 820,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_error != null) ...[
-                      ErrorPanel(message: _error!.message),
+                      ErrorBanner(message: _error!.message),
                       const SizedBox(height: 16),
                     ],
-                    AccessSection(
-                      title: 'Cấu trúc function',
-                      icon: Icons.account_tree_outlined,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: FutureBuilder<List<FunctionResponse>>(
-                          future: _functionsFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const LinearProgressIndicator();
-                            }
-                            final options = snapshot.hasData
-                                ? _eligibleParents(snapshot.data!)
-                                : const <_ParentOption>[];
-                            final hasCurrent = options.any(
-                              (item) => item.function.id == _parentFunctionId,
-                            );
-                            return DropdownButtonFormField<int?>(
-                              initialValue: hasCurrent
-                                  ? _parentFunctionId
-                                  : null,
-                              decoration: const InputDecoration(
-                                labelText: 'Function cha',
-                                helperText:
-                                    'Không thể chọn chính nó hoặc function con làm cha.',
-                                prefixIcon: Icon(Icons.account_tree_outlined),
-                              ),
-                              items: [
-                                const DropdownMenuItem<int?>(
-                                  value: null,
-                                  child: Text('Không có function cha'),
-                                ),
-                                ...options.map(
-                                  (item) => DropdownMenuItem<int?>(
-                                    value: item.function.id,
-                                    child: Text(
-                                      '${List.filled(item.depth, '  ').join()}${item.function.name} (${item.function.code})',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              onChanged: _submitting
-                                  ? null
-                                  : (value) => setState(
-                                      () => _parentFunctionId = value,
-                                    ),
-                            );
-                          },
+                    FormFieldGroup(
+                      label: 'Định danh',
+                      children: [
+                        LabeledTextField(
+                          label: 'Mã chức năng *',
+                          controller: _codeController,
+                          maxLength: 100,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('code'),
+                          validator: (value) => (value?.trim().isEmpty ?? true)
+                              ? 'Mã chức năng là bắt buộc.'
+                              : null,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    AccessSection(
-                      title: 'Thông tin function',
-                      icon: Icons.webhook_outlined,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _codeController,
-                              maxLength: 100,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Mã function *',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('code'),
-                              ),
-                              validator: (value) =>
-                                  (value?.trim().isEmpty ?? true)
-                                  ? 'Mã function là bắt buộc.'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _nameController,
-                              maxLength: 200,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Tên function *',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('name'),
-                              ),
-                              validator: (value) =>
-                                  (value?.trim().isEmpty ?? true)
-                                  ? 'Tên function là bắt buộc.'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _urlController,
-                              maxLength: 400,
-                              keyboardType: TextInputType.url,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'URL',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('url'),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _noteController,
-                              maxLength: 4000,
-                              maxLines: 4,
-                              textInputAction: TextInputAction.newline,
-                              decoration: InputDecoration(
-                                labelText: 'Ghi chú',
-                                alignLabelWithHint: true,
-                                counterText: '',
-                                errorText: _error?.fieldMessage('note'),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _locationController,
-                                    keyboardType: TextInputType.number,
-                                    decoration: InputDecoration(
-                                      labelText: 'Thứ tự',
-                                      errorText: _error?.fieldMessage(
-                                        'location',
-                                      ),
-                                    ),
-                                    validator: (value) {
-                                      final text = value?.trim() ?? '';
-                                      if (text.isNotEmpty &&
-                                          int.tryParse(text) == null) {
-                                        return 'Phải là số nguyên.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _iconController,
-                                    maxLength: 1000,
-                                    decoration: InputDecoration(
-                                      labelText: 'Icon',
-                                      counterText: '',
-                                      errorText: _error?.fieldMessage('icon'),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                        LabeledTextField(
+                          label: 'Tên chức năng *',
+                          controller: _nameController,
+                          maxLength: 200,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('name'),
+                          validator: (value) => (value?.trim().isEmpty ?? true)
+                              ? 'Tên chức năng là bắt buộc.'
+                              : null,
                         ),
-                      ),
+                        _buildParentField(),
+                      ],
                     ),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _submitting ? null : _submit,
-                        icon: _submitting
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save_outlined),
-                        label: Text(
-                          _submitting ? 'Đang lưu...' : 'Lưu function',
+                    FormFieldGroup(
+                      label: 'Hiển thị trong menu',
+                      children: [
+                        LabeledTextField(
+                          label: 'Đường dẫn',
+                          controller: _urlController,
+                          maxLength: 400,
+                          keyboardType: TextInputType.url,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('url'),
                         ),
-                      ),
+                        LabeledTextField(
+                          label: 'Vị trí',
+                          controller: _locationController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('location'),
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isNotEmpty && int.tryParse(text) == null) {
+                              return 'Phải là số nguyên.';
+                            }
+                            return null;
+                          },
+                        ),
+                        LabeledTextField(
+                          label: 'Icon',
+                          controller: _iconController,
+                          maxLength: 1000,
+                          textInputAction: TextInputAction.next,
+                          errorText: _error?.fieldMessage('icon'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    FormFieldGroup(
+                      label: 'Khác',
+                      children: [
+                        LabeledTextField(
+                          label: 'Chú thích',
+                          controller: _noteController,
+                          maxLength: 4000,
+                          minLines: 3,
+                          maxLines: 6,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          errorText: _error?.fieldMessage('note'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -315,6 +235,79 @@ class _FunctionFormScreenState extends State<FunctionFormScreen> {
         ),
       ),
     );
+  }
+
+  /// Parent picker: searchable sheet, indented by tree depth. Itself and
+  /// its descendants are not offered.
+  Widget _buildParentField() {
+    return FutureBuilder<List<FunctionResponse>>(
+      future: _functionsFuture,
+      builder: (context, snapshot) {
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+        final options = snapshot.hasData
+            ? _eligibleParents(snapshot.data!)
+            : const <_ParentOption>[];
+        String? currentName;
+        for (final option in options) {
+          if (option.function.id == _parentFunctionId) {
+            currentName = option.function.name;
+          }
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SelectFieldButton(
+              key: const ValueKey<String>('function-form-parent'),
+              label: 'Chức năng cha',
+              placeholder: loading
+                  ? 'Đang tải chức năng…'
+                  : 'Không có chức năng cha',
+              value:
+                  currentName ??
+                  (_parentFunctionId == null
+                      ? null
+                      : 'Chức năng #$_parentFunctionId'),
+              icon: LucideIcons.gitBranch,
+              enabled: snapshot.hasData && !_submitting,
+              errorText: _error?.fieldMessage('parentFunctionId'),
+              onTap: () => _pickParent(options),
+              onClear: _parentFunctionId == null
+                  ? null
+                  : () => setState(() => _parentFunctionId = null),
+            ),
+            const SizedBox(height: 6),
+            if (snapshot.hasError)
+              const FieldError('Không thể tải danh sách chức năng.')
+            else
+              Text(
+                'Không thể chọn chính nó hoặc mục con làm mục chứa.',
+                style: TextStyle(color: context.palette.text3, fontSize: 13),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickParent(List<_ParentOption> options) async {
+    final picked = await showPickerSheet<int>(
+      context: context,
+      title: 'Chức năng cha',
+      searchHint: 'Tìm chức năng',
+      icon: LucideIcons.gitBranch,
+      clearLabel: 'Không có chức năng cha',
+      selected: _parentFunctionId,
+      options: [
+        for (final option in options)
+          PickerOption(
+            value: option.function.id,
+            title: '${'— ' * option.depth}${option.function.name}',
+            subtitle: option.function.code,
+          ),
+      ],
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _parentFunctionId = picked.value);
   }
 
   List<_ParentOption> _eligibleParents(List<FunctionResponse> functions) {

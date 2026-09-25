@@ -17,6 +17,8 @@ import 'package:ttsmart_mobile/features/mix_design_management/data/repositories/
 import 'package:ttsmart_mobile/features/mix_design_management/presentation/screens/mix_designs_screen.dart';
 import 'package:ttsmart_mobile/features/mix_design_management/presentation/widgets/mix_design_widgets.dart';
 
+import '../../support/phone_viewport.dart';
+
 class _MemoryTokenStorage implements TokenStorage {
   @override
   Future<void> clear() async {}
@@ -91,6 +93,7 @@ class _FakeMixDesignRepository implements MixDesignRepository {
       pageSize: 10,
       totalCount: 12,
       totalPages: 2,
+      materialColumns: _materialColumns,
     );
   }
 }
@@ -116,6 +119,58 @@ class _FakeCompanyRepository implements CompanyRepository {
 }
 
 void main() {
+  testWidgets(
+    'phone layout loads the only station, fills short pages and opens detail',
+    (tester) async {
+      usePhoneViewport(tester);
+      final apiClient = ApiClient(
+        baseUri: Uri.parse('http://localhost:5052'),
+        timeout: const Duration(seconds: 1),
+        httpClient: MockClient(
+          (_) async => throw StateError('Không được gọi API thật trong test.'),
+        ),
+      );
+      final appController = _MixDesignAppController(apiClient, canList: true);
+      final repository = _FakeMixDesignRepository();
+      addTearDown(appController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AppScope(
+            controller: appController,
+            child: MixDesignsScreen(
+              repository: repository,
+              companyRepository: _FakeCompanyRepository(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No filter card or Search button on a phone: the only station in scope
+      // is loaded, and a first page too short to scroll pulls page 2.
+      expect(
+        find.byKey(const ValueKey<String>('mix-design-filters')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('mix-design-search')),
+        findsNothing,
+      );
+      expect(repository.queries.map((query) => query.pageNumber), [1, 2]);
+      expect(repository.queries.first.stationId, 10);
+      expect(find.text('12 CẤP PHỐI'), findsOneWidget);
+      expect(find.text('M300'), findsNWidgets(2));
+
+      await tester.tap(find.text('M300').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Chi tiết cấp phối'), findsOneWidget);
+      expect(find.text('Đá 1x2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('renders responsive mix design table and paginates', (
     tester,
   ) async {
@@ -174,7 +229,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Mác BT'), findsOneWidget);
-    expect(find.text('SIKAROAD'), findsOneWidget);
+    expect(find.text('Phụ gia Sika Road'), findsOneWidget);
     expect(find.text('M300'), findsOneWidget);
     expect(
       find.descendant(
@@ -365,7 +420,42 @@ MixDesignItem _item(int stt, {String concreteGradeName = 'M300'}) =>
       tulog: 0,
       sikaroad: 0,
       bifi: 0,
+      materials: const [
+        MixDesignMaterial(
+          materialSlotId: 3,
+          slotNumber: 3,
+          columnKey: 'slot-3',
+          quantity: 500,
+        ),
+        MixDesignMaterial(
+          materialSlotId: 12,
+          slotNumber: 12,
+          columnKey: 'slot-12',
+          quantity: 2,
+        ),
+      ],
     );
+
+const _materialColumns = <MixDesignMaterialColumn>[
+  MixDesignMaterialColumn(
+    materialSlotId: 3,
+    slotNumber: 3,
+    materialName: 'Đá 1x2',
+    category: 'Đá',
+    categoryCode: 'stone',
+    typePosition: 1,
+    columnKey: 'slot-3',
+  ),
+  MixDesignMaterialColumn(
+    materialSlotId: 12,
+    slotNumber: 12,
+    materialName: 'Phụ gia Sika Road',
+    category: 'Phụ gia',
+    categoryCode: 'additive',
+    typePosition: 1,
+    columnKey: 'slot-12',
+  ),
+];
 
 CompanyResponse _company() => const CompanyResponse(
   id: 3,

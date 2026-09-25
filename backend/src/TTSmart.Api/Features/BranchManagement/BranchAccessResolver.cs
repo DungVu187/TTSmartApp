@@ -22,9 +22,17 @@ public sealed record BranchAccessScope(
 
         if (IsCompany)
         {
-            return CompanyId.HasValue
-                ? branches.Where(branch => branch.CompanyId == CompanyId.Value)
-                : branches.Where(_ => false);
+            if (!CompanyId.HasValue)
+            {
+                return branches.Where(_ => false);
+            }
+
+            var companyBranches = branches.Where(branch => branch.CompanyId == CompanyId.Value);
+            return BranchIds.Length == 0
+                ? companyBranches
+                : companyBranches.Where(branch =>
+                    branch.BranchId > 0 &&
+                    BranchIds.Contains(branch.BranchId));
         }
 
         return !CompanyId.HasValue || BranchIds.Length == 0
@@ -132,8 +140,11 @@ public interface IBranchAccessResolver
 public sealed class BranchAccessResolver(
     CompanyDbContext companyDbContext,
     WebAuthDbContext authDbContext,
-    ISystemRoleEvaluator systemRoleEvaluator) : IBranchAccessResolver
+    ISystemRoleEvaluator systemRoleEvaluator,
+    ISystemRoleCatalog? systemRoleCatalog = null) : IBranchAccessResolver
 {
+    private readonly ISystemRoleCatalog systemRoleCatalog = systemRoleCatalog ?? SystemRoleCatalog.Default;
+
     private const int MixingStationType = 1;
     private const int WeighStationType = 2;
 
@@ -483,22 +494,24 @@ public sealed class BranchAccessResolver(
         WebUser user,
         CancellationToken cancellationToken)
     {
-        var roleCodes = await BuildRoleCodeQuery(user.UserId).ToListAsync(cancellationToken);
+        var roles = await BuildRoleQuery(user.UserId).ToListAsync(cancellationToken);
         var isSuperAdmin = await systemRoleEvaluator.IsSuperAdminAsync(user.UserId, cancellationToken);
         return new BranchAccessScope(
             isSuperAdmin,
-            !isSuperAdmin && roleCodes.Contains(SystemRoleCodes.Company, StringComparer.Ordinal),
+            !isSuperAdmin && roles.Any(role => systemRoleCatalog.IsCompany(role.RoleId, role.Code)),
             user.CompanyId,
             ParseBranchIds(user.BranchId));
     }
 
-    private IQueryable<string> BuildRoleCodeQuery(int userId) =>
+    private IQueryable<RoleIdentity> BuildRoleQuery(int userId) =>
         from userRole in authDbContext.UserRoles.AsNoTracking()
         join role in authDbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
         where userRole.UserId == userId &&
               userRole.Status == WebDataStatus.Active &&
               role.Status == WebDataStatus.Active
-        select role.Code;
+        select new RoleIdentity(role.RoleId, role.Code);
+
+    private sealed record RoleIdentity(int RoleId, string Code);
 
     private static int[] ParseBranchIds(string? value) =>
         (value ?? string.Empty)

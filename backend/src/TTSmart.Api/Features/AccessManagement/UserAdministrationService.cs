@@ -17,8 +17,12 @@ public sealed class UserAdministrationService(
     CompanyDbContext companyDbContext,
     IDatabasePasswordService passwordService,
     ISystemRoleEvaluator systemRoleEvaluator,
-    Microsoft.Extensions.Options.IOptions<UserAccountStatusOptions>? userAccountStatusOptions = null) : IUserAdministrationService
+    Microsoft.Extensions.Options.IOptions<UserAccountStatusOptions>? userAccountStatusOptions = null,
+    ISystemRoleCatalog? systemRoleCatalog = null) : IUserAdministrationService
 {
+    private readonly ISystemRoleCatalog systemRoleCatalog = systemRoleCatalog ?? SystemRoleCatalog.Default;
+
+    private const string ResetPasswordValue = "123456";
     private const string UserAccountStatusChangesDisabledMessage =
         "Tính năng khóa/mở khóa tài khoản trên mobile đang tạm tắt. Vui lòng thực hiện trên website.";
 
@@ -54,6 +58,26 @@ public sealed class UserAdministrationService(
                     role.Status == WebDataStatus.Active));
         }
 
+        if (query.CompanyId.HasValue)
+        {
+            usersQuery = usersQuery.Where(user => user.CompanyId == query.CompanyId.Value);
+        }
+
+        if (query.BranchId.HasValue)
+        {
+            var branchId = query.BranchId.Value.ToString();
+            usersQuery = usersQuery.Where(user =>
+                user.BranchId != null &&
+                EF.Functions.Like("," + user.BranchId + ",", "%," + branchId + ",%"));
+        }
+
+        if (query.WithoutRole == true)
+        {
+            usersQuery = usersQuery.Where(user => !dbContext.UserRoles.AsNoTracking().Any(userRole =>
+                userRole.UserId == user.UserId &&
+                userRole.Status == WebDataStatus.Active));
+        }
+
         var totalCount = await usersQuery.CountAsync(cancellationToken);
         var users = await usersQuery
             .OrderBy(user => user.UserName)
@@ -78,6 +102,39 @@ public sealed class UserAdministrationService(
             ?? throw new NotFoundException("Không tìm thấy người dùng.");
         var rolesByUser = await LoadRolesByUserAsync([id], cancellationToken);
         return BuildResponse(user, rolesByUser);
+    }
+
+    public async Task<IReadOnlyList<RoleListItemResponse>> GetAssignableRolesAsync(
+        int currentUserId,
+        CancellationToken cancellationToken)
+    {
+        var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        var rolesQuery = dbContext.Roles.AsNoTracking()
+            .Where(role => role.Status == WebDataStatus.Active);
+        if (!scope.IsSuperAdmin)
+        {
+            var privilegedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+            var privilegedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
+            rolesQuery = rolesQuery.Where(role =>
+                !privilegedRoleIds.Contains(role.RoleId) &&
+                !privilegedRoleCodes.Contains(role.Code));
+        }
+
+        return await rolesQuery
+            .OrderBy(role => role.Name)
+            .ThenBy(role => role.RoleId)
+            .Select(role => new RoleListItemResponse(
+                role.RoleId,
+                role.Code,
+                role.Name,
+                role.Note,
+                role.LevelRole,
+                role.Status ?? WebDataStatus.Inactive,
+                true,
+                0,
+                0,
+                0))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<UserResponse> CreateAsync(
@@ -141,6 +198,7 @@ public sealed class UserAdministrationService(
                     });
                 }
 
+                await ApplyRoleMetadataAsync(user, roleIds, cancellationToken);
                 await dbContext.SaveChangesAsync(cancellationToken);
                 return user.UserId;
             },
@@ -215,6 +273,7 @@ public sealed class UserAdministrationService(
                 {
                     await ReplaceRolesAsync(id, roleIds, DateTime.Now, cancellationToken);
                 }
+                await ApplyRoleMetadataAsync(user, effectiveRoleIds, cancellationToken);
 
                 await dbContext.SaveChangesAsync(cancellationToken);
             },
@@ -308,6 +367,7 @@ public sealed class UserAdministrationService(
                 await ReplaceRolesAsync(id, roleIds, now, cancellationToken);
                 var user = await GetTrackedUserAsync(id, scope, cancellationToken);
                 user.BranchId = normalizedBranchId;
+                await ApplyRoleMetadataAsync(user, roleIds, cancellationToken);
                 user.UpdatedAt = now;
                 user.UserEditId = currentUserId;
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -329,8 +389,7 @@ public sealed class UserAdministrationService(
         }
 
         var user = await GetTrackedUserAsync(id, scope, cancellationToken);
-        PasswordPolicy.Validate(request.NewPassword);
-        user.Password = passwordService.HashForStorage(user, request.NewPassword);
+        user.Password = passwordService.HashForStorage(user, ResetPasswordValue);
         var now = VietnamTime.Now;
         user.TokenSince = user.TokenSince.HasValue && user.TokenSince.Value >= now
             ? user.TokenSince.Value.AddSeconds(1)
@@ -343,6 +402,10 @@ public sealed class UserAdministrationService(
     public async Task DeleteAsync(int id, int currentUserId, CancellationToken cancellationToken)
     {
         var scope = await GetScopeAsync(currentUserId, cancellationToken);
+        if (!scope.IsSuperAdmin)
+        {
+            throw new ForbiddenException("Chỉ quản trị viên hệ thống mới được xóa người dùng.");
+        }
         if (id == currentUserId)
         {
             throw new ConflictException("Không thể tự xóa tài khoản đang đăng nhập.");
@@ -422,6 +485,22 @@ public sealed class UserAdministrationService(
         }
     }
 
+    private async Task ApplyRoleMetadataAsync(
+        WebUser user,
+        IReadOnlyCollection<int> roleIds,
+        CancellationToken cancellationToken)
+    {
+        var primaryRole = await dbContext.Roles.AsNoTracking()
+            .Where(role => roleIds.Contains(role.RoleId) && role.Status == WebDataStatus.Active)
+            .OrderBy(role => role.LevelRole == null)
+            .ThenBy(role => role.LevelRole)
+            .ThenBy(role => role.RoleId)
+            .Select(role => new { role.RoleId, role.LevelRole })
+            .FirstAsync(cancellationToken);
+        user.RoleMax = primaryRole.RoleId;
+        user.RoleLevel = primaryRole.LevelRole;
+    }
+
     private async Task ValidateActiveRolesAsync(IReadOnlyCollection<int> roleIds, CancellationToken cancellationToken)
     {
         if (roleIds.Count == 0)
@@ -455,10 +534,12 @@ public sealed class UserAdministrationService(
             throw new ValidationException("Tài khoản do công ty quản lý phải được gán đúng một vai trò.");
         }
 
+        var protectedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+        var protectedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
         var containsProtectedRole = await dbContext.Roles.AsNoTracking().AnyAsync(
             role => roleIds.Contains(role.RoleId) &&
                     role.Status == WebDataStatus.Active &&
-                    (role.Code == SystemRoleCodes.Admin || role.Code == SystemRoleCodes.Company),
+                    (protectedRoleIds.Contains(role.RoleId) || protectedRoleCodes.Contains(role.Code)),
             cancellationToken);
         if (containsProtectedRole)
         {
@@ -475,6 +556,8 @@ public sealed class UserAdministrationService(
             .Select(item => new { item.CountUser })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new ForbiddenException("Công ty không còn hiệu lực hoặc không tồn tại.");
+        var privilegedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+        var privilegedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
         var activeChildAccountCount = await dbContext.Users.AsNoTracking()
             .Where(user => user.CompanyId == companyId && user.Status == WebDataStatus.Active)
             .Where(user => !(
@@ -483,7 +566,7 @@ public sealed class UserAdministrationService(
                 where userRole.UserId == user.UserId &&
                       userRole.Status == WebDataStatus.Active &&
                       role.Status == WebDataStatus.Active &&
-                      (role.Code == SystemRoleCodes.Admin || role.Code == SystemRoleCodes.Company)
+                      (privilegedRoleIds.Contains(role.RoleId) || privilegedRoleCodes.Contains(role.Code))
                 select role.RoleId)
                 .Any())
             .CountAsync(cancellationToken);
@@ -496,14 +579,14 @@ public sealed class UserAdministrationService(
 
     private async Task<bool> IsChildAccountAsync(int userId, CancellationToken cancellationToken)
     {
-        var latestRoleCode = await (
+        var latestRole = await (
             from userRole in dbContext.UserRoles.AsNoTracking()
             join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
             where userRole.UserId == userId && role.Status == WebDataStatus.Active
             orderby userRole.UserRoleId descending
-            select role.Code)
+            select new { role.RoleId, role.Code })
             .FirstOrDefaultAsync(cancellationToken);
-        return latestRoleCode is not SystemRoleCodes.Admin and not SystemRoleCodes.Company;
+        return latestRole is null || !systemRoleCatalog.IsPrivileged(latestRole.RoleId, latestRole.Code);
     }
 
     private async Task EnsureDeletableTargetAsync(
@@ -517,13 +600,15 @@ public sealed class UserAdministrationService(
             return;
         }
 
+        var privilegedRoleIds = systemRoleCatalog.PrivilegedRoleIds;
+        var privilegedRoleCodes = systemRoleCatalog.PrivilegedRoleCodes;
         var hasSameOrHigherRole = await (
             from userRole in dbContext.UserRoles.AsNoTracking()
             join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.RoleId
             where userRole.UserId == id &&
                   userRole.Status == WebDataStatus.Active &&
                   role.Status == WebDataStatus.Active &&
-                  (role.Code == SystemRoleCodes.Admin || role.Code == SystemRoleCodes.Company)
+                  (privilegedRoleIds.Contains(role.RoleId) || privilegedRoleCodes.Contains(role.Code))
             select role.RoleId)
             .AnyAsync(cancellationToken);
         if (hasSameOrHigherRole)
@@ -613,21 +698,18 @@ public sealed class UserAdministrationService(
         CancellationToken cancellationToken)
     {
         var branchIds = ParseBranchIdsStrict(branchValue);
-        var roleCodes = await dbContext.Roles.AsNoTracking()
+        var roles = await dbContext.Roles.AsNoTracking()
             .Where(role => roleIds.Contains(role.RoleId) && role.Status == WebDataStatus.Active)
-            .Select(role => role.Code)
+            .Select(role => new { role.RoleId, role.Code })
             .ToListAsync(cancellationToken);
 
-        var requiresCompany = roleCodes.Any(code =>
-            !string.Equals(code, SystemRoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
+        var requiresCompany = roles.Any(role => !systemRoleCatalog.IsAdmin(role.RoleId, role.Code));
         if (enforceScopedAssignment && requiresCompany && !companyId.HasValue)
         {
             throw new ValidationException("Tài khoản thuộc công ty phải được gán CompanyId.");
         }
 
-        var requiresBranch = roleCodes.Any(code =>
-            !string.Equals(code, SystemRoleCodes.Admin, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(code, SystemRoleCodes.Company, StringComparison.OrdinalIgnoreCase));
+        var requiresBranch = roles.Any(role => !systemRoleCatalog.IsPrivileged(role.RoleId, role.Code));
         if (!requiresBranch)
         {
             return null;
@@ -850,8 +932,6 @@ public sealed class UserAdministrationService(
         user.PositionId = request.PositionId;
         user.DepartmentId = request.DepartmentId;
         user.CompanyId = request.CompanyId;
-        user.RoleMax = request.RoleMax;
-        user.RoleLevel = request.RoleLevel;
         user.IsRoleGroup = request.IsRoleGroup;
         user.BranchId = AccessManagementSupport.TrimOrNull(request.BranchId);
     }

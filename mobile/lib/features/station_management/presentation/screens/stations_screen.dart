@@ -1,15 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../access_management/data/models/permission_models.dart';
 import '../../../company_management/data/models/company_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
-import '../../../company_management/presentation/widgets/company_autocomplete_field.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
 import '../../data/models/station_models.dart';
 import '../../data/repositories/station_repository.dart';
@@ -36,6 +37,7 @@ class _StationsScreenState extends State<StationsScreen> {
   late final StationsController _controller;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  bool _showSearch = false;
   List<CompanyResponse> _companies = const <CompanyResponse>[];
   bool _isLoadingCompanies = false;
   ApiException? _companiesError;
@@ -114,136 +116,120 @@ class _StationsScreenState extends State<StationsScreen> {
     _controller.load();
   }
 
+  /// Figma B04: type / company / status drafts, applied with "Áp dụng".
   Future<void> _openFilterSheet(bool isAdmin) async {
     var selectedType = _controller.typeTram;
     var selectedCompany = _controller.companyId;
     var selectedStatus = _controller.status;
-    final applied = await showModalBottomSheet<bool>(
+    final applied = await showAppModalSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
-          final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-          final companyItems = _companies;
-          final hasSelectedCompany = companyItems.any(
-            (company) => company.id == selectedCompany,
-          );
-          return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset + 16),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bộ lọc trạm',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Thu hẹp danh sách theo loại, công ty và trạng thái.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      key: ValueKey('station-type-$selectedType'),
-                      initialValue: selectedType,
-                      decoration: const InputDecoration(
-                        labelText: 'Loại trạm',
-                        prefixIcon: Icon(Icons.category_outlined),
-                      ),
-                      hint: const Text('Tất cả loại'),
-                      items: const [
-                        DropdownMenuItem<int>(
-                          value: 1,
-                          child: Text('Trạm trộn'),
-                        ),
-                        DropdownMenuItem<int>(
-                          value: 2,
-                          child: Text('Trạm cân'),
-                        ),
-                      ],
-                      onChanged: (value) =>
-                          setSheetState(() => selectedType = value),
-                    ),
-                    if (isAdmin) ...[
-                      const SizedBox(height: 14),
-                      CompanyAutocompleteField(
-                        key: ValueKey('station-company-$selectedCompany'),
-                        companies: companyItems,
-                        selectedCompanyId: hasSelectedCompany
-                            ? selectedCompany
-                            : null,
-                        enabled: !_isLoadingCompanies,
-                        hintText: companyItems.isEmpty
-                            ? 'Không có dữ liệu'
-                            : 'Tất cả công ty',
-                        onSelected: (company) =>
-                            setSheetState(() => selectedCompany = company.id),
-                        onCleared: () =>
-                            setSheetState(() => selectedCompany = null),
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      key: ValueKey('station-status-$selectedStatus'),
-                      initialValue: selectedStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Trạng thái',
-                        prefixIcon: Icon(Icons.toggle_on_outlined),
-                      ),
-                      items: [
-                        const DropdownMenuItem<int>(
-                          value: StationDataStatus.active,
-                          child: Text('Đang hoạt động'),
-                        ),
-                        if (isAdmin)
-                          const DropdownMenuItem<int>(
-                            value: StationDataStatus.deleted,
-                            child: Text('Đã xóa mềm'),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setSheetState(() => selectedStatus = value);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => setSheetState(() {
-                              selectedType = null;
-                              selectedCompany = null;
-                              selectedStatus = StationDataStatus.active;
-                            }),
-                            child: const Text('Đặt lại'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: FilledButton.icon(
-                            onPressed: () =>
-                                Navigator.of(sheetContext).pop(true),
-                            icon: const Icon(Icons.check_outlined),
-                            label: const Text('Áp dụng'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+          String? companyName;
+          for (final company in _companies) {
+            if (company.id == selectedCompany) {
+              companyName = company.displayName;
+            }
+          }
+          return AppSheetFrame(
+            title: 'Bộ lọc trạm',
+            subtitle: 'Thu hẹp danh sách theo loại, công ty và trạng thái.',
+            showClose: false,
+            footer: Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    key: const ValueKey<String>('station-filter-reset'),
+                    variant: AppButtonVariant.ghost,
+                    onPressed: () => setSheetState(() {
+                      selectedType = null;
+                      selectedCompany = null;
+                      selectedStatus = StationDataStatus.active;
+                    }),
+                    label: 'Đặt lại',
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: AppButton(
+                    key: const ValueKey<String>('station-filter-apply'),
+                    onPressed: () => Navigator.of(sheetContext).pop(true),
+                    icon: LucideIcons.check,
+                    label: 'Áp dụng',
+                  ),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const GroupLabel('Loại trạm'),
+                const SizedBox(height: 8),
+                OptionChipGroup<int?>(
+                  options: const [
+                    (null, 'Tất cả'),
+                    (1, 'Trạm trộn'),
+                    (2, 'Trạm cân'),
+                  ],
+                  selected: selectedType,
+                  onChanged: (value) =>
+                      setSheetState(() => selectedType = value),
+                ),
+                if (isAdmin) ...[
+                  const SizedBox(height: 20),
+                  SelectFieldButton(
+                    key: const ValueKey<String>('station-filter-company'),
+                    label: 'CÔNG TY',
+                    placeholder: _isLoadingCompanies
+                        ? 'Đang tải công ty…'
+                        : 'Tất cả công ty',
+                    value:
+                        companyName ??
+                        (selectedCompany == null
+                            ? 'Tất cả công ty'
+                            : 'Công ty #$selectedCompany'),
+                    enabled: !_isLoadingCompanies,
+                    onTap: () async {
+                      final picked = await showPickerSheet<int>(
+                        context: context,
+                        title: 'Chọn công ty',
+                        searchHint: 'Tìm công ty',
+                        icon: LucideIcons.building,
+                        clearLabel: 'Tất cả công ty',
+                        selected: selectedCompany,
+                        options: [
+                          for (final company in _companies)
+                            PickerOption(
+                              value: company.id,
+                              title: company.displayName,
+                              subtitle: company.code,
+                            ),
+                        ],
+                      );
+                      if (picked != null) {
+                        setSheetState(() => selectedCompany = picked.value);
+                      }
+                    },
+                    onClear: selectedCompany == null
+                        ? null
+                        : () => setSheetState(() => selectedCompany = null),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                const GroupLabel('Trạng thái'),
+                const SizedBox(height: 8),
+                OptionChipGroup<int>(
+                  options: [
+                    const (StationDataStatus.active, 'Đang hoạt động'),
+                    if (isAdmin)
+                      const (StationDataStatus.deleted, 'Đã xóa mềm'),
+                  ],
+                  selected: selectedStatus,
+                  onChanged: (value) =>
+                      setSheetState(() => selectedStatus = value),
+                ),
+              ],
             ),
           );
         },
@@ -256,6 +242,7 @@ class _StationsScreenState extends State<StationsScreen> {
     await _controller.load();
   }
 
+  // ignore: unused_element, retained for the web/admin flow.
   Future<void> _openCreate() async {
     final created = await Navigator.of(context).push<StationResponse>(
       MaterialPageRoute(
@@ -295,8 +282,28 @@ class _StationsScreenState extends State<StationsScreen> {
     final canView =
         isAdmin ||
         app.hasPermission(AccessFunctionCodes.branches, AccessPermission.view);
+    final filterCount = _activeFilterLabels().length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản lý trạm')),
+      // Figma B03: search + filter live in the app bar.
+      appBar: AppBar(
+        title: const Text('Quản lý trạm'),
+        actions: [
+          IconButton(
+            tooltip: 'Tìm kiếm',
+            onPressed: () => setState(() => _showSearch = !_showSearch),
+            icon: const Icon(LucideIcons.search),
+          ),
+          IconButton(
+            tooltip: 'Bộ lọc',
+            onPressed: () => _openFilterSheet(isAdmin),
+            icon: Badge(
+              isLabelVisible: filterCount > 0,
+              label: Text('$filterCount'),
+              child: const Icon(LucideIcons.slidersHorizontal),
+            ),
+          ),
+        ],
+      ),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => Column(
@@ -304,112 +311,85 @@ class _StationsScreenState extends State<StationsScreen> {
             _buildFilters(isAdmin),
             if (!canView) _buildListOnlyNotice(),
             if (_controller.isRefreshing) const LinearProgressIndicator(),
-            Expanded(child: _buildList(canView)),
+            Expanded(child: _buildList(canView, isAdmin)),
           ],
         ),
       ),
-      floatingActionButton: isAdmin
-          ? FloatingActionButton.extended(
-              onPressed: _openCreate,
-              icon: const Icon(Icons.add_business_outlined),
-              label: const Text('Thêm trạm'),
-            )
-          : null,
     );
   }
 
+  /// Search field (when opened), active filter chips and company errors.
   Widget _buildFilters(bool isAdmin) {
     final activeFilters = _activeFilterLabels();
+    final children = <Widget>[
+      if (_showSearch)
+        AppSearchField(
+          controller: _searchController,
+          hintText: 'Tìm theo tên hoặc mã trạm',
+          autofocus: true,
+          onChanged: _onSearchChanged,
+        ),
+      if (activeFilters.isNotEmpty)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final filter in activeFilters)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text(filter.label),
+                    avatar: Icon(filter.icon, size: 17),
+                    onDeleted: filter.onDeleted,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      if (_companiesError != null)
+        ErrorBanner(
+          message: _companiesError!.message,
+          onRetry: _loadCompanies,
+          retryLabel: 'Tải lại công ty',
+        ),
+    ];
+    if (children.isEmpty) return const SizedBox.shrink();
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 960),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: _searchController,
-                builder: (context, value, _) => TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: 'Tìm theo tên hoặc mã trạm',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: value.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Xóa nội dung tìm kiếm',
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              _buildScopeSummary(isAdmin),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      activeFilters.isEmpty
-                          ? 'Không áp dụng bộ lọc bổ sung'
-                          : 'Bộ lọc đang áp dụng',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _openFilterSheet(isAdmin),
-                    icon: const Icon(Icons.tune_outlined, size: 18),
-                    label: Text(
-                      activeFilters.isEmpty
-                          ? 'Bộ lọc'
-                          : 'Bộ lọc (${activeFilters.length})',
-                    ),
-                  ),
-                ],
-              ),
-              if (activeFilters.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: activeFilters
-                        .map(
-                          (filter) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: InputChip(
-                              label: Text(filter.label),
-                              avatar: Icon(filter.icon, size: 17),
-                              onDeleted: filter.onDeleted,
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ),
-              ],
-              if (_companiesError != null) ...[
-                const SizedBox(height: 8),
-                ErrorPanel(
-                  message: _companiesError!.message,
-                  onRetry: _loadCompanies,
-                  retryLabel: 'Tải lại công ty',
-                ),
+              for (var index = 0; index < children.length; index++) ...[
+                if (index > 0) const SizedBox(height: 8),
+                children[index],
               ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// "TOÀN BỘ CÔNG TY · 12 TRẠM" (or the company picked in the filter).
+  String _scopeLabel(bool isAdmin) {
+    final companyId = _controller.companyId;
+    String? company;
+    for (final item in _companies) {
+      if (item.id == companyId) company = item.displayName;
+    }
+    final scope =
+        company ??
+        (companyId == null
+            ? (isAdmin ? 'Toàn bộ công ty' : 'Phạm vi được cấp')
+            : 'Công ty #$companyId');
+    final deleted = _controller.status == StationDataStatus.deleted
+        ? ' · đã xóa mềm'
+        : '';
+    return '$scope · ${_controller.totalCount} trạm$deleted';
   }
 
   Widget _buildListOnlyNotice() {
@@ -429,7 +409,7 @@ class _StationsScreenState extends State<StationsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.lock_outline, color: theme.colorScheme.primary),
+                  Icon(LucideIcons.lock, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -446,66 +426,6 @@ class _StationsScreenState extends State<StationsScreen> {
     );
   }
 
-  Widget _buildScopeSummary(bool isAdmin) {
-    final theme = Theme.of(context);
-    final companyId = _controller.companyId;
-    final company = companyId == null
-        ? null
-        : _companies.cast<CompanyResponse?>().firstWhere(
-            (item) => item?.id == companyId,
-            orElse: () => null,
-          );
-    final scopeLabel =
-        company?.displayName ??
-        (companyId == null
-            ? (isAdmin ? 'Toàn bộ công ty' : 'Phạm vi được cấp')
-            : 'Công ty #$companyId');
-    final statusLabel = _controller.status == StationDataStatus.deleted
-        ? 'Đã xóa mềm'
-        : 'Đang hoạt động';
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Icon(
-              Icons.account_tree_outlined,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Phạm vi: $scopeLabel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${_controller.totalCount} trạm • $statusLabel',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   List<_ActiveFilter> _activeFilterLabels() {
     final filters = <_ActiveFilter>[];
     final type = _controller.typeTram;
@@ -515,8 +435,8 @@ class _StationsScreenState extends State<StationsScreen> {
         _ActiveFilter(
           label: stationType.label,
           icon: type == StationType.scale.value
-              ? Icons.scale_outlined
-              : Icons.factory_outlined,
+              ? LucideIcons.scale
+              : LucideIcons.factory,
           onDeleted: () => _setType(null),
         ),
       );
@@ -530,7 +450,7 @@ class _StationsScreenState extends State<StationsScreen> {
       filters.add(
         _ActiveFilter(
           label: company?.displayName ?? 'Công ty #$companyId',
-          icon: Icons.apartment_outlined,
+          icon: LucideIcons.building,
           onDeleted: () => _setCompany(null),
         ),
       );
@@ -539,7 +459,7 @@ class _StationsScreenState extends State<StationsScreen> {
       filters.add(
         _ActiveFilter(
           label: 'Đã xóa mềm',
-          icon: Icons.delete_outline,
+          icon: LucideIcons.trash2,
           onDeleted: () => _setStatus(StationDataStatus.active),
         ),
       );
@@ -547,22 +467,14 @@ class _StationsScreenState extends State<StationsScreen> {
     return filters;
   }
 
-  Widget _buildList(bool canView) {
+  Widget _buildList(bool canView, bool isAdmin) {
     if (_controller.isLoading && _controller.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonList();
     }
     if (_controller.error != null && _controller.items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: ErrorPanel(
-              message: _controller.error!.message,
-              onRetry: _controller.load,
-            ),
-          ),
-        ),
+      return LoadErrorView(
+        message: _controller.error!.message,
+        onRetry: _controller.load,
       );
     }
     if (_controller.items.isEmpty) {
@@ -573,7 +485,7 @@ class _StationsScreenState extends State<StationsScreen> {
           children: const [
             SizedBox(height: 110),
             AppEmptyState(
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               title: 'Chưa có trạm phù hợp',
               message: 'Thử thay đổi từ khóa hoặc bộ lọc để tìm dữ liệu khác.',
             ),
@@ -590,25 +502,53 @@ class _StationsScreenState extends State<StationsScreen> {
           }
           return false;
         },
-        child: ListView.separated(
+        child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          itemCount: _controller.items.length + 1,
-          separatorBuilder: (_, index) => index == _controller.items.length - 1
-              ? const SizedBox(height: 8)
-              : const SizedBox(height: 10),
+          itemCount: ((_controller.items.length + 19) ~/ 20) + 2,
           itemBuilder: (context, index) {
-            if (index == _controller.items.length) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GroupLabel(_scopeLabel(isAdmin)),
+              );
+            }
+            index -= 1;
+            final groupCount = (_controller.items.length + 19) ~/ 20;
+            if (index == groupCount) {
               return _buildLoadMoreFooter();
             }
-            final station = _controller.items[index];
+            final start = index * 20;
+            final end = (start + 20).clamp(0, _controller.items.length);
             return Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 960),
-                child: StationListCard(
-                  station: station,
-                  isDeleted: _controller.status == StationDataStatus.deleted,
-                  onTap: canView ? () => _openDetail(station) : null,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InsetCard(
+                    dividerIndent: kLeadingDividerIndent,
+                    children: [
+                      for (final station in _controller.items.sublist(
+                        start,
+                        end,
+                      ))
+                        NavRow(
+                          leading: IconTile(
+                            icon: stationTypeIcon(station.type),
+                            tone: station.type == StationType.scale
+                                ? AppTone.violet
+                                : AppTone.primary,
+                          ),
+                          title: station.displayName,
+                          subtitle: [
+                            station.type?.label ?? 'Trạm',
+                            if (station.phone?.trim().isNotEmpty == true)
+                              station.phone!.trim(),
+                          ].join(' · '),
+                          onTap: canView ? () => _openDetail(station) : null,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );

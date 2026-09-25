@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../access_management/data/models/permission_models.dart';
 import '../../../shell/presentation/screens/no_access_screen.dart';
 import '../../data/models/company_models.dart';
 import '../../data/repositories/company_repository.dart';
 import '../controllers/companies_controller.dart';
-import '../widgets/company_widgets.dart';
 import 'company_detail_screen.dart';
-import 'company_form_screen.dart';
 
 class CompaniesScreen extends StatefulWidget {
   const CompaniesScreen({super.key, required this.repository});
@@ -26,6 +26,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
   late final CompaniesController _controller;
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  bool _showSearch = false;
 
   @override
   void initState() {
@@ -60,15 +61,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     _controller.load();
   }
 
-  Future<void> _openCreate() async {
-    final created = await Navigator.of(context).push<CompanyResponse>(
-      MaterialPageRoute(
-        builder: (_) => CompanyFormScreen(controller: _controller),
-      ),
-    );
-    if (created != null && mounted) await _controller.load();
-  }
-
   Future<void> _openDetail(CompanyResponse company) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -88,16 +80,21 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     )) {
       return const NoAccessScreen();
     }
-    final canCreate = app.hasPermission(
-      AccessFunctionCodes.companies,
-      AccessPermission.create,
-    );
     final canView = app.hasPermission(
       AccessFunctionCodes.companies,
       AccessPermission.view,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản lý công ty')),
+      appBar: AppBar(
+        title: const Text('Quản lý công ty'),
+        actions: [
+          IconButton(
+            tooltip: 'Tìm kiếm',
+            onPressed: () => setState(() => _showSearch = !_showSearch),
+            icon: const Icon(LucideIcons.search),
+          ),
+        ],
+      ),
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => Column(
@@ -108,13 +105,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           ],
         ),
       ),
-      floatingActionButton: canCreate
-          ? FloatingActionButton.extended(
-              onPressed: _openCreate,
-              icon: const Icon(Icons.add_business_outlined),
-              label: const Text('Thêm công ty'),
-            )
-          : null,
     );
   }
 
@@ -128,73 +118,77 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: _searchController,
-                builder: (context, value, _) => TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: 'Tìm theo tên, mã, email hoặc số điện thoại',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: value.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Xóa nội dung tìm kiếm',
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
+              if (_showSearch)
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _searchController,
+                  builder: (context, value, _) => TextField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Tìm theo tên, mã, email hoặc số điện thoại',
+                      prefixIcon: const Icon(LucideIcons.search),
+                      suffixIcon: value.text.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Xóa nội dung tìm kiếm',
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                              },
+                              icon: const Icon(LucideIcons.x),
+                            ),
+                    ),
                   ),
                 ),
+              if (_showSearch) const SizedBox(height: 10),
+              SegmentedTabs<int>(
+                segments: const [
+                  (CompanyDataStatus.active, 'Đang hoạt động'),
+                  (CompanyDataStatus.deleted, 'Đã xóa'),
+                ],
+                selected: _controller.status,
+                onChanged: _onStatusChanged,
               ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _FilterChoice(
-                      label: 'Đang hoạt động',
-                      selected: _controller.status == CompanyDataStatus.active,
-                      onSelected: () =>
-                          _onStatusChanged(CompanyDataStatus.active),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: GroupLabel('${_controller.totalCount} công ty'),
+                  ),
+                  PopupMenuButton<bool?>(
+                    tooltip: 'Lọc trạng thái khóa',
+                    onSelected: _onLockChanged,
+                    itemBuilder: (_) => const [
+                      PopupMenuItem<bool?>(value: null, child: Text('Tất cả')),
+                      PopupMenuItem<bool?>(
+                        value: false,
+                        child: Text('Không khóa'),
+                      ),
+                      PopupMenuItem<bool?>(
+                        value: true,
+                        child: Text('Đang khóa'),
+                      ),
+                    ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Khóa: ${_controller.isLocked == null
+                              ? 'Tất cả'
+                              : _controller.isLocked!
+                              ? 'Đang khóa'
+                              : 'Không khóa'}',
+                          style: TextStyle(
+                            color: context.palette.text2,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const Icon(LucideIcons.chevronDown, size: 18),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _FilterChoice(
-                      label: 'Đã xóa',
-                      selected: _controller.status == CompanyDataStatus.deleted,
-                      onSelected: () =>
-                          _onStatusChanged(CompanyDataStatus.deleted),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChoice(
-                      label: 'Tất cả khóa',
-                      selected: _controller.isLocked == null,
-                      onSelected: () => _onLockChanged(null),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChoice(
-                      label: 'Không khóa',
-                      selected: _controller.isLocked == false,
-                      onSelected: () => _onLockChanged(false),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChoice(
-                      label: 'Đang khóa',
-                      selected: _controller.isLocked == true,
-                      onSelected: () => _onLockChanged(true),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tổng ${_controller.totalCount} công ty',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -228,7 +222,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 120),
-            Icon(Icons.apartment_outlined, size: 52),
+            Icon(LucideIcons.building, size: 52),
             SizedBox(height: 12),
             Center(child: Text('Chưa có công ty phù hợp.')),
           ],
@@ -244,24 +238,47 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           }
           return false;
         },
-        child: ListView.separated(
+        child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          itemCount: _controller.items.length + 1,
-          separatorBuilder: (_, index) => index == _controller.items.length - 1
-              ? const SizedBox(height: 8)
-              : const SizedBox(height: 10),
+          itemCount: ((_controller.items.length + 19) ~/ 20) + 1,
           itemBuilder: (context, index) {
-            if (index == _controller.items.length) {
+            final groupCount = (_controller.items.length + 19) ~/ 20;
+            if (index == groupCount) {
               return _buildLoadMoreFooter();
             }
-            final company = _controller.items[index];
+            final start = index * 20;
+            final end = (start + 20).clamp(0, _controller.items.length);
             return Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 960),
-                child: CompanyListCard(
-                  company: company,
-                  onTap: canView ? () => _openDetail(company) : null,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InsetCard(
+                    dividerIndent: kLeadingDividerIndent,
+                    children: [
+                      for (final company in _controller.items.sublist(
+                        start,
+                        end,
+                      ))
+                        NavRow(
+                          leading: const IconTile(
+                            icon: LucideIcons.building,
+                            tone: AppTone.info,
+                          ),
+                          title: company.displayName,
+                          subtitle: [
+                            if (company.code?.trim().isNotEmpty == true)
+                              company.code!.trim(),
+                            company.plan.label,
+                          ].join(' · '),
+                          subtitleWidget: company.isLocked
+                              ? _LockedSubtitle(company: company)
+                              : null,
+                          onTap: canView ? () => _openDetail(company) : null,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -282,7 +299,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
       return Center(
         child: TextButton.icon(
           onPressed: _controller.loadMore,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(LucideIcons.refreshCw),
           label: Text(_controller.loadMoreError!.message),
         ),
       );
@@ -297,23 +314,37 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
   }
 }
 
-class _FilterChoice extends StatelessWidget {
-  const _FilterChoice({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
+/// "BTHN · Trả phí · Đang khóa" with the lock state in bold red (Figma B01).
+class _LockedSubtitle extends StatelessWidget {
+  const _LockedSubtitle({required this.company});
 
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
+  final CompanyResponse company;
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
+    final p = context.palette;
+    final base = [
+      if (company.code?.trim().isNotEmpty == true) company.code!.trim(),
+      company.plan.label,
+    ].join(' · ');
+    return Text.rich(
+      TextSpan(
+        style: TextStyle(
+          color: p.text2,
+          fontSize: 13,
+          height: 17 / 13,
+          fontWeight: FontWeight.w500,
+        ),
+        children: [
+          TextSpan(text: '$base · '),
+          TextSpan(
+            text: 'Đang khóa',
+            style: TextStyle(color: p.danger, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

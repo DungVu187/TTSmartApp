@@ -25,14 +25,28 @@ class TTsmartApp extends StatefulWidget {
   State<TTsmartApp> createState() => _TTsmartAppState();
 }
 
-class _TTsmartAppState extends State<TTsmartApp> {
+class _TTsmartAppState extends State<TTsmartApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.initializeOnStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.controller.initialize();
       });
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.refreshCurrentSessionSilently();
     }
   }
 
@@ -47,6 +61,9 @@ class _TTsmartAppState extends State<TTsmartApp> {
           debugShowCheckedModeBanner: false,
           title: 'TTsmart',
           theme: AppTheme.light,
+          // Follows the phone's light / dark setting (Figma Light / Dark).
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
           home: switch (widget.controller.status) {
             SessionStatus.initializing => const SplashScreen(),
             SessionStatus.recoveryRequired => const SessionRecoveryScreen(),

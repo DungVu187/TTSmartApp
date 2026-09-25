@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/widgets/error_panel.dart';
@@ -201,7 +202,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                       ],
                       StationSection(
                         title: 'Thông tin trạm',
-                        icon: Icons.factory_outlined,
+                        icon: LucideIcons.factory,
                         description: 'Thông tin nhận diện và liên hệ của trạm.',
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -210,7 +211,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _codeController,
                                 label: 'Mã trạm *',
-                                icon: Icons.tag_outlined,
+                                icon: LucideIcons.hash,
                                 errorField: 'Code',
                                 textCapitalization:
                                     TextCapitalization.characters,
@@ -223,7 +224,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _nameController,
                                 label: 'Tên trạm *',
-                                icon: Icons.badge_outlined,
+                                icon: LucideIcons.idCard,
                                 errorField: 'Name',
                                 validator: (value) => _requiredMax(
                                   value,
@@ -234,7 +235,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _emailController,
                                 label: 'Email *',
-                                icon: Icons.email_outlined,
+                                icon: LucideIcons.mail,
                                 keyboardType: TextInputType.emailAddress,
                                 textCapitalization: TextCapitalization.none,
                                 errorField: 'Email',
@@ -247,7 +248,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _phoneController,
                                 label: 'Số điện thoại *',
-                                icon: Icons.phone_outlined,
+                                icon: LucideIcons.phone,
                                 keyboardType: TextInputType.phone,
                                 textCapitalization: TextCapitalization.none,
                                 errorField: 'Phone',
@@ -260,7 +261,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _addressController,
                                 label: 'Địa chỉ',
-                                icon: Icons.location_on_outlined,
+                                icon: LucideIcons.mapPin,
                                 errorField: 'Address',
                                 minLines: 2,
                                 maxLines: 4,
@@ -275,7 +276,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                       const SizedBox(height: 20),
                       StationSection(
                         title: 'Tích hợp vận hành',
-                        icon: Icons.settings_input_component_outlined,
+                        icon: LucideIcons.cable,
                         description:
                             'Có thể để trống nếu trạm chưa dùng hệ thống tích hợp.',
                         child: Padding(
@@ -285,7 +286,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _pmqlXeController,
                                 label: 'Phần mềm quản lý xe',
-                                icon: Icons.local_shipping_outlined,
+                                icon: LucideIcons.truck,
                                 errorField: 'pmqlXe',
                                 textCapitalization: TextCapitalization.none,
                                 validator: (value) => _optionalMax(value, 1000),
@@ -293,7 +294,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                               _textField(
                                 controller: _qlCameraController,
                                 label: 'Phần mềm quản lý camera',
-                                icon: Icons.videocam_outlined,
+                                icon: LucideIcons.video,
                                 errorField: 'qlCamera',
                                 textCapitalization: TextCapitalization.none,
                                 textInputAction: widget.isAdmin
@@ -309,7 +310,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                         const SizedBox(height: 20),
                         StationSection(
                           title: 'Tài khoản trạm',
-                          icon: Icons.lock_person_outlined,
+                          icon: LucideIcons.userLock,
                           description: widget.isEditing
                               ? 'Để trống mật khẩu nếu không muốn thay đổi.'
                               : 'Dùng thông tin này để kết nối với trạm.',
@@ -320,7 +321,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                                 _textField(
                                   controller: _usernameController,
                                   label: 'Tài khoản *',
-                                  icon: Icons.person_outline,
+                                  icon: LucideIcons.user,
                                   errorField: 'Username',
                                   textCapitalization: TextCapitalization.none,
                                   validator: (value) => _requiredMax(
@@ -347,7 +348,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.save_outlined),
+                              : const Icon(LucideIcons.save),
                           label: Text(
                             _submitting
                                 ? 'Đang lưu...'
@@ -371,7 +372,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
   Widget _buildAdministrativeSection() {
     return StationSection(
       title: 'Phạm vi và loại trạm',
-      icon: Icons.account_tree_outlined,
+      icon: LucideIcons.gitBranch,
       description: 'Chỉ ADMIN có thể thay đổi công ty và loại trạm.',
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -384,7 +385,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
                   return const InputDecorator(
                     decoration: InputDecoration(
                       labelText: 'Công ty',
-                      prefixIcon: Icon(Icons.apartment_outlined),
+                      prefixIcon: Icon(LucideIcons.building),
                     ),
                     child: LinearProgressIndicator(),
                   );
@@ -417,7 +418,7 @@ class _StationFormScreenState extends State<StationFormScreen> {
               initialValue: _typeTram,
               decoration: InputDecoration(
                 labelText: 'Loại trạm',
-                prefixIcon: const Icon(Icons.category_outlined),
+                prefixIcon: const Icon(LucideIcons.layers),
                 errorText: _error?.fieldMessage('TypeTram'),
               ),
               items: StationType.values
@@ -444,23 +445,23 @@ class _StationFormScreenState extends State<StationFormScreen> {
     final station = widget.existingStation!;
     return StationSection(
       title: 'Thông tin không thay đổi trong vai trò hiện tại',
-      icon: Icons.lock_outline,
+      icon: LucideIcons.lock,
       child: Column(
         children: [
           StationInfoRow(
             label: 'Công ty',
             value: station.companyName,
-            icon: Icons.apartment_outlined,
+            icon: LucideIcons.building,
           ),
           StationInfoRow(
             label: 'Loại trạm',
             value: station.type?.label,
-            icon: Icons.category_outlined,
+            icon: LucideIcons.layers,
           ),
           StationInfoRow(
             label: 'Tài khoản',
             value: station.username,
-            icon: Icons.person_outline,
+            icon: LucideIcons.user,
           ),
         ],
       ),
@@ -511,16 +512,12 @@ class _StationFormScreenState extends State<StationFormScreen> {
         labelText: widget.isEditing
             ? 'Mật khẩu mới (để trống nếu không đổi)'
             : 'Mật khẩu *',
-        prefixIcon: const Icon(Icons.lock_outline),
+        prefixIcon: const Icon(LucideIcons.lock),
         errorText: _error?.fieldMessage('Password'),
         suffixIcon: IconButton(
           tooltip: _obscurePassword ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-          icon: Icon(
-            _obscurePassword
-                ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
-          ),
+          icon: Icon(_obscurePassword ? LucideIcons.eye : LucideIcons.eyeOff),
         ),
       ),
     );
@@ -561,14 +558,8 @@ class _StationFormScreenState extends State<StationFormScreen> {
     final normalized = value ?? '';
     if (normalized.isEmpty && widget.isEditing) return null;
     if (normalized.isEmpty) return 'Vui lòng nhập mật khẩu.';
-    if (normalized.length < 8 || normalized.length > 1000) {
-      return 'Mật khẩu phải có từ 8 đến 1000 ký tự.';
-    }
-    if (!RegExp(r'[a-z]').hasMatch(normalized) ||
-        !RegExp(r'[A-Z]').hasMatch(normalized) ||
-        !RegExp(r'[0-9]').hasMatch(normalized) ||
-        !RegExp(r'[@#$%]').hasMatch(normalized)) {
-      return 'Mật khẩu cần chữ thường, chữ hoa, số và ký tự @#\$%.';
+    if (normalized.length < 4 || normalized.length > 1000) {
+      return 'Mật khẩu phải có từ 4 đến 1000 ký tự.';
     }
     return null;
   }

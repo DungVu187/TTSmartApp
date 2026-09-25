@@ -612,6 +612,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
         Assert.Equal(11, response.Items[0].RowNumber);
         Assert.Equal("TRAM_10", response.Items[0].StationCode);
         Assert.Single(response.Items[0].Materials);
+        Assert.Equal(13m, response.Items[0].Materials[0].Variance);
         Assert.Single(response.Layouts);
         Assert.Single(response.Layouts.Single().Columns);
         Assert.Single(response.MaterialSummaryRows);
@@ -755,7 +756,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
     }
 
     [Fact]
-    public async Task HaiItemKhacLayout_TraLayoutKeyKhacVaDanhSachLayoutsDayDu()
+    public async Task HaiItemKhacDuLieu_DungChungLayoutHienTaiTheoWebsite()
     {
         BranchTestIdentity identity = null!;
         await factory.ResetDatabaseAsync(async (services, authDbContext) =>
@@ -792,12 +793,16 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
 
         Assert.NotNull(response);
         Assert.Equal(2, response.Items.Count);
-        Assert.NotEqual(response.Items[0].LayoutKey, response.Items[1].LayoutKey);
-        Assert.Equal(2, response.Layouts.Count);
-        Assert.All(response.Items, item =>
-            Assert.Contains(response.Layouts, layout => layout.LayoutKey == item.LayoutKey));
-        Assert.Contains(response.Layouts, layout => layout.Columns.Any(
-            column => column.CategoryCode == OrderStatisticsMaterialCategories.Water));
+        Assert.Equal(response.Items[0].LayoutKey, response.Items[1].LayoutKey);
+        var layout = Assert.Single(response.Layouts);
+        Assert.DoesNotContain(layout.Columns,
+            column => column.CategoryCode == OrderStatisticsMaterialCategories.Water);
+        var secondItemMaterial = Assert.Single(
+            response.Items[1].Materials,
+            material => material.SlotNumber == 2);
+        Assert.Equal(OrderStatisticsMaterialCategories.Stone, secondItemMaterial.CategoryCode);
+        Assert.Equal("\u0110\u00e1 1", secondItemMaterial.MaterialName);
+        Assert.Equal(21m, secondItemMaterial.ActualQuantity);
     }
 
     [Fact]
@@ -854,7 +859,7 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
     }
 
     [Fact]
-    public async Task HistoricalSlotMotCat_CurrentSlotMotDa_ItemVanGiuLayoutCat()
+    public async Task HistoricalSlotMotCat_CurrentSlotMotDa_ItemDungLayoutDaTheoWebsite()
     {
         BranchTestIdentity identity = null!;
         await factory.ResetDatabaseAsync(async (services, authDbContext) =>
@@ -901,13 +906,18 @@ public sealed class OrderStatisticsApiTests(TTSmartApiFactory factory) : IClassF
             column => column.CategoryCode == OrderStatisticsMaterialCategories.Stone);
         var item = response.Items.Single();
         var itemMaterial = Assert.Single(item.Materials);
-        Assert.Equal(OrderStatisticsMaterialCategories.Sand, itemMaterial.CategoryCode);
-        Assert.Equal("Cat lich su", itemMaterial.MaterialName);
+        Assert.Equal(OrderStatisticsMaterialCategories.Stone, itemMaterial.CategoryCode);
+        Assert.Equal("Da hien tai", itemMaterial.MaterialName);
         Assert.Equal(25m, itemMaterial.ActualQuantity);
+        var summaryCells = response.MaterialSummaryRows.SelectMany(row => row.Cells).ToArray();
+        Assert.Equal(25m, summaryCells.Single(cell =>
+            cell.CategoryCode == OrderStatisticsMaterialCategories.Stone).ActualQuantity);
+        Assert.Equal(0m, summaryCells.Single(cell =>
+            cell.CategoryCode == OrderStatisticsMaterialCategories.Sand).ActualQuantity);
         var itemLayout = Assert.Single(
             response.Layouts,
             layout => layout.LayoutKey == item.LayoutKey);
-        Assert.Equal(OrderStatisticsMaterialCategories.Sand,
+        Assert.Equal(OrderStatisticsMaterialCategories.Stone,
             itemLayout.Columns.Single().CategoryCode);
     }
 

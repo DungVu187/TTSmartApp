@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../../../core/ui/app_ui.dart';
 
 class AccessConstrainedContent extends StatelessWidget {
   const AccessConstrainedContent({
@@ -47,35 +50,26 @@ class AccessSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            Expanded(child: GroupLabel(title)),
             ?trailing,
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: context.palette.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(color: context.palette.border),
           ),
-          child: child,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: child,
+          ),
         ),
       ],
     );
@@ -96,35 +90,33 @@ class AccessInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return FieldRow(label: label, value: value);
+  }
+}
+
+/// "Lưu" in the app bar of the access forms (Figma S08 / S11).
+class AccessSaveAction extends StatelessWidget {
+  const AccessSaveAction({
+    super.key,
+    required this.submitting,
+    required this.onPressed,
+  });
+
+  final bool submitting;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-          ],
-          SizedBox(
-            width: 112,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.only(right: 4),
+      child: TextButton(
+        key: const ValueKey<String>('access-form-save'),
+        onPressed: submitting ? null : onPressed,
+        style: TextButton.styleFrom(minimumSize: const Size(56, 44)),
+        child: Text(
+          submitting ? 'Đang lưu...' : 'Lưu',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -136,43 +128,75 @@ class AccessEmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    this.actions = const [],
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 52, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+    return StateView(
+      icon: icon,
+      title: title,
+      message: message,
+      actions: actions,
+    );
+  }
+}
+
+/// Empty list body: pull-to-refresh plus the S12 state. [filtered] swaps the
+/// "nothing yet + create" copy for "no match, change the filters".
+class AccessEmptyList extends StatelessWidget {
+  const AccessEmptyList({
+    super.key,
+    required this.onRefresh,
+    required this.filtered,
+    required this.icon,
+    required this.emptyTitle,
+    required this.emptyMessage,
+    required this.noMatchTitle,
+    this.createLabel,
+    this.onCreate,
+  });
+
+  final Future<void> Function() onRefresh;
+  final bool filtered;
+  final IconData icon;
+  final String emptyTitle;
+  final String emptyMessage;
+  final String noMatchTitle;
+  final String? createLabel;
+  final VoidCallback? onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        children: [
+          const SizedBox(height: 96),
+          AccessEmptyState(
+            icon: icon,
+            title: filtered ? noMatchTitle : emptyTitle,
+            message: filtered
+                ? 'Thử thay đổi từ khóa hoặc bộ lọc.'
+                : emptyMessage,
+            actions: [
+              if (!filtered && onCreate != null && createLabel != null)
+                AppButton(
+                  label: createLabel!,
+                  icon: LucideIcons.plus,
+                  expand: false,
+                  onPressed: onCreate,
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

@@ -205,28 +205,23 @@ public sealed class FunctionAdministrationService(WebAuthDbContext dbContext) : 
                     throw new ConflictException("Function đã bị xóa mềm hoặc ngừng hiệu lực.");
                 }
 
-                var hasChildren = await dbContext.Functions.AsNoTracking().AnyAsync(
-                    item => item.FunctionParentId == id && item.Status == WebDataStatus.Active,
-                    cancellationToken);
-                if (hasChildren)
-                {
-                    throw new ConflictException("Không thể xóa function đang có function con hiệu lực.");
-                }
-
                 var now = DateTime.Now;
                 function.Status = WebDataStatus.Inactive;
                 function.UpdatedAt = now;
                 function.UserId = currentUserId;
                 var assignments = await dbContext.FunctionRoles
-                    .Where(item => item.FunctionId == id &&
-                                   item.Type == WebFunctionRoleType.Role &&
-                                   item.Status == WebDataStatus.Active)
+                    .Where(item => item.FunctionId == id)
                     .ToListAsync(cancellationToken);
-                foreach (var assignment in assignments)
+                dbContext.FunctionRoles.RemoveRange(assignments);
+
+                var children = await dbContext.Functions
+                    .Where(item => item.FunctionParentId == id && item.Status == WebDataStatus.Active)
+                    .ToListAsync(cancellationToken);
+                foreach (var child in children)
                 {
-                    assignment.Status = WebDataStatus.Inactive;
-                    assignment.UpdatedAt = now;
-                    assignment.UserId = currentUserId;
+                    child.FunctionParentId = 0;
+                    child.UpdatedAt = now;
+                    child.UserId = currentUserId;
                 }
 
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -339,14 +334,6 @@ public sealed class FunctionAdministrationService(WebAuthDbContext dbContext) : 
             throw new ConflictException("Mã function đang được sử dụng.");
         }
 
-        if (await dbContext.Functions.AsNoTracking().AnyAsync(
-            function => function.Name == name &&
-                       function.Status == WebDataStatus.Active &&
-                       (!currentId.HasValue || function.FunctionId != currentId.Value),
-            cancellationToken))
-        {
-            throw new ConflictException("Tên function đang được sử dụng.");
-        }
     }
 
     private async Task<WebFunction> GetTrackedFunctionAsync(int id, CancellationToken cancellationToken) =>

@@ -3,6 +3,7 @@ namespace TTSmart.Api.Data.StationOperations;
 public sealed class StationOrder
 {
     public int OrderId { get; set; }
+    public Guid? SourceId { get; set; }
     public int? CustomerId { get; set; }
     public int? EmployeeId { get; set; }
     public int? ProjectId { get; set; }

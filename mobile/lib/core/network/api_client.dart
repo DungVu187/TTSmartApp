@@ -11,6 +11,7 @@ import 'api_request_cancellation.dart';
 import 'problem_details.dart';
 
 typedef UnauthorizedCallback = Future<void> Function();
+typedef ForbiddenCallback = Future<void> Function();
 
 class ApiClient {
   ApiClient({
@@ -25,11 +26,13 @@ class ApiClient {
 
   String? accessToken;
   UnauthorizedCallback? onUnauthorized;
+  ForbiddenCallback? onForbidden;
 
   Future<Object?> get(
     String path, {
     Map<String, Object?> query = const <String, Object?>{},
     bool authenticated = true,
+    bool notifyForbidden = true,
     ApiRequestCancellation? cancellation,
     Duration? requestTimeout,
   }) => _send(
@@ -37,6 +40,7 @@ class ApiClient {
     path,
     query: query,
     authenticated: authenticated,
+    notifyForbidden: notifyForbidden,
     cancellation: cancellation,
     requestTimeout: requestTimeout,
   );
@@ -100,6 +104,7 @@ class ApiClient {
     Map<String, Object?> query = const <String, Object?>{},
     Object? body,
     required bool authenticated,
+    bool notifyForbidden = true,
     ApiRequestCancellation? cancellation,
     Duration? requestTimeout,
   }) async {
@@ -115,6 +120,7 @@ class ApiClient {
     final response = await _execute(
       request,
       authenticated: authenticated,
+      notifyForbidden: notifyForbidden,
       requestTimeout: requestTimeout,
     );
     try {
@@ -127,6 +133,7 @@ class ApiClient {
   Future<http.Response> _execute(
     http.BaseRequest request, {
     required bool authenticated,
+    bool notifyForbidden = true,
     Duration? requestTimeout,
   }) async {
     if (authenticated) {
@@ -153,6 +160,9 @@ class ApiClient {
       final exception = _decodeFailure(response);
       if (response.statusCode == 401 && authenticated) {
         await onUnauthorized?.call();
+      }
+      if (response.statusCode == 403 && authenticated && notifyForbidden) {
+        await onForbidden?.call();
       }
       throw exception;
     } on ApiException {

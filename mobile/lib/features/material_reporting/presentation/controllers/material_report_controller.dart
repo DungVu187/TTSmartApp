@@ -34,6 +34,7 @@ class MaterialReportController extends ChangeNotifier {
   MaterialViewMode viewMode = MaterialViewMode.all;
   MaterialValueMode valueMode = MaterialValueMode.quantity;
   MaterialReport? report;
+  final List<MaterialTransaction> loadedTransactions = <MaterialTransaction>[];
   ApiException? scopeError;
   ApiException? reportError;
   String? validationMessage;
@@ -56,6 +57,11 @@ class MaterialReportController extends ChangeNotifier {
 
   bool get canViewReport =>
       selectedStationId != null && (!isAdmin || selectedCompanyId != null);
+  bool get canLoadMore =>
+      report != null &&
+      report!.pageNumber < report!.totalPages &&
+      !isLoadingReport &&
+      !isRefreshing;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -166,6 +172,13 @@ class MaterialReportController extends ChangeNotifier {
       );
       if (version != _reportVersion || stationId != selectedStationId) return;
       report = loaded;
+      if (pageNumber == 1 || refresh) {
+        loadedTransactions
+          ..clear()
+          ..addAll(loaded.transactions);
+      } else {
+        loadedTransactions.addAll(loaded.transactions);
+      }
     } on ApiException catch (error) {
       if (version == _reportVersion) reportError = error;
     } finally {
@@ -179,6 +192,10 @@ class MaterialReportController extends ChangeNotifier {
 
   Future<void> refresh() =>
       loadReport(pageNumber: report?.pageNumber ?? 1, refresh: true);
+
+  Future<void> loadMore() => canLoadMore
+      ? loadReport(pageNumber: report!.pageNumber + 1)
+      : Future<void>.value();
 
   Future<void> _loadCompanies() async {
     final version = ++_scopeVersion;
@@ -243,6 +260,7 @@ class MaterialReportController extends ChangeNotifier {
   void _clearReport() {
     ++_reportVersion;
     report = null;
+    loadedTransactions.clear();
     reportError = null;
     validationMessage = null;
     isLoadingReport = false;

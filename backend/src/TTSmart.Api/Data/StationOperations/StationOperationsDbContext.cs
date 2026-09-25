@@ -39,6 +39,7 @@ public sealed class StationOperationsDbContext(DbContextOptions<StationOperation
         order.ToTable("DATHANG", "dbo");
         order.HasKey(item => item.OrderId);
         order.Property(item => item.OrderId).HasColumnName("MADATHANG");
+        order.Property(item => item.SourceId).HasColumnName("ID").HasColumnType("uniqueidentifier");
         order.Property(item => item.CustomerId).HasColumnName("MAKH");
         order.Property(item => item.EmployeeId).HasColumnName("MANV");
         order.Property(item => item.ProjectId).HasColumnName("MADUAN");

@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/mix_design_models.dart';
+import '../../../../core/ui/app_palette.dart';
 
 class MixDesignOverviewCard extends StatelessWidget {
   const MixDesignOverviewCard({
@@ -26,24 +28,24 @@ class MixDesignOverviewCard extends StatelessWidget {
           runSpacing: 10,
           children: [
             _OverviewMetric(
-              icon: Icons.factory_outlined,
+              icon: LucideIcons.factory,
               label: 'Trạm đang xem',
               value: stationName,
-              accent: AppColors.brandBlue,
+              accent: context.palette.primary,
             ),
             _OverviewMetric(
-              icon: Icons.science_outlined,
+              icon: LucideIcons.flaskConical,
               label: 'Tổng cấp phối',
               value: '${page.totalCount}',
-              accent: AppColors.brandTeal,
+              accent: context.palette.secondary,
             ),
             _OverviewMetric(
-              icon: Icons.table_rows_outlined,
+              icon: LucideIcons.rows3,
               label: 'Trang hiện tại',
               value: page.totalPages == 0
                   ? '0 / 0'
                   : '${page.pageNumber} / ${page.totalPages}',
-              accent: const Color(0xFF7C3AED),
+              accent: context.palette.violet,
             ),
           ],
         ),
@@ -139,93 +141,18 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
   bool _syncing = false;
 
   List<_MixDesignColumn> get _columns => <_MixDesignColumn>[
+    for (final material in widget.page.materialColumns)
+      _MixDesignColumn(
+        material.materialName,
+        96,
+        (item) =>
+            formatMixDesignNumber(item.quantityForColumn(material.columnKey)),
+        material: true,
+        tooltip: '${material.category} · cửa ${material.slotNumber}',
+      ),
     _MixDesignColumn('Cường độ', 94, (item) => '${item.strength}'),
     _MixDesignColumn('Cốt liệu max', 108, (item) => '${item.maxAggregate}'),
     _MixDesignColumn('Độ sụt', 96, (item) => item.slump),
-    _MixDesignColumn(
-      'Cát 1',
-      88,
-      (item) => formatMixDesignNumber(item.sand1),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Cát 2',
-      88,
-      (item) => formatMixDesignNumber(item.sand2),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Đá 1',
-      88,
-      (item) => formatMixDesignNumber(item.stone1),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Đá 2',
-      88,
-      (item) => formatMixDesignNumber(item.stone2),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Đá 3',
-      88,
-      (item) => formatMixDesignNumber(item.stone3),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 1',
-      88,
-      (item) => formatMixDesignNumber(item.cement1),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 2',
-      88,
-      (item) => formatMixDesignNumber(item.cement2),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 3',
-      88,
-      (item) => formatMixDesignNumber(item.cement3),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Xi 4',
-      88,
-      (item) => formatMixDesignNumber(item.cement4),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'Nước',
-      88,
-      (item) => formatMixDesignNumber(item.water),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'SIKA',
-      88,
-      (item) => formatMixDesignNumber(item.sika),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'TULOG',
-      92,
-      (item) => formatMixDesignNumber(item.tulog),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'SIKAROAD',
-      104,
-      (item) => formatMixDesignNumber(item.sikaroad),
-      material: true,
-    ),
-    _MixDesignColumn(
-      'BIFI',
-      88,
-      (item) => formatMixDesignNumber(item.bifi),
-      material: true,
-    ),
   ];
 
   @override
@@ -302,7 +229,10 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
     var longestTextWidth = 0.0;
     for (final value in values) {
       final painter = TextPainter(
-        text: TextSpan(text: value, style: _gradeTextStyle),
+        text: TextSpan(
+          text: value,
+          style: _gradeTextStyle.copyWith(fontFamily: AppTheme.fontFamily),
+        ),
         textDirection: textDirection,
         textScaler: textScaler,
         maxLines: 1,
@@ -452,6 +382,7 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
     double width, {
     Key? key,
     bool material = false,
+    String? tooltip,
   }) {
     return Container(
       key: key,
@@ -461,16 +392,19 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: material
-            ? AppColors.brandTeal.withValues(alpha: 0.1)
-            : AppColors.brandBlue.withValues(alpha: 0.08),
-        border: const Border(right: BorderSide(color: AppColors.border)),
+            ? context.palette.secondary.withValues(alpha: 0.1)
+            : context.palette.primary.withValues(alpha: 0.08),
+        border: Border(right: BorderSide(color: context.palette.border)),
       ),
-      child: Text(
-        label,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+      child: Tooltip(
+        message: tooltip ?? label,
+        child: Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        ),
       ),
     );
   }
@@ -488,10 +422,12 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
       alignment: alignment,
       padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
-        color: rowIndex.isEven ? Colors.white : const Color(0xFFFAFBFC),
-        border: const Border(
-          right: BorderSide(color: AppColors.border),
-          bottom: BorderSide(color: AppColors.border),
+        color: rowIndex.isEven
+            ? context.palette.surface
+            : context.palette.surfaceMuted,
+        border: Border(
+          right: BorderSide(color: context.palette.border),
+          bottom: BorderSide(color: context.palette.border),
         ),
       ),
       child: Text(
@@ -499,7 +435,7 @@ class _MixDesignResultsTableState extends State<MixDesignResultsTable> {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: emphasized ? AppColors.brandBlue : const Color(0xFF1F2937),
+          color: emphasized ? context.palette.primary : context.palette.text1,
           fontSize: 12,
           fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
         ),
@@ -547,19 +483,19 @@ class MixDesignPagination extends StatelessWidget {
               key: const ValueKey<String>('mix-design-page-first'),
               tooltip: 'Trang đầu',
               onPressed: canGoFirst ? onFirst : null,
-              icon: const Icon(Icons.first_page),
+              icon: const Icon(LucideIcons.chevronsLeft),
             ),
             IconButton(
               key: const ValueKey<String>('mix-design-page-previous'),
               tooltip: 'Trang trước',
               onPressed: canGoPrevious ? onPrevious : null,
-              icon: const Icon(Icons.chevron_left),
+              icon: const Icon(LucideIcons.chevronLeft),
             ),
             Container(
               constraints: const BoxConstraints(minWidth: 72),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: AppColors.brandBlue.withValues(alpha: 0.08),
+                color: context.palette.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -572,13 +508,13 @@ class MixDesignPagination extends StatelessWidget {
               key: const ValueKey<String>('mix-design-page-next'),
               tooltip: 'Trang sau',
               onPressed: canGoNext ? onNext : null,
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(LucideIcons.chevronRight),
             ),
             IconButton(
               key: const ValueKey<String>('mix-design-page-last'),
               tooltip: 'Trang cuối',
               onPressed: canGoLast ? onLast : null,
-              icon: const Icon(Icons.last_page),
+              icon: const Icon(LucideIcons.chevronsRight),
             ),
           ],
         ),
@@ -593,16 +529,29 @@ class _MixDesignColumn {
     this.width,
     this.value, {
     this.material = false,
+    this.tooltip,
   });
 
   final String label;
   final double width;
   final String Function(MixDesignItem item) value;
   final bool material;
+  final String? tooltip;
 }
 
+/// "1.080" / "3,85" / "500,25" (Vietnamese grouping, up to 2 decimals).
 String formatMixDesignNumber(num value) {
   var text = value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
   if (text.isEmpty || text == '-0') text = '0';
-  return text.replaceAll('.', ',');
+  final negative = text.startsWith('-');
+  if (negative) text = text.substring(1);
+  final parts = text.split('.');
+  final integer = parts.first;
+  final buffer = StringBuffer(negative ? '-' : '');
+  for (var index = 0; index < integer.length; index++) {
+    if (index > 0 && (integer.length - index) % 3 == 0) buffer.write('.');
+    buffer.write(integer[index]);
+  }
+  if (parts.length > 1) buffer.write(',${parts[1]}');
+  return buffer.toString();
 }

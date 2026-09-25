@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class AccessStatusChip extends StatelessWidget {
   const AccessStatusChip({super.key, required this.isActive});
@@ -17,11 +18,11 @@ class AccessStatusChip extends StatelessWidget {
     return Chip(
       visualDensity: VisualDensity.compact,
       avatar: Icon(
-        isActive ? Icons.check_circle_outline : Icons.pause_circle_outline,
+        isActive ? LucideIcons.circleCheck : LucideIcons.circlePause,
         size: 18,
         color: foreground,
       ),
-      label: Text(isActive ? 'Hiệu lực' : 'Ngừng hiệu lực'),
+      label: Text(isActive ? 'Đang dùng' : 'Đang tắt'),
       labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
       backgroundColor: background,
       side: BorderSide.none,

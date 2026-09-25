@@ -115,6 +115,36 @@ void main() {
     expect(callbackCount, 1);
   });
 
+  test(
+    '403 on a protected API invokes the permission refresh callback',
+    () async {
+      var callbackCount = 0;
+      final client = ApiClient(
+        baseUri: Uri.parse('http://localhost:5052'),
+        timeout: const Duration(seconds: 1),
+        httpClient: MockClient(
+          (_) async => http.Response.bytes(
+            utf8.encode('{"status":403,"detail":"Forbidden"}'),
+            403,
+          ),
+        ),
+      )..accessToken = 'token-test';
+      client.onForbidden = () async => callbackCount++;
+
+      await expectLater(
+        client.get('/api/dashboard'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.type,
+            'type',
+            ApiFailureType.forbidden,
+          ),
+        ),
+      );
+      expect(callbackCount, 1);
+    },
+  );
+
   test('multipart request keeps auth and file content type', () async {
     final client = ApiClient(
       baseUri: Uri.parse('http://localhost:5052'),
