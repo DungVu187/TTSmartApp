@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
 import 'package:ttsmart_mobile/core/network/api_exception.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/access_management/data/models/permission_models.dart';
@@ -114,8 +115,9 @@ class _FakeReportsRepository implements ReportsRepository {
 
   @override
   Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  ) async => const OrderStatisticsFilterOptions(
+    OrderStatisticsFilterQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => const OrderStatisticsFilterOptions(
     vehiclePlates: ['51A-12345', '30B-67890'],
     customerNames: ['Khách hàng A', 'Khách hàng B'],
     concreteGradeNames: ['M250', 'M300'],
@@ -123,7 +125,10 @@ class _FakeReportsRepository implements ReportsRepository {
   );
 
   @override
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) {
+  Future<OrderStatisticsPage> search(
+    OrderStatisticsQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) {
     searchQueries.add(query);
     final pending = pendingSearch;
     if (pending != null) return pending.future;

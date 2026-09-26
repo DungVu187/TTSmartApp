@@ -1,5 +1,6 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../models/order_report_models.dart';
 
@@ -11,9 +12,13 @@ abstract interface class OrderReportRepository {
     int? companyId,
     required DateTime fromDate,
     required DateTime toDate,
+    ApiRequestCancellation? cancellation,
   });
 
-  Future<OrderReportPage> search(OrderReportQuery query);
+  Future<OrderReportPage> search(
+    OrderReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  });
 }
 
 class ApiOrderReportRepository implements OrderReportRepository {
@@ -44,6 +49,7 @@ class ApiOrderReportRepository implements OrderReportRepository {
     int? companyId,
     required DateTime fromDate,
     required DateTime toDate,
+    ApiRequestCancellation? cancellation,
   }) async {
     _validateOptionalId(branchId, 'branchId');
     _validateOptionalId(companyId, 'companyId');
@@ -62,6 +68,7 @@ class ApiOrderReportRepository implements OrderReportRepository {
         'from': formatVietnamDateTimeOffset(fromDate),
         'to': formatVietnamDateTimeOffset(toDate),
       },
+      cancellation: cancellation,
     );
     return _parse(
       () => requireJsonList(
@@ -72,7 +79,10 @@ class ApiOrderReportRepository implements OrderReportRepository {
   }
 
   @override
-  Future<OrderReportPage> search(OrderReportQuery query) async {
+  Future<OrderReportPage> search(
+    OrderReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     _validateOptionalId(query.branchId, 'branchId');
     _validateOptionalId(query.companyId, 'companyId');
     if (!query.fromDate.isBefore(query.toDate)) {
@@ -107,6 +117,7 @@ class ApiOrderReportRepository implements OrderReportRepository {
     final response = await _apiClient.get(
       '/api/order-reports',
       query: query.toQueryParameters(),
+      cancellation: cancellation,
     );
     return _parse(() => OrderReportPage.fromJson(response));
   }

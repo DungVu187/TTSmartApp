@@ -15,3 +15,20 @@ class ApiRequestCancellation {
 class ApiRequestCancelledException implements Exception {
   const ApiRequestCancelledException();
 }
+
+/// The newest request of one kind. Starting the next one, or leaving the
+/// screen, cancels it: the connection closes and the API stops the query on
+/// the station database instead of finishing an answer nobody will read.
+class LatestApiRequest {
+  ApiRequestCancellation? _current;
+
+  ApiRequestCancellation next() {
+    _current?.cancel();
+    return _current = ApiRequestCancellation();
+  }
+
+  void cancel() {
+    _current?.cancel();
+    _current = null;
+  }
+}

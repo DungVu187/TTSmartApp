@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../company_management/data/models/company_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../data/models/material_report_models.dart';
@@ -67,6 +68,8 @@ class MaterialReportController extends ChangeNotifier {
   var _scopeVersion = 0;
   var _reportVersion = 0;
   var _voucherVersion = 0;
+  final _reportRequest = LatestApiRequest();
+  final _voucherRequest = LatestApiRequest();
   var _initialized = false;
   var _disposed = false;
 
@@ -200,6 +203,7 @@ class MaterialReportController extends ChangeNotifier {
     }
 
     final version = ++_reportVersion;
+    final cancellation = _reportRequest.next();
     validationMessage = null;
     reportError = null;
     if (refresh && report != null) {
@@ -218,6 +222,7 @@ class MaterialReportController extends ChangeNotifier {
           MaterialGroupFilter.all,
           1,
         ),
+        cancellation: cancellation,
       );
       if (version != _reportVersion || stationId != selectedStationId) return;
       report = loaded;
@@ -226,6 +231,7 @@ class MaterialReportController extends ChangeNotifier {
       if (_vouchersFromOverview) {
         // Drops a vouchers request still running for an older filter.
         ++_voucherVersion;
+        _voucherRequest.cancel();
         isLoadingVouchers = false;
         isLoadingMoreVouchers = false;
         _takeVouchers(loaded, page: 1, append: false);
@@ -235,6 +241,8 @@ class MaterialReportController extends ChangeNotifier {
         await _loadVouchers();
         return;
       }
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (error) {
       if (version == _reportVersion) reportError = error;
     } finally {
@@ -253,6 +261,7 @@ class MaterialReportController extends ChangeNotifier {
     final stationId = selectedStationId!;
     final companyId = isAdmin ? selectedCompanyId : null;
     final version = _voucherVersion;
+    final cancellation = _voucherRequest.next();
     final page = _voucherPage + 1;
     isLoadingMoreVouchers = true;
     voucherError = null;
@@ -260,9 +269,12 @@ class MaterialReportController extends ChangeNotifier {
     try {
       final loaded = await repository.getReport(
         _query(stationId, companyId, voucherType, voucherGroup, page),
+        cancellation: cancellation,
       );
       if (version != _voucherVersion) return;
       _takeVouchers(loaded, page: page, append: true);
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (error) {
       if (version == _voucherVersion) voucherError = error;
     } finally {
@@ -279,6 +291,7 @@ class MaterialReportController extends ChangeNotifier {
 
   Future<void> _loadVouchers() async {
     final version = ++_voucherVersion;
+    _voucherRequest.cancel();
     final overview = report;
     if (overview == null) return;
     voucherError = null;
@@ -296,12 +309,16 @@ class MaterialReportController extends ChangeNotifier {
     voucherCount = 0;
     _voucherPage = 0;
     _notify();
+    final cancellation = _voucherRequest.next();
     try {
       final loaded = await repository.getReport(
         _query(stationId, companyId, voucherType, voucherGroup, 1),
+        cancellation: cancellation,
       );
       if (version != _voucherVersion) return;
       _takeVouchers(loaded, page: 1, append: false);
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (error) {
       if (version == _voucherVersion) voucherError = error;
     } finally {
@@ -407,6 +424,8 @@ class MaterialReportController extends ChangeNotifier {
   void _clearReport() {
     ++_reportVersion;
     ++_voucherVersion;
+    _reportRequest.cancel();
+    _voucherRequest.cancel();
     report = null;
     reportError = null;
     validationMessage = null;
@@ -434,6 +453,8 @@ class MaterialReportController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _reportRequest.cancel();
+    _voucherRequest.cancel();
     super.dispose();
   }
 }

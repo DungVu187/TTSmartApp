@@ -1,12 +1,16 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../models/material_report_models.dart';
 
 abstract interface class MaterialReportRepository {
   Future<List<MaterialReportStation>> getStations({int? companyId});
 
-  Future<MaterialReport> getReport(MaterialReportQuery query);
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  });
 }
 
 class ApiMaterialReportRepository implements MaterialReportRepository {
@@ -32,7 +36,10 @@ class ApiMaterialReportRepository implements MaterialReportRepository {
   }
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     _validateOptionalId(query.companyId, 'companyId');
     _validateOptionalId(query.branchId, 'branchId');
     if (query.from.isAfter(query.to)) {
@@ -48,6 +55,7 @@ class ApiMaterialReportRepository implements MaterialReportRepository {
     final response = await _apiClient.get(
       '/api/material-reports',
       query: query.toQueryParameters(),
+      cancellation: cancellation,
       requestTimeout: _reportRequestTimeout,
     );
     return _parse(() => MaterialReport.fromJson(response));

@@ -1,6 +1,7 @@
 import '../../../../core/models/time_range_preset.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../../../../core/utils/vietnam_time.dart';
 import '../models/dashboard_models.dart';
@@ -11,6 +12,7 @@ abstract interface class HomeRepository {
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
+    ApiRequestCancellation? cancellation,
   });
 }
 
@@ -36,6 +38,7 @@ class ApiHomeRepository implements HomeRepository {
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
+    ApiRequestCancellation? cancellation,
   }) async {
     final range = _rangeFor(timeRange, _now());
     final response = await _apiClient.get(
@@ -47,6 +50,7 @@ class ApiHomeRepository implements HomeRepository {
         'to': formatVietnamIsoOffset(range.to),
         'interval': timeRange.usesHourlyBuckets ? 'hour' : 'day',
       },
+      cancellation: cancellation,
     );
     return _parse(() => _snapshotFromJson(response, scope, timeRange));
   }

@@ -3,6 +3,7 @@
 // import vouchers, so every door is below zero and there are no prices.
 import 'dart:async';
 
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/models/material_report_models.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
 
@@ -147,7 +148,10 @@ class VisualMaterialRepository implements MaterialReportRepository {
       ];
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     if (pending) return Completer<MaterialReport>().future;
     final from = emptyPeriod
         ? DateTime.utc(2026, 9, 24, 17)

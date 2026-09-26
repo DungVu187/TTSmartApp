@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/models/material_report_models.dart';
@@ -26,7 +27,10 @@ class _FakeMaterialReportRepository implements MaterialReportRepository {
       ];
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     queries.add(query);
     return _report();
   }

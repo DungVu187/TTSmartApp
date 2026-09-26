@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../company_management/data/models/company_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../data/models/report_models.dart';
@@ -68,6 +69,8 @@ class ReportsController extends ChangeNotifier {
   int _scopeRequestVersion = 0;
   int _optionsRequestVersion = 0;
   int _searchRequestVersion = 0;
+  final _optionsRequest = LatestApiRequest();
+  final _searchRequest = LatestApiRequest();
   int? _failedPageNumber;
   bool _failedAppend = false;
 
@@ -261,13 +264,17 @@ class ReportsController extends ChangeNotifier {
     if (result != null && totalPages > 0 && pageNumber > totalPages) return;
     final previousResult = result;
     final requestVersion = ++_searchRequestVersion;
+    final cancellation = _searchRequest.next();
     isSearching = true;
     resultErrorMessage = null;
     _failedPageNumber = null;
     _failedAppend = false;
     _notify();
     try {
-      final page = await _repository.search(_buildQuery(pageNumber));
+      final page = await _repository.search(
+        _buildQuery(pageNumber),
+        cancellation: cancellation,
+      );
       if (requestVersion == _searchRequestVersion) {
         result = page;
         if (append) {
@@ -278,6 +285,8 @@ class ReportsController extends ChangeNotifier {
             ..addAll(page.items);
         }
       }
+    } on ApiRequestCancelledException {
+      return;
     } catch (error) {
       if (requestVersion == _searchRequestVersion) {
         result = previousResult;
@@ -396,6 +405,7 @@ class ReportsController extends ChangeNotifier {
     if (selectedStationId == null) return;
     if (usesDefaultTimeRange) toDate = _now();
     final requestVersion = ++_optionsRequestVersion;
+    final cancellation = _optionsRequest.next();
     isLoadingOptions = true;
     _notify();
     try {
@@ -406,9 +416,12 @@ class ReportsController extends ChangeNotifier {
           companyId: selectedCompanyId,
           branchId: selectedStationId,
         ),
+        cancellation: cancellation,
       );
       if (requestVersion != _optionsRequestVersion) return;
       filterOptions = options;
+    } on ApiRequestCancelledException {
+      return;
     } catch (error) {
       if (requestVersion != _optionsRequestVersion) return;
       filterOptions = OrderStatisticsFilterOptions.empty;
@@ -430,6 +443,7 @@ class ReportsController extends ChangeNotifier {
 
   void _clearFilterOptions() {
     _optionsRequestVersion++;
+    _optionsRequest.cancel();
     isLoadingOptions = false;
     filterOptions = OrderStatisticsFilterOptions.empty;
   }
@@ -438,6 +452,7 @@ class ReportsController extends ChangeNotifier {
     // Invalidates any in-flight search, so a new one may start right away
     // (phones search as soon as a scope chip changes).
     _searchRequestVersion++;
+    _searchRequest.cancel();
     isSearching = false;
     result = null;
     loadedItems.clear();
@@ -478,6 +493,8 @@ class ReportsController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _optionsRequest.cancel();
+    _searchRequest.cancel();
     super.dispose();
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/company_management/data/models/company_models.dart';
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
 import 'package:ttsmart_mobile/features/order_reporting/data/models/order_report_models.dart';
@@ -28,6 +29,7 @@ class _FakeOrderReportRepository implements OrderReportRepository {
     int? companyId,
     required DateTime fromDate,
     required DateTime toDate,
+    ApiRequestCancellation? cancellation,
   }) async {
     employeeRequests.add((
       branchId: branchId,
@@ -39,7 +41,10 @@ class _FakeOrderReportRepository implements OrderReportRepository {
   }
 
   @override
-  Future<OrderReportPage> search(OrderReportQuery query) async {
+  Future<OrderReportPage> search(
+    OrderReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     queries.add(query);
     final orderId = query.pageNumber == 1 ? 101 : 102;
     return OrderReportPage(

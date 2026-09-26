@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/models/material_report_models.dart';
 import 'package:ttsmart_mobile/features/material_reporting/data/repositories/material_report_repository.dart';
@@ -11,6 +14,10 @@ import 'package:ttsmart_mobile/features/material_reporting/presentation/widgets/
 /// 3 for any other filter.
 class _FakeMaterialReportRepository implements MaterialReportRepository {
   final queries = <MaterialReportQuery>[];
+  final cancellations = <ApiRequestCancellation?>[];
+
+  /// Holds every report until it completes, like a slow station database.
+  Completer<void>? gate;
 
   @override
   Future<List<MaterialReportStation>> getStations({int? companyId}) async =>
@@ -25,8 +32,23 @@ class _FakeMaterialReportRepository implements MaterialReportRepository {
       ];
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     queries.add(query);
+    cancellations.add(cancellation);
+    final held = gate;
+    if (held != null) {
+      await Future.any([
+        held.future,
+        if (cancellation != null) cancellation.whenCancelled,
+      ]);
+      // What ApiClient does when the request is aborted.
+      if (cancellation?.isCancelled ?? false) {
+        throw const ApiRequestCancelledException();
+      }
+    }
     final all =
         query.viewMode == MaterialViewMode.all &&
         query.materialGroup == MaterialGroupFilter.all;
@@ -140,6 +162,52 @@ void main() {
     await controller.setVoucherFilters(group: MaterialGroupFilter.all);
     expect(repository.queries, hasLength(count));
     expect(controller.vouchers, hasLength(10));
+  });
+
+  test('a new station, a new date range or leaving the screen cancels the '
+      'report still loading, so the API stops its query', () async {
+    await controller.initialize();
+    repository.gate = Completer<void>();
+    controller.selectStation(10);
+    final first = controller.loadReport();
+    await Future<void>.delayed(Duration.zero);
+    controller.selectStation(20);
+    await first;
+    expect(repository.cancellations.single!.isCancelled, isTrue);
+    expect(controller.isLoadingReport, isFalse);
+    expect(controller.reportError, isNull);
+
+    final second = controller.loadReport();
+    await Future<void>.delayed(Duration.zero);
+    controller.setDateRange(DateTime(2026, 8, 1), DateTime(2026, 8, 2));
+    await second;
+    expect(repository.cancellations.last!.isCancelled, isTrue);
+
+    // Asking again for the same station replaces the older request too.
+    final third = controller.loadReport();
+    await Future<void>.delayed(Duration.zero);
+    final fourth = controller.loadReport();
+    await Future<void>.delayed(Duration.zero);
+    await third;
+    expect(repository.cancellations[2]!.isCancelled, isTrue);
+    repository.gate!.complete();
+    await fourth;
+    expect(repository.cancellations[3]!.isCancelled, isFalse);
+    expect(controller.report, isNotNull);
+
+    final screen = MaterialReportController(
+      repository: repository..gate = Completer<void>(),
+      companyRepository: ApiCompanyRepository(apiClient),
+      isAdmin: false,
+      now: () => DateTime(2026, 8, 14, 9),
+    );
+    await screen.initialize();
+    screen.selectStation(10);
+    final leaving = screen.loadReport();
+    await Future<void>.delayed(Duration.zero);
+    screen.dispose();
+    await leaving;
+    expect(repository.cancellations.last!.isCancelled, isTrue);
   });
 
   test('a new date range clears the report', () async {

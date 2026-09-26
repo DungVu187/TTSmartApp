@@ -6,6 +6,7 @@ import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/models/data_scope.dart';
 import 'package:ttsmart_mobile/core/models/time_range_preset.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/access_management/data/models/permission_models.dart';
@@ -128,6 +129,7 @@ class _ShellHomeRepository implements HomeRepository {
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
+    ApiRequestCancellation? cancellation,
   }) async {
     dashboardCallCount++;
     lastScope = scope;

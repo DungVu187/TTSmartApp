@@ -1,12 +1,16 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../models/mix_design_models.dart';
 
 abstract interface class MixDesignRepository {
   Future<List<MixDesignStation>> getStations({int? companyId});
 
-  Future<MixDesignPage> getMixDesigns(MixDesignQuery query);
+  Future<MixDesignPage> getMixDesigns(
+    MixDesignQuery query, {
+    ApiRequestCancellation? cancellation,
+  });
 }
 
 class ApiMixDesignRepository implements MixDesignRepository {
@@ -30,7 +34,10 @@ class ApiMixDesignRepository implements MixDesignRepository {
   }
 
   @override
-  Future<MixDesignPage> getMixDesigns(MixDesignQuery query) async {
+  Future<MixDesignPage> getMixDesigns(
+    MixDesignQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     _validateId(query.companyId, 'companyId');
     _validateId(query.stationId, 'stationId');
     if (query.pageNumber < 1) {
@@ -39,6 +46,7 @@ class ApiMixDesignRepository implements MixDesignRepository {
     final response = await _apiClient.get(
       '/api/mix-designs',
       query: query.toQueryParameters(),
+      cancellation: cancellation,
     );
     return _parse(() => MixDesignPage.fromJson(response));
   }

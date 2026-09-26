@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../models/report_models.dart';
 
@@ -58,10 +59,14 @@ abstract interface class ReportsRepository {
   Future<List<OrderStatisticsStation>> getStations({int? companyId});
 
   Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  );
+    OrderStatisticsFilterQuery query, {
+    ApiRequestCancellation? cancellation,
+  });
 
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query);
+  Future<OrderStatisticsPage> search(
+    OrderStatisticsQuery query, {
+    ApiRequestCancellation? cancellation,
+  });
 
   Future<OrderStatisticsExportFile> export(OrderStatisticsExportQuery query);
 }
@@ -88,19 +93,24 @@ class ApiReportsRepository implements ReportsRepository {
 
   @override
   Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  ) async {
+    OrderStatisticsFilterQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     _validateId(query.companyId, 'companyId');
     _validateId(query.branchId, 'branchId');
     final response = await _apiClient.get(
       '/api/order-statistics/filters',
       query: query.toQueryParameters(),
+      cancellation: cancellation,
     );
     return _parse(() => OrderStatisticsFilterOptions.fromJson(response));
   }
 
   @override
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async {
+  Future<OrderStatisticsPage> search(
+    OrderStatisticsQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     _validateId(query.companyId, 'companyId');
     _validateId(query.branchId, 'branchId');
     if (query.pageNumber < 1) {
@@ -109,6 +119,7 @@ class ApiReportsRepository implements ReportsRepository {
     final response = await _apiClient.get(
       '/api/order-statistics',
       query: query.toQueryParameters(),
+      cancellation: cancellation,
     );
     return _parse(() => OrderStatisticsPage.fromJson(response));
   }

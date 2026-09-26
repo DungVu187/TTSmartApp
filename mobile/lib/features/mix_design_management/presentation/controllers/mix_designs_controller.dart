@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../company_management/data/models/company_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../data/models/mix_design_models.dart';
@@ -34,6 +35,7 @@ class MixDesignsController extends ChangeNotifier {
 
   int _scopeRequestVersion = 0;
   int _resultRequestVersion = 0;
+  final _resultRequest = LatestApiRequest();
   bool _disposed = false;
 
   MixDesignStation? get selectedStation {
@@ -197,6 +199,7 @@ class MixDesignsController extends ChangeNotifier {
       return;
     }
     final requestVersion = ++_resultRequestVersion;
+    final cancellation = _resultRequest.next();
     final previousResult = result;
     validationMessage = null;
     resultError = null;
@@ -209,6 +212,7 @@ class MixDesignsController extends ChangeNotifier {
           stationId: stationId,
           pageNumber: pageNumber,
         ),
+        cancellation: cancellation,
       );
       if (requestVersion != _resultRequestVersion ||
           stationId != selectedStationId) {
@@ -222,6 +226,8 @@ class MixDesignsController extends ChangeNotifier {
           ..clear()
           ..addAll(page.items);
       }
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (error) {
       if (requestVersion != _resultRequestVersion) return;
       result = previousResult;
@@ -236,6 +242,7 @@ class MixDesignsController extends ChangeNotifier {
 
   void _clearResult() {
     _resultRequestVersion++;
+    _resultRequest.cancel();
     result = null;
     loadedItems.clear();
     resultError = null;
@@ -249,6 +256,7 @@ class MixDesignsController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _resultRequest.cancel();
     super.dispose();
   }
 }

@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/core/ui/app_ui.dart';
@@ -118,6 +119,7 @@ class _FakeOrderReportRepository implements OrderReportRepository {
     int? companyId,
     required DateTime fromDate,
     required DateTime toDate,
+    ApiRequestCancellation? cancellation,
   }) async {
     employeeRequests.add((
       branchId: branchId,
@@ -129,7 +131,10 @@ class _FakeOrderReportRepository implements OrderReportRepository {
   }
 
   @override
-  Future<OrderReportPage> search(OrderReportQuery query) async {
+  Future<OrderReportPage> search(
+    OrderReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     queries.add(query);
     return OrderReportPage(
       items: [

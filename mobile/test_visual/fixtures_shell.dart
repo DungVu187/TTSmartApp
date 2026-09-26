@@ -1,6 +1,7 @@
 // Sample data copied from the Figma frames (Home, Orders, Notifications).
 import 'package:ttsmart_mobile/core/models/data_scope.dart';
 import 'package:ttsmart_mobile/core/models/time_range_preset.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/home/data/models/dashboard_models.dart';
 import 'package:ttsmart_mobile/features/home/data/repositories/home_repository.dart';
 import 'package:ttsmart_mobile/features/notifications/data/models/notification_models.dart';
@@ -46,6 +47,7 @@ class VisualHomeRepository implements HomeRepository {
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
+    ApiRequestCancellation? cancellation,
   }) {
     final hourly = timeRange.usesHourlyBuckets;
     const dayValues = [
@@ -263,25 +265,28 @@ class VisualOrderReportRepository implements OrderReportRepository {
     int? companyId,
     required DateTime fromDate,
     required DateTime toDate,
+    ApiRequestCancellation? cancellation,
   }) async => const [
     OrderReportEmployee(name: 'Nguyễn Văn A'),
     OrderReportEmployee(name: 'Trần Thị Lan'),
   ];
 
   @override
-  Future<OrderReportPage> search(OrderReportQuery query) async =>
-      OrderReportPage(
-        items: _items,
-        pageNumber: 1,
-        pageSize: 10,
-        totalCount: 128,
-        totalPages: 1,
-        totalOrderedVolume: 3940,
-        totalProducedVolume: 3612,
-        stationSummaries: const [],
-        isPartial: false,
-        successfulStationCount: 1,
-        unavailableStationCount: 0,
-        unavailableStations: const [],
-      );
+  Future<OrderReportPage> search(
+    OrderReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => OrderReportPage(
+    items: _items,
+    pageNumber: 1,
+    pageSize: 10,
+    totalCount: 128,
+    totalPages: 1,
+    totalOrderedVolume: 3940,
+    totalProducedVolume: 3612,
+    stationSummaries: const [],
+    isPartial: false,
+    successfulStationCount: 1,
+    unavailableStationCount: 0,
+    unavailableStations: const [],
+  );
 }
