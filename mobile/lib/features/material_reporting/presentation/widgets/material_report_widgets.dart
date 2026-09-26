@@ -795,59 +795,113 @@ class MaterialVoucherRow extends StatelessWidget {
   }
 }
 
-/// Shown while the report is computed: it adds up the whole mixing history
-/// and can take a few seconds, so say so (a lone spinner looks stuck).
+/// Shown while the report is computed, with what is going on (a lone
+/// spinner looks stuck). The first time a station is looked at, its whole
+/// mixing history is read: a few minutes on a large station, with a progress.
 class MaterialLoadingCard extends StatelessWidget {
-  const MaterialLoadingCard({super.key});
+  const MaterialLoadingCard({super.key, this.preparingPercent});
+
+  /// Set while the station's history is read for the first time.
+  final int? preparingPercent;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final percent = preparingPercent;
+    final bodyStyle = TextStyle(
+      color: p.text2,
+      fontSize: 14,
+      height: 20 / 14,
+      fontWeight: FontWeight.w500,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
           liveRegion: true,
           child: Container(
+            key: ValueKey<String>(
+              percent == null ? 'material-loading' : 'material-preparing',
+            ),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: p.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: p.border),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox.square(
-                  dimension: 26,
-                  child: CircularProgressIndicator(strokeWidth: 3),
+                Row(
+                  children: [
+                    const SizedBox.square(
+                      dimension: 26,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            percent == null
+                                ? 'Đang tính tồn kho…'
+                                : 'Đang tổng hợp dữ liệu trạm',
+                            style: TextStyle(
+                              color: p.text1,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            percent == null
+                                ? 'Thường chỉ mất vài giây.'
+                                : 'Lần đầu xem trạm này nên cần đọc toàn bộ '
+                                      'lịch sử trộn, có thể mất vài phút. '
+                                      'Lần sau sẽ mở ngay.',
+                            style: bodyStyle,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                if (percent != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      Text(
-                        'Đang tính tồn kho…',
-                        style: TextStyle(
-                          color: p.text1,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: percent / 100,
+                            minHeight: 8,
+                            color: p.primary,
+                            backgroundColor: p.surfaceMuted,
+                            semanticsLabel: 'Tiến độ tổng hợp',
+                            semanticsValue: '$percent%',
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(width: 10),
                       Text(
-                        'Cần cộng toàn bộ lịch sử trộn của trạm nên có thể '
-                        'mất vài giây.',
+                        '$percent%',
                         style: TextStyle(
-                          color: p.text2,
+                          color: p.text1,
                           fontSize: 14,
-                          height: 20 / 14,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Có thể rời màn hình, hệ thống vẫn tổng hợp tiếp.',
+                    style: bodyStyle.copyWith(fontSize: 13, height: 18 / 13),
+                  ),
+                ],
               ],
             ),
           ),

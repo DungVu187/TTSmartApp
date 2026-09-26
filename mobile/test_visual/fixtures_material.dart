@@ -127,7 +127,14 @@ final _scaleImport = MaterialTransaction(
 );
 
 class VisualMaterialRepository implements MaterialReportRepository {
-  VisualMaterialRepository({this.emptyPeriod = false, this.pending = false});
+  VisualMaterialRepository({
+    this.emptyPeriod = false,
+    this.pending = false,
+    this.preparingPercent,
+  });
+
+  /// The API still reads the station's history for the first time.
+  final int? preparingPercent;
 
   /// 25/09 only: no mix finished and no voucher that day.
   final bool emptyPeriod;
@@ -153,6 +160,10 @@ class VisualMaterialRepository implements MaterialReportRepository {
     ApiRequestCancellation? cancellation,
   }) async {
     if (pending) return Completer<MaterialReport>().future;
+    final preparing = preparingPercent;
+    if (preparing != null) {
+      throw MaterialReportPreparing(progressPercent: preparing);
+    }
     final from = emptyPeriod
         ? DateTime.utc(2026, 9, 24, 17)
         : DateTime.utc(2026, 8, 31, 17);

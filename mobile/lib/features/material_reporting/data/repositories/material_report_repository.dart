@@ -4,6 +4,14 @@ import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../models/material_report_models.dart';
 
+/// The API is still reading the station's mixing history for the first time
+/// (a few minutes on a large station, once); ask again a few seconds later.
+class MaterialReportPreparing implements Exception {
+  const MaterialReportPreparing({required this.progressPercent});
+
+  final int progressPercent;
+}
+
 abstract interface class MaterialReportRepository {
   Future<List<MaterialReportStation>> getStations({int? companyId});
 
@@ -58,6 +66,12 @@ class ApiMaterialReportRepository implements MaterialReportRepository {
       cancellation: cancellation,
       requestTimeout: _reportRequestTimeout,
     );
+    if (response is Map<String, dynamic> && response['status'] == 'preparing') {
+      final progress = response['progressPercent'];
+      throw MaterialReportPreparing(
+        progressPercent: progress is num ? progress.round().clamp(0, 99) : 0,
+      );
+    }
     return _parse(() => MaterialReport.fromJson(response));
   }
 

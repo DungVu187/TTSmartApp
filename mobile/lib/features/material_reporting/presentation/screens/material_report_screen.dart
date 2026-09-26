@@ -161,7 +161,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
         const SizedBox(height: 12),
         if (report == null) ...[
           if (controller.isLoadingReport)
-            const MaterialLoadingCard()
+            MaterialLoadingCard(preparingPercent: controller.preparingPercent)
           else if (controller.isLoadingScope)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 64),

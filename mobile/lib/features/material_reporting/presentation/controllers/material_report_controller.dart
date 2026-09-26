@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_exception.dart';
@@ -14,14 +16,19 @@ import '../widgets/material_units.dart';
 /// stock and chart tabs, the material details (its "Xuất tổng" row gives the
 /// export of the period per material) and the first vouchers. Switching
 /// quantity / value, the chart group and the display units only changes what
-/// is shown: the API returns every number at once and takes a few seconds.
-/// Only the vouchers tab asks again, for another type or group or page.
+/// is shown: the API returns every number at once. Only the vouchers tab asks
+/// again, for another type or group or page.
+///
+/// The first time a station is looked at, the API reads its mixing history in
+/// the background and answers "preparing" with a progress: the screen says so
+/// and asks again every few seconds until the report is there.
 class MaterialReportController extends ChangeNotifier {
   MaterialReportController({
     required this.repository,
     required this.companyRepository,
     required this.isAdmin,
     DateTime Function()? now,
+    this.preparingPollDelay = const Duration(seconds: 3),
   }) : _now = now ?? DateTime.now {
     final current = _now();
     from = DateTime(current.year, current.month);
@@ -32,6 +39,9 @@ class MaterialReportController extends ChangeNotifier {
   final CompanyRepository companyRepository;
   final bool isAdmin;
   final DateTime Function() _now;
+
+  /// How long to wait before asking again while the station is prepared.
+  final Duration preparingPollDelay;
 
   final List<CompanyResponse> companies = <CompanyResponse>[];
   final List<MaterialReportStation> stations = <MaterialReportStation>[];
@@ -49,6 +59,9 @@ class MaterialReportController extends ChangeNotifier {
   bool isLoadingScope = false;
   bool isLoadingReport = false;
   bool isRefreshing = false;
+
+  /// Progress of the first read of the station's history, while it runs.
+  int? preparingPercent;
 
   // Display only.
   MaterialValueMode valueMode = MaterialValueMode.quantity;
@@ -70,6 +83,7 @@ class MaterialReportController extends ChangeNotifier {
   var _voucherVersion = 0;
   final _reportRequest = LatestApiRequest();
   final _voucherRequest = LatestApiRequest();
+  Timer? _preparingPoll;
   var _initialized = false;
   var _disposed = false;
 
@@ -204,6 +218,7 @@ class MaterialReportController extends ChangeNotifier {
 
     final version = ++_reportVersion;
     final cancellation = _reportRequest.next();
+    _preparingPoll?.cancel();
     validationMessage = null;
     reportError = null;
     if (refresh && report != null) {
@@ -226,6 +241,7 @@ class MaterialReportController extends ChangeNotifier {
       );
       if (version != _reportVersion || stationId != selectedStationId) return;
       report = loaded;
+      preparingPercent = null;
       isLoadingReport = false;
       isRefreshing = false;
       if (_vouchersFromOverview) {
@@ -243,10 +259,24 @@ class MaterialReportController extends ChangeNotifier {
       }
     } on ApiRequestCancelledException {
       return;
+    } on MaterialReportPreparing catch (preparing) {
+      if (version != _reportVersion) return;
+      // Stays "loading" (or refreshing the report on screen) until it is there.
+      preparingPercent = preparing.progressPercent;
+      _preparingPoll = Timer(preparingPollDelay, () {
+        if (!_disposed && version == _reportVersion) {
+          loadReport(refresh: report != null);
+        }
+      });
+      _notify();
+      return;
     } on ApiException catch (error) {
-      if (version == _reportVersion) reportError = error;
-    } finally {
       if (version == _reportVersion) {
+        reportError = error;
+        preparingPercent = null;
+      }
+    } finally {
+      if (version == _reportVersion && preparingPercent == null) {
         isLoadingReport = false;
         isRefreshing = false;
         _notify();
@@ -426,6 +456,8 @@ class MaterialReportController extends ChangeNotifier {
     ++_voucherVersion;
     _reportRequest.cancel();
     _voucherRequest.cancel();
+    _preparingPoll?.cancel();
+    preparingPercent = null;
     report = null;
     reportError = null;
     validationMessage = null;
@@ -455,6 +487,7 @@ class MaterialReportController extends ChangeNotifier {
     _disposed = true;
     _reportRequest.cancel();
     _voucherRequest.cancel();
+    _preparingPoll?.cancel();
     super.dispose();
   }
 }

@@ -15,18 +15,20 @@ void main() {
     WidgetTester tester, {
     bool emptyPeriod = false,
     bool pending = false,
+    int? preparingPercent,
   }) => pumpVisualScreen(
     tester,
     MaterialReportScreen(
       repository: VisualMaterialRepository(
         emptyPeriod: emptyPeriod,
         pending: pending,
+        preparingPercent: preparingPercent,
       ),
       companyRepository: VisualCompanyRepository(),
       isAdmin: false,
     ),
     admin: false,
-    settle: !pending,
+    settle: !pending && preparingPercent == null,
   );
 
   Future<void> scrollDown(WidgetTester tester, double by) async {
@@ -66,6 +68,11 @@ void main() {
   testWidgets('C05e loading', (tester) async {
     await open(tester, pending: true);
     await snap('C05e_material_loading');
+  });
+
+  testWidgets('C05f first read of the station', (tester) async {
+    await open(tester, preparingPercent: 42);
+    await snap('C05f_material_preparing');
   });
 
   testWidgets('C06 chart', (tester) async {

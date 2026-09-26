@@ -19,6 +19,10 @@ class _FakeMaterialReportRepository implements MaterialReportRepository {
   /// Holds every report until it completes, like a slow station database.
   Completer<void>? gate;
 
+  /// Answers "preparing" with these progresses first, like the API while it
+  /// reads the station's history for the first time.
+  final preparing = <int>[];
+
   @override
   Future<List<MaterialReportStation>> getStations({int? companyId}) async =>
       const [
@@ -48,6 +52,9 @@ class _FakeMaterialReportRepository implements MaterialReportRepository {
       if (cancellation?.isCancelled ?? false) {
         throw const ApiRequestCancelledException();
       }
+    }
+    if (preparing.isNotEmpty) {
+      throw MaterialReportPreparing(progressPercent: preparing.removeAt(0));
     }
     final all =
         query.viewMode == MaterialViewMode.all &&
@@ -208,6 +215,58 @@ void main() {
     screen.dispose();
     await leaving;
     expect(repository.cancellations.last!.isCancelled, isTrue);
+  });
+
+  test('while the station is prepared the screen shows the progress and asks '
+      'again until the report is there', () async {
+    final polling = MaterialReportController(
+      repository: repository,
+      companyRepository: ApiCompanyRepository(apiClient),
+      isAdmin: false,
+      now: () => DateTime(2026, 8, 14, 9),
+      preparingPollDelay: Duration.zero,
+    );
+    addTearDown(polling.dispose);
+    await polling.initialize();
+    polling.selectStation(10);
+    repository.preparing.addAll([12, 57]);
+    final seen = <int?>[];
+    polling.addListener(() => seen.add(polling.preparingPercent));
+
+    await polling.loadReport();
+    expect(polling.preparingPercent, 12);
+    expect(polling.isLoadingReport, isTrue);
+    expect(polling.reportError, isNull);
+
+    for (var index = 0; index < 20 && polling.report == null; index++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(polling.report, isNotNull);
+    expect(polling.preparingPercent, isNull);
+    expect(polling.isLoadingReport, isFalse);
+    expect(seen, containsAllInOrder([12, 57, null]));
+    expect(repository.queries, hasLength(3));
+  });
+
+  test('a new station stops asking for the one being prepared', () async {
+    final polling = MaterialReportController(
+      repository: repository,
+      companyRepository: ApiCompanyRepository(apiClient),
+      isAdmin: false,
+      now: () => DateTime(2026, 8, 14, 9),
+      preparingPollDelay: const Duration(milliseconds: 20),
+    );
+    addTearDown(polling.dispose);
+    await polling.initialize();
+    polling.selectStation(10);
+    repository.preparing.add(30);
+    await polling.loadReport();
+    expect(polling.preparingPercent, 30);
+
+    polling.selectStation(20);
+    expect(polling.preparingPercent, isNull);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(repository.queries, hasLength(1));
   });
 
   test('a new date range clears the report', () async {
