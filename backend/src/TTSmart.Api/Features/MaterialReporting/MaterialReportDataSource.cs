@@ -78,10 +78,41 @@ public sealed class MaterialReportingOptions
     public const string SectionName = "MaterialReporting";
 
     public int CommandTimeoutSeconds { get; init; } = 120;
+
+    /// <summary>
+    /// Keep the mixing consumption of the stations (see MaterialMixingLedgerStore) instead of
+    /// adding up the whole history on the station database for every report.
+    /// </summary>
+    public bool UseMixingLedger { get; init; } = true;
+
+    /// <summary>Folder of the ledger files; by default App_Data/material-ledger of the API.</summary>
+    public string? LedgerDirectory { get; init; }
+
+    /// <summary>Mixing detail rows read per query while a ledger is built or checked.</summary>
+    public int LedgerChunkDetailRows { get; init; } = 10_000;
+
+    /// <summary>Pause between two chunk queries, so the station server keeps serving others.</summary>
+    public int LedgerChunkPauseMilliseconds { get; init; } = 200;
+
+    /// <summary>The mixes of the last days stay open: read again on every refresh.</summary>
+    public int LedgerOpenDays { get; init; } = 3;
+
+    /// <summary>A report reads the new mixes of a station at most this often.</summary>
+    public int LedgerRefreshSeconds { get; init; } = 15;
+
+    /// <summary>How long a report waits for a first build before answering "preparing".</summary>
+    public int LedgerPrepareWaitSeconds { get; init; } = 8;
+
+    /// <summary>The sealed ranges are read again after this many hours (edits of old mixes).</summary>
+    public int LedgerVerifyHours { get; init; } = 24;
+
+    /// <summary>Ledger entries kept in memory for all stations (about 16 bytes each).</summary>
+    public long LedgerMaxEntriesInMemory { get; init; } = 8_000_000;
 }
 
-public sealed class SqlMaterialReportDataSource(
+internal sealed class SqlMaterialReportDataSource(
     IStationOperationsDbContextFactory dbContextFactory,
+    IMaterialMixingLedgerStore ledgerStore,
     IOptions<MaterialReportingOptions> options,
     ILogger<SqlMaterialReportDataSource> logger) : IMaterialReportDataSource
 {
@@ -95,6 +126,11 @@ public sealed class SqlMaterialReportDataSource(
     {
         try
         {
+            // First, so a station whose history is still being read answers at once.
+            var ledger = options.Value.UseMixingLedger
+                ? await GetLedgerAsync(target, cancellationToken)
+                : null;
+
             await using var dbContext = dbContextFactory.Create(target);
             var materials = await dbContext.MixDesignMaterialSlots.AsNoTracking()
                 .OrderBy(item => item.SlotNumber)
@@ -144,16 +180,18 @@ public sealed class SqlMaterialReportDataSource(
             await MeasureStageAsync(
                 "MixingIssues",
                 target.BranchId,
-                () => LoadMixingIssuesAsync(
-                    connection,
-                    materials,
-                    imports,
-                    issues,
-                    fromLocal,
-                    toLocal,
-                    warnings,
-                    options.Value.CommandTimeoutSeconds,
-                    cancellationToken));
+                () => ledger is null
+                    ? LoadMixingIssuesAsync(
+                        connection,
+                        materials,
+                        imports,
+                        issues,
+                        fromLocal,
+                        toLocal,
+                        warnings,
+                        options.Value.CommandTimeoutSeconds,
+                        cancellationToken)
+                    : AddMixingIssues(ledger, materials, imports, issues, fromLocal, toLocal, warnings));
 
             return new MaterialReportSnapshot(
                 materials,
@@ -185,6 +223,44 @@ public sealed class SqlMaterialReportDataSource(
             logger.LogWarning(exception, "Material report schema is incompatible for branch {BranchId}", target.BranchId);
             throw new ServiceUnavailableException(UnavailableMessage, exception);
         }
+    }
+
+    private async Task<MaterialMixingLedger?> GetLedgerAsync(
+        StationDatabaseTarget target,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var ledger = await ledgerStore.GetAsync(target, cancellationToken);
+        logger.LogInformation(
+            "Material report stage completed. BranchId={BranchId}, Stage=MixingLedger, ElapsedMs={ElapsedMs:F1}",
+            target.BranchId,
+            stopwatch.Elapsed.TotalMilliseconds);
+        return ledger;
+    }
+
+    /// <summary>The mixing issues from the ledger: the rows of the bucketed query.</summary>
+    private static Task AddMixingIssues(
+        MaterialMixingLedger ledger,
+        IReadOnlyList<MaterialDefinition> materials,
+        IReadOnlyCollection<MaterialImportLot> imports,
+        ICollection<MaterialIssueEvent> issues,
+        DateTime fromLocal,
+        DateTime toLocal,
+        ICollection<string> warnings)
+    {
+        if (!ledger.HasMixingTables)
+        {
+            warnings.Add("Trạm chưa có đủ dữ liệu tiêu hao vật liệu khi trộn.");
+            return Task.CompletedTask;
+        }
+
+        var boundaries = MaterialMixingBuckets.BuildBoundaries(imports, issues.ToArray(), fromLocal, toLocal);
+        var rows = ledger.ToBucketRows(materials, boundaries, toLocal);
+        foreach (var issue in MaterialMixingBuckets.ToIssueEvents(rows, boundaries))
+        {
+            issues.Add(issue);
+        }
+        return Task.CompletedTask;
     }
 
     private async Task MeasureStageAsync(
