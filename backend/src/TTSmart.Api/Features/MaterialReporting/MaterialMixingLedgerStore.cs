@@ -70,7 +70,11 @@ internal sealed class MaterialMixingLedgerStore(
         if (ledger is null)
         {
             var build = EnsureBuild(station);
-            var wait = Task.Delay(TimeSpan.FromSeconds(Options.LedgerPrepareWaitSeconds), cancellationToken);
+            // Only the first ask waits (a small station is ready in a few seconds); once the read
+            // has run that long, the answers carry the progress at once.
+            var waited = station.BuildStartedUtc is { } started ? UtcNow - started : TimeSpan.Zero;
+            var remaining = TimeSpan.FromSeconds(Options.LedgerPrepareWaitSeconds) - waited;
+            var wait = Task.Delay(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, cancellationToken);
             if (await Task.WhenAny(build, wait) != build)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -169,6 +173,7 @@ internal sealed class MaterialMixingLedgerStore(
 
             station.Failure = null;
             station.Progress = 0;
+            station.BuildStartedUtc = null;
             station.Build = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             builds.Writer.TryWrite(station);
             return station.Build.Task;
@@ -184,6 +189,7 @@ internal sealed class MaterialMixingLedgerStore(
         }
 
         var stopwatch = Stopwatch.StartNew();
+        station.BuildStartedUtc = UtcNow;
         try
         {
             await using var session = await OpenAsync(station.Target, stoppingToken);
@@ -251,6 +257,22 @@ internal sealed class MaterialMixingLedgerStore(
         var range = await MaterialMixingLedgerSql.GetDetailRangeAsync(connection, timeout, cancellationToken);
         var after = range is { } known ? known.Min - 1 : 0;
         var chunks = new List<MaterialMixingLedgerChunk>();
+
+        // Progress by rows read: detail ids have gaps (blocks of 10 000 unused ids on real stations).
+        var totalRows = range is { } span
+            ? await MaterialMixingLedgerSql.CountDetailRowsAsync(connection, timeout, cancellationToken)
+              ?? span.Max - span.Min + 1
+            : 0;
+        var rowsRead = 0L;
+        void Advance(long rows)
+        {
+            rowsRead += rows;
+            if (trackProgress)
+            {
+                station.Progress = totalRows > 0 ? (double)rowsRead / totalRows : 0;
+            }
+        }
+
         if (range is { } history)
         {
             while (true)
@@ -263,10 +285,8 @@ internal sealed class MaterialMixingLedgerStore(
                 }
                 chunks.Add(await ReadChunkWithRetryAsync(connection, station, after, end.Value, cancellationToken));
                 after = end.Value;
-                if (trackProgress)
-                {
-                    station.Progress = (double)(after - history.Min) / Math.Max(1, history.Max - history.Min);
-                }
+                // Each chunk is exactly that many detail rows (TOP n from the last end).
+                Advance(Options.LedgerChunkDetailRows);
                 await Task.Delay(TimeSpan.FromMilliseconds(Options.LedgerChunkPauseMilliseconds), cancellationToken);
             }
         }
@@ -277,6 +297,7 @@ internal sealed class MaterialMixingLedgerStore(
         if (sealTo > after)
         {
             chunks.Add(await ReadChunkWithRetryAsync(connection, station, after, sealTo, cancellationToken));
+            Advance(details.Count(item => item.DetailId <= sealTo));
             after = sealTo;
         }
         var tail = await ReadChunkWithRetryAsync(connection, station, after, long.MaxValue, cancellationToken);
@@ -767,6 +788,7 @@ internal sealed class MaterialMixingLedgerStore(
         }
         public TaskCompletionSource? Build { get; set; }
         public double Progress { get; set; }
+        public DateTime? BuildStartedUtc { get; set; }
         public int ProgressPercent => (int)Math.Clamp(Math.Floor(Progress * 100), 0, 99);
         public DateTime LastRefreshUtc { get; set; }
         public DateTime LastAccessUtc { get; set; }

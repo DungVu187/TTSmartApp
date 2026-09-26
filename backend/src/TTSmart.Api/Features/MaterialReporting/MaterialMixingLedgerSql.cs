@@ -61,6 +61,25 @@ internal static class MaterialMixingLedgerSql
             Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture));
     }
 
+    /// <summary>
+    /// The number of mixing detail rows from the table's statistics (no scan), for the progress of
+    /// a first read; null when SQL Server does not give it.
+    /// </summary>
+    public static async Task<long?> CountDetailRowsAsync(
+        DbConnection connection,
+        int commandTimeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandTimeout = commandTimeoutSeconds;
+        command.CommandText = """
+            SELECT SUM(CAST(P.[rows] AS bigint)) FROM sys.partitions P
+            WHERE P.[object_id]=OBJECT_ID(N'dbo.LSCHITIETMETRON') AND P.[index_id] IN (0,1);
+            """;
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is null or DBNull ? null : Convert.ToInt64(value, CultureInfo.InvariantCulture);
+    }
+
     /// <summary>The detail id <paramref name="rows"/> rows after <paramref name="after"/>, or the last one.</summary>
     public static async Task<long?> FindChunkEndAsync(
         DbConnection connection,

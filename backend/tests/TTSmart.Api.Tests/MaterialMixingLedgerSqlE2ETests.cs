@@ -121,6 +121,80 @@ public sealed class MaterialMixingLedgerSqlE2ETests(ITestOutputHelper output)
         }
     }
 
+    [MaterialLedgerSqlE2EFact]
+    [Trait("Category", "SqlE2E")]
+    public async Task TienDo_TheoSoDongDaDoc_KhongTheoKhoangMa()
+    {
+        var connection = Environment.GetEnvironmentVariable(MaterialReportSqlE2EFactAttribute.StationConnectionEnvironmentVariable)!;
+        var databases = Environment.GetEnvironmentVariable(MaterialLedgerSqlE2EFactAttribute.DatabasesEnvironmentVariable)!
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        await using var factory = new LedgerFactory(connection, databases);
+        using var scope = factory.Services.CreateScope();
+        var stationFactory = scope.ServiceProvider.GetRequiredService<IStationOperationsDbContextFactory>();
+
+        for (var index = 0; index < databases.Length; index++)
+        {
+            var target = new StationDatabaseTarget(LedgerFactory.FirstBranchId + index, databases[index]);
+            var rows = await CountRowsAsync(stationFactory, target);
+            // About eight chunks, so there are several steps to see.
+            var chunkRows = (int)Math.Max(50, rows / 8);
+            var options = Options.Create(new MaterialReportingOptions
+            {
+                LedgerDirectory = Path.Combine(Path.GetTempPath(), $"ttsmart-ledger-progress-{Guid.NewGuid():N}"),
+                LedgerChunkDetailRows = chunkRows,
+                LedgerChunkPauseMilliseconds = 150,
+                LedgerPrepareWaitSeconds = 0
+            });
+            var store = new MaterialMixingLedgerStore(
+                factory.Services.GetRequiredService<IServiceScopeFactory>(),
+                options,
+                factory.Services.GetRequiredService<IHostEnvironment>(),
+                TimeProvider.System,
+                NullLogger<MaterialMixingLedgerStore>.Instance);
+            using var stop = new CancellationTokenSource();
+            var worker = store.RunAsync(stop.Token);
+            var seen = new List<int>();
+            try
+            {
+                while (true)
+                {
+                    try
+                    {
+                        Assert.NotNull(await store.GetAsync(target, CancellationToken.None));
+                        break;
+                    }
+                    catch (MaterialReportPreparingException preparing)
+                    {
+                        seen.Add(preparing.ProgressPercent);
+                        await Task.Delay(20);
+                    }
+                }
+            }
+            finally
+            {
+                await stop.CancelAsync();
+                await worker;
+                Directory.Delete(options.Value.LedgerDirectory!, recursive: true);
+            }
+
+            // Every step is "k chunks of rows read out of all rows", whatever the gaps in the ids.
+            var steps = Enumerable.Range(0, 100).Select(k => (int)Math.Min(99, Math.Floor(100d * k * chunkRows / rows))).ToHashSet();
+            output.WriteLine($"{databases[index]}: {rows} rows, chunks of {chunkRows}: {string.Join(" ", seen.Distinct())}%");
+            Assert.All(seen, percent => Assert.Contains(percent, steps));
+            Assert.Equal(seen.Order(), seen);
+            Assert.True(seen.Distinct().Count() >= 3, "Too few progress steps seen.");
+        }
+    }
+
+    private static async Task<long> CountRowsAsync(IStationOperationsDbContextFactory factory, StationDatabaseTarget target)
+    {
+        await using var dbContext = factory.Create(target);
+        await dbContext.Database.OpenConnectionAsync();
+        await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+        command.CommandText = "SELECT COUNT_BIG(*) FROM dbo.LSCHITIETMETRON;";
+        return Convert.ToInt64(await command.ExecuteScalarAsync());
+    }
+
     private async Task AssertSameAsync(
         SqlMaterialReportDataSource source,
         StationDatabaseTarget target,
