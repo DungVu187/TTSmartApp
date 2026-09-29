@@ -360,7 +360,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chọn khoảng thời gian'), findsOneWidget);
-    expect(find.text('Chọn giờ'), findsOneWidget);
+    expect(find.text('Giờ bắt đầu'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('statistics-date-hour')),
       findsOneWidget,

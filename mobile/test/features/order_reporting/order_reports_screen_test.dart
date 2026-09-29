@@ -443,7 +443,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chọn khoảng thời gian'), findsOneWidget);
-    expect(find.text('Chọn giờ'), findsOneWidget);
+    expect(find.text('Giờ bắt đầu'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('order-report-date-hour')),
       findsOneWidget,
@@ -457,6 +457,7 @@ void main() {
 
     await tester.tap(find.text('ĐẾN NGÀY'));
     await tester.pump();
+    expect(find.text('Giờ kết thúc'), findsOneWidget);
     expect(find.text('08'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('order-report-date-apply')));
