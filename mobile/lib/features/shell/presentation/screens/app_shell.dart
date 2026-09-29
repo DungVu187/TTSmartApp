@@ -9,8 +9,8 @@ import '../../../../core/ui/app_ui.dart';
 import '../../../auth/presentation/screens/account_screen.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
 import '../../../home/presentation/screens/home_screen.dart';
+import '../../../mix_design_management/presentation/screens/mix_designs_screen.dart';
 import '../../../more/presentation/screens/more_screen.dart';
-import '../../../more/presentation/screens/system_screen.dart';
 import '../../../order_reporting/presentation/screens/order_reports_screen.dart';
 import '../../../notifications/data/models/notification_models.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
@@ -21,7 +21,7 @@ import '../widgets/app_header.dart';
 import '../module_registry.dart';
 import '../../../../core/theme/app_system_ui.dart';
 
-enum _ShellTabKey { home, orders, statistics, system, more }
+enum _ShellTabKey { home, orders, statistics, mix, more }
 
 class _ShellTabDefinition {
   const _ShellTabDefinition({
@@ -143,9 +143,11 @@ class _AppShellState extends State<AppShell> {
     final orderStatisticsModule = visibleOperations
         .where((module) => module.keyName == 'order-statistics')
         .firstOrNull;
+    final mixDesignsModule = visibleOperations
+        .where((module) => module.keyName == 'mix-designs')
+        .firstOrNull;
     final canViewOrderReports = orderReportsModule != null;
     final canViewOrderStatistics = orderStatisticsModule != null;
-    final canViewSystem = visibleAccessModules(app).isNotEmpty;
     final tabs = <_ShellTabDefinition>[
       _ShellTabDefinition(
         keyName: _ShellTabKey.home,
@@ -202,14 +204,16 @@ class _AppShellState extends State<AppShell> {
             showHeading: false,
           ),
         ),
-      if (canViewSystem)
+      if (mixDesignsModule != null)
         _ShellTabDefinition(
-          keyName: _ShellTabKey.system,
-          label: 'Hệ thống',
-          // Accounts and permissions; the gear stays for Cài đặt.
-          icon: LucideIcons.userCog,
-          selectedIcon: LucideIcons.userCog,
-          child: SystemScreen(repositories: widget.repositories),
+          keyName: _ShellTabKey.mix,
+          label: 'Cấp phối',
+          icon: LucideIcons.flaskConical,
+          selectedIcon: LucideIcons.flaskConical,
+          child: MixDesignsScreen(
+            repository: widget.repositories.mixDesigns,
+            companyRepository: widget.repositories.companies,
+          ),
         ),
       const _ShellTabDefinition(
         keyName: _ShellTabKey.more,

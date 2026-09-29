@@ -7,8 +7,7 @@ import '../../../../core/ui/app_ui.dart';
 import '../../../auth/presentation/controllers/app_controller.dart';
 import '../../../shell/presentation/module_registry.dart';
 
-/// Figma "05 More (sheet)": every module that is not a bottom tab, grouped
-/// into VẬN HÀNH and TỔ CHỨC & HỆ THỐNG. Covers the bottom navigation.
+/// Figma "05 More (sheet)": modules outside the bottom tabs.
 Future<void> showMoreSheet(
   BuildContext context,
   AppFeatureRepositories repositories,
@@ -38,6 +37,8 @@ class MoreSheet extends StatelessWidget {
     final operations = _operationTiles(controller)
       ..sort((left, right) => left.order.compareTo(right.order));
     final organization = _organizationTiles(controller)
+      ..sort((left, right) => left.order.compareTo(right.order));
+    final system = _systemTiles(controller)
       ..sort((left, right) => left.order.compareTo(right.order));
     final p = context.palette;
     return SafeArea(
@@ -94,7 +95,7 @@ class MoreSheet extends StatelessWidget {
                 ),
               ],
             ),
-            if (operations.isEmpty && organization.isEmpty)
+            if (operations.isEmpty && organization.isEmpty && system.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: StateView(
@@ -111,9 +112,15 @@ class MoreSheet extends StatelessWidget {
             ],
             if (organization.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const GroupLabel('Tổ chức & hệ thống'),
+              const GroupLabel('Tổ chức'),
               const SizedBox(height: 10),
               _ModuleGrid(tiles: organization),
+            ],
+            if (system.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const GroupLabel('Hệ thống'),
+              const SizedBox(height: 10),
+              _ModuleGrid(tiles: system),
             ],
           ],
         ),
@@ -132,23 +139,9 @@ class MoreSheet extends StatelessWidget {
     final operational = visibleOperationalModules(controller);
     OperationalModule? byKey(String key) =>
         operational.where((module) => module.keyName == key).firstOrNull;
-    final mixDesigns = byKey('mix-designs');
     final weighStations = byKey('weigh-stations');
     final materials = byKey('material-reports');
     return [
-      if (mixDesigns != null)
-        _ModuleTile(
-          label: mixDesigns.label,
-          icon: LucideIcons.flaskConical,
-          tone: AppTone.info,
-          order: mixDesigns.location ?? 10,
-          open: () => openMixDesignModule(
-            context,
-            mixDesigns,
-            repositories.mixDesigns,
-            repositories.companies,
-          ),
-        ),
       if (weighStations != null)
         _ModuleTile(
           label: weighStations.label,
@@ -175,19 +168,6 @@ class MoreSheet extends StatelessWidget {
             repositories.companies,
           ),
         ),
-      for (final module in visibleStationModules(controller))
-        _ModuleTile(
-          label: module.label,
-          icon: LucideIcons.factory,
-          tone: AppTone.violet,
-          order: module.location ?? 40,
-          open: () => openStationModule(
-            context,
-            module,
-            repositories.stations,
-            repositories.companies,
-          ),
-        ),
     ];
   }
 
@@ -203,6 +183,25 @@ class MoreSheet extends StatelessWidget {
           open: () =>
               openOrganizationModule(context, module, repositories.companies),
         ),
+      for (final module in visibleStationModules(controller))
+        _ModuleTile(
+          label: module.label,
+          icon: LucideIcons.factory,
+          tone: AppTone.violet,
+          order: 20,
+          open: () => openStationModule(
+            context,
+            module,
+            repositories.stations,
+            repositories.companies,
+          ),
+        ),
+    ];
+  }
+
+  List<_ModuleTile> _systemTiles(AppController controller) {
+    final context = hostContext;
+    return [
       for (final module in visibleAccessModules(controller))
         _ModuleTile(
           label: module.label,
@@ -216,7 +215,11 @@ class MoreSheet extends StatelessWidget {
             'roles' => AppTone.success,
             _ => AppTone.neutral,
           },
-          order: 100 + (module.location ?? 0),
+          order: switch (module.keyName) {
+            'functions' => 0,
+            'roles' => 1,
+            _ => 2,
+          },
           open: () => openAccessModule(context, module, repositories),
         ),
     ];

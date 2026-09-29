@@ -271,13 +271,7 @@ void main() {
       find.byKey(const ValueKey<String>('shell-bottom-navigation')),
       findsOneWidget,
     );
-    for (final tab in <String>[
-      'home',
-      'orders',
-      'statistics',
-      'system',
-      'more',
-    ]) {
+    for (final tab in <String>['home', 'orders', 'statistics', 'mix', 'more']) {
       expect(find.byKey(ValueKey<String>('shell-nav-$tab')), findsOneWidget);
     }
     _expectNavigationColors(tester, selectedKey: 'home', unselectedKey: 'more');
@@ -332,18 +326,15 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    // "Hệ thống" is a full tab page (Figma S01).
-    await tester.tap(find.byKey(const ValueKey<String>('shell-nav-system')));
+    // Cấp phối is a tab; the old S01 hub is no longer in navigation.
+    await tester.tap(find.byKey(const ValueKey<String>('shell-nav-mix')));
     await tester.pumpAndSettle();
-    expect(find.text('Hệ thống'), findsWidgets);
-    for (final module in <String>['users', 'roles', 'functions']) {
-      expect(find.byKey(ValueKey<String>('system-$module')), findsOneWidget);
-    }
-    _expectNavigationColors(
-      tester,
-      selectedKey: 'system',
-      unselectedKey: 'home',
+    expect(
+      find.byKey(const ValueKey<String>('mix-design-filters')),
+      findsOneWidget,
     );
+    expect(find.byType(BackButton), findsNothing);
+    _expectNavigationColors(tester, selectedKey: 'mix', unselectedKey: 'home');
     expect(tester.takeException(), isNull);
 
     // "Xem thêm" is a sheet over the current tab (Figma 05 More).
@@ -351,29 +342,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey<String>('more-sheet')), findsOneWidget);
     expect(find.text('VẬN HÀNH'), findsOneWidget);
-    expect(find.text('TỔ CHỨC & HỆ THỐNG'), findsOneWidget);
+    expect(find.text('TỔ CHỨC'), findsOneWidget);
+    expect(find.text('HỆ THỐNG'), findsOneWidget);
     for (final label in <String>[
-      'Quản lý cấp phối',
       'Quản lý cân ô tô',
       'Quản lý vật liệu',
       'Quản lý trạm',
       'Quản lý công ty',
+      'Người dùng',
+      'Phân quyền',
+      'Chức năng',
     ]) {
       expect(find.byKey(ValueKey<String>('more-tile-$label')), findsOneWidget);
     }
+    expect(
+      find.byKey(const ValueKey<String>('more-tile-Quản lý cấp phối')),
+      findsNothing,
+    );
     expect(find.text('Quản lý xe'), findsNothing);
     expect(find.text('Quản lý camera'), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.tap(
-      find.byKey(const ValueKey<String>('more-tile-Quản lý cấp phối')),
+      find.byKey(const ValueKey<String>('more-tile-Người dùng')),
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey<String>('more-sheet')), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('mix-design-filters')),
-      findsOneWidget,
-    );
+    expect(find.text('Người dùng'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

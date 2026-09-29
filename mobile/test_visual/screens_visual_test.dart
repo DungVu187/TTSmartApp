@@ -93,13 +93,6 @@ void main() {
     await snap('screens_04_notifications');
   });
 
-  testWidgets('06 system', (tester) async {
-    await _pumpShell(tester);
-    await tester.tap(find.byKey(const ValueKey<String>('shell-nav-system')));
-    await tester.pumpAndSettle();
-    await snap('screens_06_system');
-  });
-
   testWidgets('05 more', (tester) async {
     await _pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey<String>('shell-nav-more')));

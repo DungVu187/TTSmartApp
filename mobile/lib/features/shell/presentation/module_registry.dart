@@ -176,7 +176,10 @@ Future<void> openAccessModule(
   }
   await Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (context) => module.builder(context, repositories),
+      builder: (context) => AppScope(
+        controller: controller,
+        child: module.builder(context, repositories),
+      ),
     ),
   );
 }

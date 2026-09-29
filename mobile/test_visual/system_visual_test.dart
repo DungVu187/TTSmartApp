@@ -19,8 +19,13 @@ void main() {
     Map<String, Object? Function(http.Request)> routes = const {},
   }) async {
     await pumpVisualShell(tester, routes: routes);
-    await tapKey(tester, 'shell-nav-system');
-    await tapKey(tester, 'system-$module');
+    await tapKey(tester, 'shell-nav-more');
+    final label = switch (module) {
+      'users' => 'Người dùng',
+      'roles' => 'Phân quyền',
+      _ => 'Chức năng',
+    };
+    await tapKey(tester, 'more-tile-$label');
   }
 
   testWidgets('S02 users', (tester) async {
