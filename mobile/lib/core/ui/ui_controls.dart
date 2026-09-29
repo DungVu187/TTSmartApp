@@ -214,8 +214,7 @@ class FilterChipButton extends StatelessWidget {
                         Icon(icon, size: iconSize, color: iconColor),
                         SizedBox(width: dense ? 5 : 6),
                       ],
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 240),
+                      Flexible(
                         child: Text(
                           shown,
                           maxLines: 1,
@@ -245,30 +244,45 @@ class FilterChipButton extends StatelessWidget {
         ),
       ),
     );
-    return shown == label ? chip : Tooltip(message: label, child: chip);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: shown == label ? chip : Tooltip(message: label, child: chip),
+    );
   }
 }
 
-/// Horizontal scroller of [FilterChipButton]s.
+/// Filter chips that remain visible on narrow screens.
 class FilterChipBar extends StatelessWidget {
-  const FilterChipBar({super.key, required this.children, this.spacing = 8});
+  const FilterChipBar({
+    super.key,
+    required this.children,
+    required this.firstRowCount,
+    this.spacing = 8,
+  });
 
   final List<Widget> children;
+  final int firstRowCount;
   final double spacing;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      child: Row(
-        children: [
-          for (var index = 0; index < children.length; index++) ...[
-            if (index > 0) SizedBox(width: spacing),
-            children[index],
-          ],
+    Widget row(List<Widget> chips) => Row(
+      children: [
+        for (var i = 0; i < chips.length; i++) ...[
+          if (i > 0) SizedBox(width: spacing),
+          Flexible(child: chips[i]),
         ],
-      ),
+      ],
+    );
+
+    final first = children.take(firstRowCount).toList();
+    final second = children.skip(firstRowCount).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        row(first),
+        if (second.isNotEmpty) ...[const SizedBox(height: 4), row(second)],
+      ],
     );
   }
 }

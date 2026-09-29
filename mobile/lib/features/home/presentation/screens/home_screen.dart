@@ -130,18 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 6),
               FilterChipBar(
                 key: const ValueKey<String>('dashboard-filters'),
+                firstRowCount: canSelectCompany ? 2 : 1,
                 spacing: 6,
                 children: [
-                  FilterChipButton(
-                    key: ValueKey<String>(
-                      'dashboard-time-range-${_controller.timeRange.name}',
-                    ),
-                    size: FilterChipSize.small,
-                    active: true,
-                    icon: LucideIcons.calendar,
-                    label: _controller.timeRange.label,
-                    onTap: busy ? null : _pickTimeRange,
-                  ),
                   if (canSelectCompany)
                     FilterChipButton(
                       key: const ValueKey<String>('dashboard-company-filter'),
@@ -167,6 +158,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: busy || _controller.stationScopes.isEmpty
                         ? null
                         : _pickStation,
+                  ),
+                  FilterChipButton(
+                    key: ValueKey<String>(
+                      'dashboard-time-range-${_controller.timeRange.name}',
+                    ),
+                    size: FilterChipSize.small,
+                    active: true,
+                    icon: LucideIcons.calendar,
+                    label: _controller.timeRange.label,
+                    onTap: busy ? null : _pickTimeRange,
                   ),
                 ],
               ),

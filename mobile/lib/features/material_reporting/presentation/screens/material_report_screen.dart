@@ -111,6 +111,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
       padding: EdgeInsets.fromLTRB(side, 4, side, 32),
       children: [
         FilterChipBar(
+          firstRowCount: widget.isAdmin ? 2 : 1,
           children: [
             if (widget.isAdmin)
               FilterChipButton(
@@ -122,19 +123,19 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
                 onTap: controller.isLoadingScope ? null : _pickCompany,
               ),
             FilterChipButton(
-              key: const ValueKey<String>('material-date-range'),
-              icon: LucideIcons.calendar,
-              label: _shortRange(controller.from, controller.to),
-              active: true,
-              onTap: () => _pickDateRange(context),
-            ),
-            FilterChipButton(
               key: const ValueKey<String>('material-station'),
               icon: LucideIcons.factory,
               label:
                   controller.selectedStation?.displayName ?? 'Chọn trạm trộn',
               showChevron: true,
               onTap: controller.isLoadingScope ? null : _pickStation,
+            ),
+            FilterChipButton(
+              key: const ValueKey<String>('material-date-range'),
+              icon: LucideIcons.calendar,
+              label: _shortRange(controller.from, controller.to),
+              active: true,
+              onTap: () => _pickDateRange(context),
             ),
           ],
         ),

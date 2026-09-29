@@ -88,47 +88,60 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'Tất cả',
-                        selected: _filter == _NotificationFilter.all,
-                        onTap: () =>
-                            setState(() => _filter = _NotificationFilter.all),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Chưa đọc',
-                        count: _controller.unreadCount,
-                        selected: _filter == _NotificationFilter.unread,
-                        onTap: () => setState(
-                          () => _filter = _NotificationFilter.unread,
-                        ),
-                      ),
-                      if (showCategories) ...[
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Đơn hàng',
-                          selected: _filter == _NotificationFilter.orders,
-                          onTap: () => setState(
-                            () => _filter = _NotificationFilter.orders,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _FilterChip(
+                            label: 'Tất cả',
+                            selected: _filter == _NotificationFilter.all,
+                            onTap: () => setState(
+                              () => _filter = _NotificationFilter.all,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Hệ thống',
-                          selected: _filter == _NotificationFilter.system,
-                          onTap: () => setState(
-                            () => _filter = _NotificationFilter.system,
+                        Expanded(
+                          child: _FilterChip(
+                            label: 'Chưa đọc',
+                            count: _controller.unreadCount,
+                            selected: _filter == _NotificationFilter.unread,
+                            onTap: () => setState(
+                              () => _filter = _NotificationFilter.unread,
+                            ),
                           ),
                         ),
                       ],
+                    ),
+                    if (showCategories) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _FilterChip(
+                              label: 'Đơn hàng',
+                              selected: _filter == _NotificationFilter.orders,
+                              onTap: () => setState(
+                                () => _filter = _NotificationFilter.orders,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _FilterChip(
+                              label: 'Hệ thống',
+                              selected: _filter == _NotificationFilter.system,
+                              onTap: () => setState(
+                                () => _filter = _NotificationFilter.system,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
               Expanded(child: _buildBody(p, items.where(_matches).toList())),
@@ -294,7 +307,7 @@ class _FilterChip extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       label,

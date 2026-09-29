@@ -263,6 +263,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
         const SizedBox(height: 9),
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -274,18 +275,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 onTap: controller.isLoadingScope ? null : _pickCompany,
               ),
             FilterChipButton(
-              key: const ValueKey<String>('statistics-date-range'),
-              icon: LucideIcons.calendar,
-              label: _shortRange(controller.fromDate, controller.toDate),
-              active: true,
-              onTap: () => _pickDateRange(context),
-            ),
-            FilterChipButton(
               key: const ValueKey<String>('statistics-station'),
               icon: LucideIcons.factory,
               label: controller.selectedStation?.displayName ?? 'Chọn trạm',
               showChevron: true,
               onTap: controller.isLoadingScope ? null : _pickStation,
+            ),
+            FilterChipButton(
+              key: const ValueKey<String>('statistics-date-range'),
+              icon: LucideIcons.calendar,
+              label: _shortRange(controller.fromDate, controller.toDate),
+              active: true,
+              onTap: () => _pickDateRange(context),
             ),
           ],
         ),

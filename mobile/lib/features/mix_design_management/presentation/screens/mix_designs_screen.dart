@@ -159,6 +159,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       padding: const EdgeInsets.fromLTRB(kPagePadding, 4, kPagePadding, 28),
       children: [
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(

@@ -225,6 +225,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
         ),
         const SizedBox(height: 9),
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -237,15 +238,6 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     : () => _pickCompany(controller),
               ),
             FilterChipButton(
-              key: const ValueKey<String>('weigh-station-date-range'),
-              icon: LucideIcons.calendar,
-              label:
-                  '${_shortDate(controller.fromDate)} – '
-                  '${_shortDate(controller.toDate)}',
-              active: true,
-              onTap: () => _pickDateRange(controller),
-            ),
-            FilterChipButton(
               key: const ValueKey<String>('weigh-station-station'),
               icon: LucideIcons.scale,
               label: stationName ?? 'Chọn trạm cân',
@@ -253,6 +245,15 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
               onTap: controller.isLoadingStations
                   ? null
                   : () => _pickStation(controller),
+            ),
+            FilterChipButton(
+              key: const ValueKey<String>('weigh-station-date-range'),
+              icon: LucideIcons.calendar,
+              label:
+                  '${_shortDate(controller.fromDate)} – '
+                  '${_shortDate(controller.toDate)}',
+              active: true,
+              onTap: () => _pickDateRange(controller),
             ),
           ],
         ),

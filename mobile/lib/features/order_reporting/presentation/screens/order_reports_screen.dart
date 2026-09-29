@@ -224,6 +224,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
       children: [
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -239,14 +240,6 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               ),
             FilterChipButton(
               size: FilterChipSize.medium,
-              key: const ValueKey<String>('order-report-date-chip'),
-              icon: LucideIcons.calendar,
-              label: _shortRange(controller.fromDate, controller.toDate),
-              active: true,
-              onTap: () => _pickDateRange(controller),
-            ),
-            FilterChipButton(
-              size: FilterChipSize.medium,
               key: const ValueKey<String>('order-report-station-chip'),
               icon: LucideIcons.factory,
               label:
@@ -256,6 +249,14 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               onTap: controller.isLoadingScope || controller.stations.isEmpty
                   ? null
                   : () => _pickStation(controller),
+            ),
+            FilterChipButton(
+              size: FilterChipSize.medium,
+              key: const ValueKey<String>('order-report-date-chip'),
+              icon: LucideIcons.calendar,
+              label: _shortRange(controller.fromDate, controller.toDate),
+              active: true,
+              onTap: () => _pickDateRange(controller),
             ),
             FilterChipButton(
               size: FilterChipSize.medium,
