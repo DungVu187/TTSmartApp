@@ -34,17 +34,24 @@ class _MemoryTokenStorage implements TokenStorage {
 }
 
 class _AuthorizedAppController extends AppController {
-  _AuthorizedAppController._(ApiClient apiClient, {required this.isAdmin})
-    : super(
-        apiClient: apiClient,
-        authRepository: AuthRepository(apiClient),
-        accessManagementRepository: AccessManagementRepository(apiClient),
-        tokenStorage: _MemoryTokenStorage(),
-      );
+  _AuthorizedAppController._(
+    ApiClient apiClient, {
+    required this.isAdmin,
+    required this.initialCompanyId,
+  }) : super(
+         apiClient: apiClient,
+         authRepository: AuthRepository(apiClient),
+         accessManagementRepository: AccessManagementRepository(apiClient),
+         tokenStorage: _MemoryTokenStorage(),
+       );
 
   final bool isAdmin;
+  final int? initialCompanyId;
 
-  factory _AuthorizedAppController({bool isAdmin = false}) {
+  factory _AuthorizedAppController({
+    bool isAdmin = false,
+    int? initialCompanyId = 3,
+  }) {
     final apiClient = ApiClient(
       baseUri: Uri.parse('http://localhost:5052'),
       timeout: const Duration(seconds: 1),
@@ -52,11 +59,15 @@ class _AuthorizedAppController extends AppController {
         (_) async => throw StateError('Không được gọi API thật trong test.'),
       ),
     );
-    return _AuthorizedAppController._(apiClient, isAdmin: isAdmin);
+    return _AuthorizedAppController._(
+      apiClient,
+      isAdmin: isAdmin,
+      initialCompanyId: initialCompanyId,
+    );
   }
 
   @override
-  CurrentSession? get session => const CurrentSession(
+  CurrentSession? get session => CurrentSession(
     user: AuthenticatedUser(
       id: 1,
       userName: 'reporter',
@@ -64,7 +75,7 @@ class _AuthorizedAppController extends AppController {
       email: null,
       code: null,
       phone: null,
-      companyId: 3,
+      companyId: initialCompanyId,
       departmentId: null,
       positionId: null,
       unitId: null,
@@ -110,7 +121,9 @@ class _FakeOrderReportRepository implements OrderReportRepository {
   @override
   Future<List<OrderReportStation>> getStations({int? companyId}) async {
     requestedCompanyIds.add(companyId);
-    return stations;
+    return companyId == null
+        ? stations
+        : stations.where((station) => station.companyId == companyId).toList();
   }
 
   @override
@@ -644,4 +657,129 @@ void main() {
     expect(orderRepository.queries.last.branchId, 20);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'SupAdmin picks company before station and keeps scope separate',
+    (tester) async {
+      usePhoneViewport(tester);
+      final appController = _AuthorizedAppController(
+        isAdmin: true,
+        initialCompanyId: null,
+      );
+      final orderRepository = _FakeOrderReportRepository(
+        stations: const [
+          _hanoiStation,
+          OrderReportStation(
+            id: 20,
+            companyId: 3,
+            name: 'Trạm Hà Nam',
+            typeTram: 1,
+          ),
+          OrderReportStation(
+            id: 30,
+            companyId: 4,
+            name: 'Trạm Beta 1',
+            typeTram: 1,
+          ),
+          OrderReportStation(
+            id: 31,
+            companyId: 4,
+            name: 'Trạm Beta 2',
+            typeTram: 1,
+          ),
+        ],
+      );
+      addTearDown(appController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: AppScope(
+              controller: appController,
+              child: OrderReportsScreen(
+                repository: orderRepository,
+                companyRepository: _FakeCompanyRepository(),
+                showHeading: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(orderRepository.queries, isEmpty);
+      await tester.tap(find.byKey(const ValueKey('order-report-station-chip')));
+      await tester.pumpAndSettle();
+      expect(find.text('Chọn công ty'), findsOneWidget);
+      await tester.tap(find.text('Công ty Beta').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Chọn trạm'), findsWidgets);
+      expect(find.text('Công ty Beta'), findsWidgets);
+      expect(find.text('Trạm Beta 1'), findsOneWidget);
+      expect(find.text('Trạm Hà Nội'), findsNothing);
+      await tester.tap(find.text('Trạm Beta 1'));
+      await tester.pumpAndSettle();
+
+      expect(orderRepository.queries, hasLength(1));
+      expect(orderRepository.queries.last.companyId, 4);
+      expect(orderRepository.queries.last.branchId, 30);
+      expect(
+        orderRepository.requestedCompanyIds,
+        containsAllInOrder([null, 4]),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('order-report-filters-button')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('order-report-filter-company')),
+          matching: find.text('Công ty Beta'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('order-report-filter-station')),
+          matching: find.text('Trạm Beta 1'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Đóng').last);
+      await tester.pumpAndSettle();
+      expect(orderRepository.queries, hasLength(1));
+
+      await tester.tap(find.byKey(const ValueKey('order-report-company-chip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Công ty Alpha').last);
+      await tester.pumpAndSettle();
+      expect(orderRepository.queries.last.companyId, 3);
+      expect(orderRepository.queries.last.branchId, isNull);
+
+      await tester.tap(find.byKey(const ValueKey('order-report-station-chip')));
+      await tester.pumpAndSettle();
+      expect(find.text('Chọn công ty'), findsNothing);
+      expect(find.text('Tất cả trạm của công ty'), findsOneWidget);
+      expect(find.text('TRAM_10 • Trạm Hà Nội'), findsOneWidget);
+      expect(find.text('Trạm Beta 1'), findsNothing);
+      await tester.tap(find.text('TRAM_10 • Trạm Hà Nội'));
+      await tester.pumpAndSettle();
+      expect(orderRepository.queries.last.branchId, 10);
+      await tester.tap(find.byKey(const ValueKey('order-report-station-chip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tất cả trạm của công ty'));
+      await tester.pumpAndSettle();
+      expect(orderRepository.queries.last.companyId, 3);
+      expect(orderRepository.queries.last.branchId, isNull);
+      await tester.tap(find.byKey(const ValueKey('order-report-company-chip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tất cả công ty').last);
+      await tester.pumpAndSettle();
+      expect(orderRepository.queries.last.companyId, isNull);
+      expect(orderRepository.queries.last.branchId, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

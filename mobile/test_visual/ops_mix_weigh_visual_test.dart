@@ -47,6 +47,24 @@ void main() {
     await snap('C11_weigh_tickets');
   });
 
+  testWidgets('SupAdmin weigh chooses company before station', (tester) async {
+    await pumpVisualScreen(
+      tester,
+      WeighStationScreen(
+        repository: VisualWeighStationRepository(),
+        companyRepository: VisualCompanyRepository(),
+        now: () => DateTime(2026, 9, 21, 17, 30),
+      ),
+    );
+    await tapKey(tester, 'weigh-station-station');
+    expect(find.text('Chọn công ty'), findsWidgets);
+    await tester.tap(find.text(visualCompanies.first.displayName).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Chọn trạm cân'), findsWidgets);
+    expect(find.text(visualCompanies.first.displayName), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('C12 weigh ticket detail', (tester) async {
     await openWeigh(tester);
     await tester.tap(find.text('90C-221.08'));

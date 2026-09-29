@@ -53,6 +53,7 @@ Future<PickerSelection<T>?> showPickerSheet<T>({
   required String title,
   required List<PickerOption<T>> options,
   T? selected,
+  String? subtitle,
   String searchHint = 'Tìm kiếm',
   String? clearLabel,
   IconData? icon,
@@ -65,6 +66,7 @@ Future<PickerSelection<T>?> showPickerSheet<T>({
     useSafeArea: true,
     builder: (_) => _PickerSheet<T>(
       title: title,
+      subtitle: subtitle,
       options: options,
       selected: selected,
       searchHint: searchHint,
@@ -79,6 +81,7 @@ Future<PickerSelection<T>?> showPickerSheet<T>({
 class _PickerSheet<T> extends StatefulWidget {
   const _PickerSheet({
     required this.title,
+    required this.subtitle,
     required this.options,
     required this.selected,
     required this.searchHint,
@@ -89,6 +92,7 @@ class _PickerSheet<T> extends StatefulWidget {
   });
 
   final String title;
+  final String? subtitle;
   final List<PickerOption<T>> options;
   final T? selected;
   final String searchHint;
@@ -191,6 +195,16 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
                   ],
                 ),
               ),
+              if (widget.subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Text(
+                    widget.subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.text2, fontSize: 14),
+                  ),
+                ),
               if (showSearch)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),

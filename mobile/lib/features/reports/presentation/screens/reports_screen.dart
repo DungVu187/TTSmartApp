@@ -415,7 +415,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     await optionsLoad;
   }
 
-  Future<void> _pickCompany() async {
+  Future<void> _pickCompany({bool autoSelectSingleStation = true}) async {
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn công ty',
@@ -429,20 +429,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
     if (!mounted || picked == null) return;
     await _controller.selectCompany(picked.value);
-    if (mounted && _controller.stations.length == 1) {
+    if (autoSelectSingleStation &&
+        mounted &&
+        _controller.stations.length == 1) {
       await _applyStation(_controller.stations.single.id);
     }
   }
 
   Future<void> _pickStation() async {
     if (_controller.isAdmin && _controller.selectedCompanyId == null) {
-      await _pickCompany();
+      if (_controller.companies.length == 1) {
+        await _controller.selectCompany(_controller.companies.single.id);
+      } else {
+        await _pickCompany(autoSelectSingleStation: false);
+      }
       if (!mounted || _controller.selectedCompanyId == null) return;
-      if (_controller.selectedStationId != null) return;
     }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm',
+      subtitle: _controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm',
       icon: LucideIcons.factory,
       selected: _controller.selectedStationId,
@@ -452,7 +458,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           PickerOption(
             value: station.id,
             title: station.displayName,
-            subtitle: station.companyName,
+            subtitle: _controller.selectedCompanyId == null
+                ? station.companyName
+                : null,
           ),
       ],
     );

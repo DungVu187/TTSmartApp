@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/features/company_management/data/models/company_models.dart';
 import 'package:ttsmart_mobile/features/material_reporting/presentation/screens/material_report_screen.dart';
 
 import 'app_fixture.dart';
@@ -8,6 +9,23 @@ import 'fixtures_org.dart';
 import 'harness.dart';
 
 /// Figma "Vận hành" C05–C07 (Quản lý vật liệu) and C16 (station picker).
+class _OneCompanyRepository extends VisualCompanyRepository {
+  @override
+  Future<CompanyPage> getCompanies({
+    int pageNumber = 1,
+    int pageSize = 20,
+    String? search,
+    int? status = CompanyDataStatus.active,
+    bool? isLocked,
+  }) async => CompanyPage(
+    items: [visualCompanies.first],
+    pageNumber: 1,
+    pageSize: pageSize,
+    totalCount: 1,
+    totalPages: 1,
+  );
+}
+
 void main() {
   setUpAll(loadVisualFonts);
 
@@ -41,6 +59,42 @@ void main() {
     await snap('C05_material_stock');
     await scrollDown(tester, 700);
     await snap('C05_material_stock_bottom');
+  });
+
+  testWidgets('SupAdmin material chooses company before station', (
+    tester,
+  ) async {
+    await pumpVisualScreen(
+      tester,
+      MaterialReportScreen(
+        repository: VisualMaterialRepository(),
+        companyRepository: VisualCompanyRepository(),
+        isAdmin: true,
+      ),
+    );
+    await tapKey(tester, 'material-station');
+    expect(find.text('Chọn công ty'), findsWidgets);
+    await tester.tap(find.text(visualCompanies.first.displayName).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Chọn trạm trộn'), findsWidgets);
+    expect(find.text(visualCompanies.first.displayName), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a single company skips the company step', (tester) async {
+    await pumpVisualScreen(
+      tester,
+      MaterialReportScreen(
+        repository: VisualMaterialRepository(),
+        companyRepository: _OneCompanyRepository(),
+        isAdmin: true,
+      ),
+    );
+    await tapKey(tester, 'material-station');
+    expect(find.text('Chọn trạm trộn'), findsWidgets);
+    expect(find.text('Chọn công ty'), findsNothing);
+    expect(find.text(visualCompanies.first.displayName), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('C05b stock value', (tester) async {

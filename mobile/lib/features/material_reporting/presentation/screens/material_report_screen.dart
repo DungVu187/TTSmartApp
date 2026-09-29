@@ -511,12 +511,17 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
 
   Future<void> _pickStation() async {
     if (widget.isAdmin && _controller.selectedCompanyId == null) {
-      await _pickCompany();
+      if (_controller.companies.length == 1) {
+        await _controller.selectCompany(_controller.companies.single.id);
+      } else {
+        await _pickCompany();
+      }
       if (!mounted || _controller.selectedCompanyId == null) return;
     }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm trộn',
+      subtitle: _controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm trộn',
       icon: LucideIcons.factory,
       selected: _controller.selectedStationId,
@@ -526,7 +531,7 @@ class _MaterialReportScreenState extends State<MaterialReportScreen> {
           PickerOption(
             value: station.id,
             title: station.displayName,
-            subtitle: station.companyName?.trim().isNotEmpty == true
+            subtitle: _controller.selectedCompanyId == null
                 ? station.companyName
                 : null,
           ),

@@ -550,12 +550,17 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
 
   Future<void> _pickStation(WeighStationController controller) async {
     if (controller.isAdmin && controller.selectedCompanyId == null) {
-      await _pickCompany(controller);
+      if (controller.companies.length == 1) {
+        await controller.selectCompany(controller.companies.single.id);
+      } else {
+        await _pickCompany(controller);
+      }
       if (!mounted || controller.selectedCompanyId == null) return;
     }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm cân',
+      subtitle: controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm cân',
       icon: LucideIcons.scale,
       tone: AppTone.violet,

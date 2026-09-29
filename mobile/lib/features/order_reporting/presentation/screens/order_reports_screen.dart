@@ -246,7 +246,10 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
                   controller.selectedStation?.displayName ??
                   (controller.isAdmin ? 'Tất cả trạm' : 'Chọn trạm'),
               showChevron: true,
-              onTap: controller.isLoadingScope || controller.stations.isEmpty
+              onTap:
+                  controller.isLoadingScope ||
+                      (controller.stations.isEmpty &&
+                          controller.companies.isEmpty)
                   ? null
                   : () => _pickStation(controller),
             ),
@@ -528,12 +531,37 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
     OrderReportsController controller, {
     bool reload = true,
   }) async {
+    final hadResult = controller.hasLoadedReport;
+    final companyBefore = controller.selectedCompanyId;
+    if (controller.isAdmin && companyBefore == null) {
+      if (controller.companies.length == 1) {
+        await _applyCompany(
+          controller,
+          controller.companies.single.id,
+          reload: false,
+        );
+      } else {
+        await _pickCompany(controller, reload: false);
+      }
+      if (!mounted || controller.selectedCompanyId == null) return;
+      if (controller.selectedStationId != null) {
+        if (reload && _shouldReload(controller, hadResult)) {
+          await controller.loadReport();
+        }
+        return;
+      }
+    }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm',
+      subtitle: controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm',
       icon: LucideIcons.factory,
-      clearLabel: controller.isAdmin ? 'Tất cả trạm' : null,
+      clearLabel: controller.isAdmin
+          ? controller.selectedCompanyId == null
+                ? 'Tất cả trạm'
+                : 'Tất cả trạm của công ty'
+          : null,
       selected: controller.selectedStationId,
       emptyMessage: 'Không có trạm trong phạm vi được cấp.',
       options: [
@@ -541,18 +569,34 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
           PickerOption(
             value: station.id,
             title: station.displayName,
-            subtitle: controller.isAdmin ? station.companyName : null,
+            subtitle: controller.selectedCompanyId == null
+                ? station.companyName
+                : null,
           ),
       ],
     );
-    if (!mounted || picked == null) return;
-    await _applyStation(controller, picked.value, reload: reload);
+    if (!mounted) return;
+    if (picked == null || picked.value == controller.selectedStationId) {
+      if (reload &&
+          companyBefore != controller.selectedCompanyId &&
+          _shouldReload(controller, hadResult)) {
+        await controller.loadReport();
+      }
+      return;
+    }
+    await _applyStation(
+      controller,
+      picked.value,
+      reload: reload,
+      hadResult: hadResult,
+    );
   }
 
   Future<void> _applyStation(
     OrderReportsController controller,
     int? stationId, {
     bool reload = true,
+    bool? hadResult,
   }) async {
     if (stationId == controller.selectedStationId) return;
     if (stationId == null && !controller.isAdmin) return;
@@ -560,6 +604,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       controller,
       () => controller.selectStation(stationId),
       reload: reload,
+      hadResult: hadResult,
     );
   }
 
@@ -1087,15 +1132,19 @@ class _OrderFiltersSheet extends StatelessWidget {
                 SelectFieldButton(
                   key: const ValueKey<String>('order-report-filter-station'),
                   label: 'TRẠM',
-                  placeholder: controller.stations.isEmpty
+                  placeholder:
+                      controller.isAdmin && controller.selectedCompanyId == null
+                      ? 'Chọn công ty trước'
+                      : controller.stations.isEmpty
                       ? 'Không có dữ liệu'
                       : controller.isAdmin
-                      ? 'Tất cả trạm'
+                      ? 'Tất cả trạm của công ty'
                       : 'Chọn trạm',
                   value: controller.selectedStation?.displayName,
                   enabled:
                       !controller.isLoadingScope &&
-                      controller.stations.isNotEmpty,
+                      (controller.stations.isNotEmpty ||
+                          controller.companies.isNotEmpty),
                   onTap: () => host._pickStation(controller, reload: false),
                   onClear: controller.isAdmin && !noStation
                       ? () =>
