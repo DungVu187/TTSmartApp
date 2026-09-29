@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/features/reports/presentation/screens/reports_screen.dart';
 
 import 'app_fixture.dart';
 import 'fixtures_org.dart';
+import 'fixtures_reports.dart';
 import 'harness.dart';
 
 /// Figma "Vận hành" C01–C04, C15, C17 (statistics + orders filters).
@@ -63,7 +65,15 @@ void main() {
   });
 
   testWidgets('C15 date range picker', (tester) async {
-    await openStatistics(tester);
+    await pumpVisualScreen(
+      tester,
+      ReportsScreen(
+        repository: VisualReportsRepository(),
+        companyRepository: VisualCompanyRepository(),
+        now: () => DateTime(2026, 9, 21, 9, 41),
+      ),
+      admin: false,
+    );
     await tapKey(tester, 'statistics-date-range');
     await tapKey(tester, 'statistics-date-preset-sevenDays');
     await snap('C15_date_range');

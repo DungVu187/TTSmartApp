@@ -45,7 +45,7 @@
 
 **Hoàn tất khi:** test SupAdmin và một công ty bao phủ chọn/đổi/xóa Công ty, chọn mọi trạm hoặc một trạm, mở lại picker và đổi công ty; không có trạm thuộc công ty khác lọt vào danh sách/kết quả; targeted tests và `flutter analyze` đạt.
 
-**Checkpoint:** `Hoàn tất, sẵn sàng push` — commit chứa phần 4 và tài liệu plan này. Đơn hàng có luồng Công ty → Trạm, `Tất cả trạm của công ty`, tên công ty ở đầu picker, và C17 cùng phạm vi. Thống kê/Vật liệu/Cân ô tô dùng luồng có sẵn, bổ sung bỏ qua bước Công ty khi danh sách chỉ có một và hiện tên công ty trong picker. Widget tests màn liên quan `20/20`; visual interaction SupAdmin ba màn và một công ty `4/4`; `flutter analyze --no-pub` chỉ còn 1 `info` cũ về `fake_async`; diff check đạt. Chưa chạy full suite.
+**Checkpoint:** `Hoàn tất và đã push` — `67f5b0c` (`origin/feat/mobile-figma-redesign`), gồm phần 4 và tài liệu plan. Đơn hàng có luồng Công ty → Trạm, `Tất cả trạm của công ty`, tên công ty ở đầu picker, và C17 cùng phạm vi. Thống kê/Vật liệu/Cân ô tô dùng luồng có sẵn, bổ sung bỏ qua bước Công ty khi danh sách chỉ có một và hiện tên công ty trong picker. Widget tests màn liên quan `20/20`; visual interaction SupAdmin ba màn và một công ty `4/4`; `flutter analyze --no-pub` chỉ còn 1 `info` cũ về `fake_async`; diff check đạt.
 
 ## Kiểm tra cuối
 
@@ -53,4 +53,4 @@
 - Đối chiếu ảnh các màn chính với Figma; chỉ sửa sai khác thuộc bốn phần trên. Ghi checkpoint cuối và push phần sửa cuối nếu có.
 - Các mục cũ trong checkpoint 25/09 (phương án tương phản Home, nhớ trạm lần cuối, số phiếu trên dòng danh sách) cần rà trạng thái riêng; không tự gộp vào đợt này.
 
-**Checkpoint tổng:** `Chưa bắt đầu` — kiểm tra cuối: `—`.
+**Checkpoint tổng:** `Đã kiểm tra` — `flutter test --no-pub` **189/189**, visual `test_visual` **48/48 Sáng** và **48/48 Tối** ở khung iPhone của harness; exit code 0 cho cả ba lượt. Lượt visual đầu phát hiện fixture C15 dùng giờ thực nên ảnh thay đổi theo phút; cố định `now` trong visual test và chạy lại cả hai bộ, đều đạt. `flutter analyze --no-pub`: không có error/warning mới, còn 1 `info` baseline về `fake_async`, exit code 1. `git diff --check` đạt. Chưa kiểm chứng trên thiết bị Android/iOS thật; không suy diễn từ test thành QA máy thật. Commit checkpoint cuối: `đang push`.
