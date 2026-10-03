@@ -63,7 +63,7 @@ jobs:
     runs-on: [self-hosted, windows, x64, ttsmart-iis]
     steps:
       - name: Check IIS files and runner permissions
-        shell: powershell
+        shell: 'powershell -NoProfile -ExecutionPolicy Bypass -File "{0}"'
         run: |
           $ErrorActionPreference = 'Stop'
           $site = 'C:\Deploy\TTSmartMobileApi'
@@ -114,7 +114,7 @@ jobs:
           name: ttsmart-api-${{ github.sha }}
           path: ${{ runner.temp }}/ttsmart-api-publish
       - name: Deploy tested artifact and check IIS plus Nginx
-        shell: powershell
+        shell: 'powershell -NoProfile -ExecutionPolicy Bypass -File "{0}"'
         run: |
           .\backend\scripts\deploy-iis.ps1 `
             -PackageDirectory (Join-Path $env:RUNNER_TEMP 'ttsmart-api-publish') `

@@ -25,6 +25,8 @@ Production deployment is a separate, manual `workflow_dispatch` run from `main` 
 
 While CD is paused, a manual run with `runner_preflight=true` and `deploy=false` checks that the runner can see the .NET 10 runtime, IIS module file, existing site configuration, and write tiny temporary probe files to the site and backup directories. It removes both probes immediately and does not replace application files. Create `C:\Deploy\TTSmartMobileApi-backups` and grant the runner service account the needed permissions before expecting this check to pass.
 
+The VPS currently blocks PowerShell script files under its machine execution policy. The runner preflight and deploy steps invoke PowerShell with `-ExecutionPolicy Bypass` for that single job process; they do not change the machine-wide policy. If a domain Group Policy enforces script restrictions, this process-level setting may still be overridden and must be handled by the server administrator.
+
 The script verifies the fixed site name and path, ASP.NET Core IIS module file, .NET 10 runtime, artifact commit ID, and existing server configuration before changing files. The operator must separately confirm the IIS site and app pool in IIS Manager because the runner uses the low-privilege `NETWORK SERVICE` account. The script places `app_offline.htm`, backs up code to `C:\Deploy\TTSmartMobileApi-backups`, copies the tested publish output, removes `app_offline.htm`, then checks that both endpoints report the exact deployed commit:
 
 - `http://127.0.0.1:5003/health/live` (IIS directly)
