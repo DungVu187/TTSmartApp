@@ -62,6 +62,11 @@ jobs:
     needs: build
     runs-on: [self-hosted, windows, x64, ttsmart-iis]
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ttsmart-api-${{ github.sha }}
+          path: ${{ runner.temp }}/ttsmart-api-publish
       - name: Check IIS files and runner permissions
         shell: 'powershell -NoProfile -ExecutionPolicy Bypass -File "{0}"'
         run: |
@@ -95,6 +100,18 @@ jobs:
             }
           }
           Write-Host 'Runner preflight passed. No application files were replaced.'
+      - name: Validate exact IIS deployment without applying it
+        shell: 'powershell -NoProfile -ExecutionPolicy Bypass -File "{0}"'
+        run: |
+          .\backend\scripts\deploy-iis.ps1 `
+            -PackageDirectory (Join-Path $env:RUNNER_TEMP 'ttsmart-api-publish') `
+            -SiteName 'TTSmartMobileApi' `
+            -AppPoolName 'TTSmartMobileApi' `
+            -SitePath 'C:\Deploy\TTSmartMobileApi' `
+            -BackupRoot 'C:\Deploy\TTSmartMobileApi-backups' `
+            -LocalHealthUrl 'http://127.0.0.1:5003/health/live' `
+            -PublicHealthUrl 'https://mobile.dangnhap.net/health/live' `
+            -ReleaseId '${{ github.sha }}'
 
   deploy:
     name: Deploy to IIS
