@@ -52,7 +52,9 @@ jobs:
 
   deploy:
     name: Deploy to IIS
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    # Paused: the VPS also has a PM2 process named ttsmart-api. Confirm which
+    # process owns port 5003 before any workflow may replace production files.
+    if: ${{ false }}
     needs: build
     runs-on: [self-hosted, windows, x64, ttsmart-iis]
     environment: production

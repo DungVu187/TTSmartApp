@@ -1,5 +1,10 @@
 # Backend CI/CD on Windows IIS
 
+**Deployment paused on 2026-10-03:** the operator reported a PM2 process named
+`ttsmart-api` on the VPS. The deploy job is disabled until the process serving
+port `5003` and the live application directory are verified. The CI job remains
+active. Do not run the IIS deployment script against a PM2-managed process.
+
 ## Verified target and scope
 
 - GitHub source branch: `main`.
