@@ -1,9 +1,10 @@
 # Backend CI/CD on Windows IIS
 
-**Deployment paused on 2026-10-03:** the operator reported a PM2 process named
-`ttsmart-api` on the VPS. The deploy job is disabled until the process serving
-port `5003` and the live application directory are verified. The CI job remains
-active. Do not run the IIS deployment script against a PM2-managed process.
+**Deployment paused on 2026-10-03:** the operator reported that PM2 runs a
+different `ttsmart-api` on port `5000`; the mobile API is routed by Nginx to
+the IIS site on port `5003`. The deploy job remains disabled until the runner's
+filesystem permissions and the live port `5003` route are verified. CI remains
+active. Do not run this IIS script against the PM2-managed service.
 
 ## Verified target and scope
 
@@ -22,7 +23,7 @@ The IIS and Nginx values above came from screenshots and the Nginx configuration
 
 Production deployment is a separate, manual `workflow_dispatch` run from `main` with `deploy=true`. The deploy job uses a Windows self-hosted runner labelled `ttsmart-iis` and the GitHub `production` environment. It downloads the artifact from that same run and executes `backend/scripts/deploy-iis.ps1`.
 
-The script verifies the IIS site, physical path, app pool, ASP.NET Core IIS module, .NET 10 runtime, artifact, and existing server configuration before changing files. It places `app_offline.htm`, backs up code to `C:\Deploy\TTSmartMobileApi-backups`, copies the tested publish output, removes `app_offline.htm`, then checks both:
+The script verifies the fixed site name and path, ASP.NET Core IIS module file, .NET 10 runtime, artifact commit ID, and existing server configuration before changing files. The operator must separately confirm the IIS site and app pool in IIS Manager because the runner uses the low-privilege `NETWORK SERVICE` account. The script places `app_offline.htm`, backs up code to `C:\Deploy\TTSmartMobileApi-backups`, copies the tested publish output, removes `app_offline.htm`, then checks that both endpoints report the exact deployed commit:
 
 - `http://127.0.0.1:5003/health/live` (IIS directly)
 - `https://mobile.dangnhap.net/health/live` (through Nginx)
@@ -36,7 +37,7 @@ The script preserves the server's `web.config` and `appsettings*.json`, plus `up
 1. Confirm the IIS site and app pool still match the values above. The screenshot shows `.NET CLR v4.0` on the app pool; set **.NET CLR Version = No Managed Code** for this ASP.NET Core app during an IIS maintenance window. Confirm the .NET 10 Hosting Bundle is installed; the deploy script refuses to run without its IIS module and runtime.
 2. Confirm the existing `web.config` and `appsettings.json` in `C:\Deploy\TTSmartMobileApi` contain the settings the live site needs. The deployment preserves these files. Production values required by the application include `ConnectionStrings:AuthConnection`, `ConnectionStrings:NotificationConnection`, `ConnectionStrings:StationConnection`, and the `Jwt` issuer, audience, and signing key. Keep secrets on the VPS; do not put them in workflow YAML or the publish artifact.
 3. Back up `C:\Deploy\TTSmartMobileApi\uploads` and `C:\Deploy\TTSmartMobileApi\App_Data` separately. Give the IIS app pool identity continued write access to them. They are intentionally excluded from code backups and file replacement.
-4. Install a **repository-scoped** GitHub Actions self-hosted Windows runner on the VPS as a Windows service. Add the custom label `ttsmart-iis`. Run it with a dedicated account permitted to read IIS configuration and write only the API directory and backup directory. Do not route pull-request jobs to this runner; the workflow's PR job uses GitHub-hosted Windows.
+4. Install a **repository-scoped** GitHub Actions self-hosted Windows runner on the VPS as a Windows service. Add the custom label `ttsmart-iis`. The installed runner uses `NT AUTHORITY\NETWORK SERVICE`; grant that account the filesystem permissions needed to write the API directory and `C:\Deploy\TTSmartMobileApi-backups`. Confirm its access without granting IIS administration privileges. Do not route pull-request jobs to this runner; the workflow's PR job uses GitHub-hosted Windows.
 5. In GitHub repository Settings → Environments, configure `production` with required reviewers and restrict deployment to `main`. The workflow is manual, but the environment rule adds an independent approval gate.
 6. Confirm the VPS can reach GitHub Actions and can request `https://mobile.dangnhap.net/health/live` over TLS. The local health check uses the IIS port and does not require Nginx.
 

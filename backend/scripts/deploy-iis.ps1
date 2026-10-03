@@ -66,13 +66,16 @@ function Copy-CodeTree([string]$Source, [string]$Destination) {
     }
 }
 
-function Wait-Healthy([string]$Url) {
+function Wait-Healthy([string]$Url, [string]$ExpectedRelease) {
     $lastError = ''
     for ($attempt = 1; $attempt -le 15; $attempt++) {
         try {
             $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5
-            if ($response.StatusCode -eq 200) { return }
-            $lastError = "HTTP $($response.StatusCode)"
+            $body = $response.Content | ConvertFrom-Json
+            if ($response.StatusCode -eq 200 -and
+                $body.status -eq 'healthy' -and
+                $body.release -eq $ExpectedRelease) { return }
+            $lastError = "HTTP $($response.StatusCode), release $($body.release)"
         }
         catch {
             $lastError = $_.Exception.Message
@@ -92,10 +95,14 @@ Assert-SeparateDirectory $packageDirectory $siteDirectory
 Assert-SeparateDirectory $backupDirectoryRoot $siteDirectory
 Assert-SeparateDirectory $backupDirectoryRoot $packageDirectory
 
-foreach ($file in @('TTSmart.Api.dll', 'web.config')) {
+foreach ($file in @('TTSmart.Api.dll', 'web.config', 'release-id.txt')) {
     if (-not (Test-Path -LiteralPath (Join-Path $packageDirectory $file) -PathType Leaf)) {
         throw "Published artifact is missing $file"
     }
+}
+$artifactRelease = (Get-Content -LiteralPath (Join-Path $packageDirectory 'release-id.txt') -Raw).Trim()
+if ($artifactRelease -ne $ReleaseId) {
+    throw "Artifact release does not match requested commit $ReleaseId"
 }
 foreach ($file in @('appsettings.json', 'web.config')) {
     if (-not (Test-Path -LiteralPath (Join-Path $siteDirectory $file) -PathType Leaf)) {
@@ -106,25 +113,19 @@ foreach ($file in @('appsettings.json', 'web.config')) {
 $localUri = [uri]$LocalHealthUrl
 $publicUri = [uri]$PublicHealthUrl
 if ($localUri.Scheme -ne 'http' -or $localUri.Host -notin @('127.0.0.1', 'localhost') -or
-    $localUri.AbsolutePath -ne '/health/live' -or
-    $publicUri.Scheme -ne 'https' -or $publicUri.AbsolutePath -ne '/health/live') {
+    $localUri.Port -ne 5003 -or $localUri.AbsolutePath -ne '/health/live' -or
+    $publicUri.Scheme -ne 'https' -or $publicUri.Host -ne 'mobile.dangnhap.net' -or
+    $publicUri.AbsolutePath -ne '/health/live') {
     throw 'Health URLs must be the local HTTP and public HTTPS /health/live endpoints.'
 }
 
-Import-Module WebAdministration -ErrorAction Stop
-$site = Get-Website -Name $SiteName -ErrorAction Stop
-$iisPath = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($site.PhysicalPath)).TrimEnd('\')
-if (-not $iisPath.Equals($siteDirectory, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "IIS site path is $iisPath, expected $siteDirectory"
+if ($SiteName -ne 'TTSmartMobileApi' -or $AppPoolName -ne 'TTSmartMobileApi' -or
+    -not $siteDirectory.Equals('C:\Deploy\TTSmartMobileApi', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'This deployment script only accepts the verified TTSmartMobileApi IIS target.'
 }
-if ($site.ApplicationPool -ne $AppPoolName) {
-    throw "IIS site uses app pool $($site.ApplicationPool), expected $AppPoolName"
-}
-if (-not (Test-Path -LiteralPath "IIS:\AppPools\$AppPoolName")) {
-    throw "IIS app pool does not exist: $AppPoolName"
-}
-if (-not (Get-WebGlobalModule -Name AspNetCoreModuleV2 -ErrorAction SilentlyContinue)) {
-    throw 'ASP.NET Core Hosting Bundle / AspNetCoreModuleV2 is not installed.'
+$modulePath = Join-Path ${env:ProgramFiles} 'IIS\Asp.Net Core Module\V2\aspnetcorev2.dll'
+if (-not (Test-Path -LiteralPath $modulePath -PathType Leaf)) {
+    throw 'ASP.NET Core IIS module file is missing.'
 }
 $runtimes = & dotnet --list-runtimes
 if ($LASTEXITCODE -ne 0 -or -not ($runtimes -match '^Microsoft\.AspNetCore\.App 10\.')) {
@@ -174,8 +175,8 @@ try {
 
     Remove-Item -LiteralPath $offlinePath
     $offlinePlaced = $false
-    Wait-Healthy $LocalHealthUrl
-    Wait-Healthy $PublicHealthUrl
+    Wait-Healthy $LocalHealthUrl $ReleaseId
+    Wait-Healthy $PublicHealthUrl $ReleaseId
     Write-Host "Deployment succeeded. Code backup: $backupPath"
 }
 catch {
