@@ -61,9 +61,13 @@ function Copy-CodeTree([string]$Source, [string]$Destination) {
     & robocopy $Source $Destination /E /R:2 /W:2 /NP /NFL /NDL /NJH /NJS `
         /XD uploads App_Data logs `
         /XF appsettings*.json web.config app_offline.htm | Out-Null
-    if ($LASTEXITCODE -ge 8) {
-        throw "Robocopy failed with exit code ${LASTEXITCODE}: $Source -> $Destination"
+    $robocopyExitCode = $LASTEXITCODE
+    if ($robocopyExitCode -ge 8) {
+        throw "Robocopy failed with exit code ${robocopyExitCode}: $Source -> $Destination"
     }
+    # Robocopy codes 0..7 are successful but the runner treats a lingering
+    # nonzero LASTEXITCODE as a failed PowerShell step.
+    $global:LASTEXITCODE = 0
 }
 
 function Wait-Healthy([string]$Url, [string]$ExpectedRelease) {

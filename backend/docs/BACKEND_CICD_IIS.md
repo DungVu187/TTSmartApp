@@ -32,6 +32,8 @@ The script verifies the fixed site name and path, ASP.NET Core IIS module file, 
 
 If either check fails, the script restores the previous code from its backup and fails the job. If rollback itself fails, `app_offline.htm` remains in place for manual recovery. The first previous release may not have `/health/live`; inspect the site manually after a rollback. Backups are retained for manual review and must be managed under the VPS retention policy.
 
+Robocopy return codes below `8` are successful and are normalized to process exit code `0` so a successful IIS deployment is not marked failed by the Actions runner.
+
 The script preserves the server's `web.config` and `appsettings*.json`, plus `uploads`, `App_Data`, and `logs`. These contain deployment settings or runtime data. It only removes stale files listed in a manifest created by an earlier run of this script. On the first deployment, unrelated files already in the IIS folder are left alone. Database migrations, restores, seeds, and Nginx edits are not part of the workflow.
 
 ## One-time VPS and GitHub setup
