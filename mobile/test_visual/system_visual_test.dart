@@ -19,8 +19,13 @@ void main() {
     Map<String, Object? Function(http.Request)> routes = const {},
   }) async {
     await pumpVisualShell(tester, routes: routes);
-    await tapKey(tester, 'shell-nav-system');
-    await tapKey(tester, 'system-$module');
+    await tapKey(tester, 'shell-nav-more');
+    final label = switch (module) {
+      'users' => 'Người dùng',
+      'roles' => 'Phân quyền',
+      _ => 'Chức năng',
+    };
+    await tapKey(tester, 'more-tile-$label');
   }
 
   testWidgets('S02 users', (tester) async {
@@ -43,6 +48,8 @@ void main() {
   testWidgets('S08 user form + S09 station picker', (tester) async {
     await openModule(tester, 'users');
     await tester.tap(find.text('Nguyễn Hoàng Nam'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Sửa thông tin'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sửa thông tin'));
     await tester.pumpAndSettle();

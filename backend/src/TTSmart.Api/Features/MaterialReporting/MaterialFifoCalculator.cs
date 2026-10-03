@@ -92,10 +92,7 @@ internal static class MaterialFifoCalculator
 
             var remainingNeed = issueQuantity;
             var issueValue = 0m;
-            foreach (var lot in state.Lots
-                         .Where(item => item.RemainingKg > 0 && item.OccurredAt <= issue.OccurredAt)
-                         .OrderBy(item => item.OccurredAt)
-                         .ThenBy(item => item.SourceSequence))
+            foreach (var lot in state.OpenLots(issue.OccurredAt))
             {
                 if (remainingNeed <= 0)
                 {
@@ -168,10 +165,7 @@ internal static class MaterialFifoCalculator
             return;
         }
 
-        foreach (var lot in state.Lots
-                     .Where(item => item.RemainingKg > 0 && item.OccurredAt <= availableAt)
-                     .OrderBy(item => item.OccurredAt)
-                     .ThenBy(item => item.SourceSequence))
+        foreach (var lot in state.OpenLots(availableAt))
         {
             if (state.ShortageKg <= 0)
             {
@@ -292,7 +286,15 @@ internal static class MaterialFifoCalculator
 
     private sealed class MaterialState(MaterialDefinition material)
     {
+        private int firstOpenLot;
+
         public MaterialDefinition Material { get; } = material;
+
+        /// <summary>
+        /// Lots in FIFO order (they are added sorted by time, then source sequence). FIFO only
+        /// ever empties the oldest lots, so the empty ones form a prefix that is skipped once
+        /// instead of filtering and sorting every lot on every issue.
+        /// </summary>
         public List<FifoLot> Lots { get; } = [];
         public decimal ImportQuantityKg { get; set; }
         public decimal ExportQuantityKg { get; set; }
@@ -302,6 +304,28 @@ internal static class MaterialFifoCalculator
         public decimal? KilogramsPerCubicMeter { get; set; }
         public decimal? KilogramsPerLiter { get; set; }
         public bool HasMissingImportPrice { get; set; }
+
+        /// <summary>Lots with stock left that are available at <paramref name="availableAt"/>, oldest first.</summary>
+        public IEnumerable<FifoLot> OpenLots(DateTime availableAt)
+        {
+            while (firstOpenLot < Lots.Count && Lots[firstOpenLot].RemainingKg <= 0)
+            {
+                firstOpenLot++;
+            }
+
+            for (var index = firstOpenLot; index < Lots.Count; index++)
+            {
+                var lot = Lots[index];
+                if (lot.OccurredAt > availableAt)
+                {
+                    yield break;
+                }
+                if (lot.RemainingKg > 0)
+                {
+                    yield return lot;
+                }
+            }
+        }
     }
 
     private sealed class FifoLot(

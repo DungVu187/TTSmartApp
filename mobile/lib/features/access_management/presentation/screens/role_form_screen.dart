@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../data/models/role_models.dart';
 import '../controllers/roles_controller.dart';
@@ -31,6 +32,17 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
   late final TextEditingController _levelController;
   ApiException? _error;
   bool _submitting = false;
+  late final String _initialSnapshot;
+
+  /// Everything the user can change, to tell whether leaving loses edits.
+  String _snapshot() => [
+    _codeController.text,
+    _nameController.text,
+    _noteController.text,
+    _levelController.text,
+  ].join('\u0001');
+
+  bool _isDirty() => !_submitting && _snapshot() != _initialSnapshot;
 
   @override
   void initState() {
@@ -42,6 +54,7 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
     _levelController = TextEditingController(
       text: role?.levelRole?.toString() ?? '',
     );
+    _initialSnapshot = _snapshot();
   }
 
   @override
@@ -93,105 +106,109 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? 'Sửa vai trò' : 'Tạo vai trò'),
-        actions: [
-          TextButton(
-            onPressed: _submitting ? null : _submit,
-            child: Text(_submitting ? 'Đang lưu...' : 'Lưu'),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: accessPagePadding(context, bottom: 32),
-            children: [
-              AccessConstrainedContent(
-                maxWidth: 720,
-                child: Column(
-                  children: [
-                    if (_error != null) ...[
-                      ErrorPanel(message: _error!.message),
-                      const SizedBox(height: 16),
-                    ],
-                    AccessSection(
-                      title: 'Thông tin vai trò',
-                      icon: LucideIcons.shield,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _codeController,
-                              maxLength: 100,
-                              textCapitalization: TextCapitalization.characters,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Mã vai trò *',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('code'),
+    return UnsavedChangesGuard(
+      isDirty: _isDirty,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.isEditing ? 'Sửa vai trò' : 'Tạo vai trò'),
+          actions: [
+            TextButton(
+              onPressed: _submitting ? null : _submit,
+              child: Text(_submitting ? 'Đang lưu...' : 'Lưu'),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: accessPagePadding(context, bottom: 32),
+              children: [
+                AccessConstrainedContent(
+                  maxWidth: 720,
+                  child: Column(
+                    children: [
+                      if (_error != null) ...[
+                        ErrorPanel(message: _error!.message),
+                        const SizedBox(height: 16),
+                      ],
+                      AccessSection(
+                        title: 'Thông tin vai trò',
+                        icon: LucideIcons.shield,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              TextFormField(
+                                controller: _codeController,
+                                maxLength: 100,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                textInputAction: TextInputAction.next,
+                                decoration: InputDecoration(
+                                  labelText: 'Mã vai trò *',
+                                  counterText: '',
+                                  errorText: _error?.fieldMessage('code'),
+                                ),
+                                validator: (value) =>
+                                    (value?.trim().isEmpty ?? true)
+                                    ? 'Mã vai trò là bắt buộc.'
+                                    : null,
                               ),
-                              validator: (value) =>
-                                  (value?.trim().isEmpty ?? true)
-                                  ? 'Mã vai trò là bắt buộc.'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _nameController,
-                              maxLength: 1000,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Tên vai trò *',
-                                counterText: '',
-                                errorText: _error?.fieldMessage('name'),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _nameController,
+                                maxLength: 1000,
+                                textInputAction: TextInputAction.next,
+                                decoration: InputDecoration(
+                                  labelText: 'Tên vai trò *',
+                                  counterText: '',
+                                  errorText: _error?.fieldMessage('name'),
+                                ),
+                                validator: (value) =>
+                                    (value?.trim().isEmpty ?? true)
+                                    ? 'Tên vai trò là bắt buộc.'
+                                    : null,
                               ),
-                              validator: (value) =>
-                                  (value?.trim().isEmpty ?? true)
-                                  ? 'Tên vai trò là bắt buộc.'
-                                  : null,
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _levelController,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Cấp quản lý',
-                                errorText: _error?.fieldMessage('levelRole'),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _levelController,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                                decoration: InputDecoration(
+                                  labelText: 'Cấp quản lý',
+                                  errorText: _error?.fieldMessage('levelRole'),
+                                ),
+                                validator: (value) {
+                                  final text = value?.trim() ?? '';
+                                  if (text.isNotEmpty &&
+                                      int.tryParse(text) == null) {
+                                    return 'Cấp quản lý phải là số nguyên.';
+                                  }
+                                  return null;
+                                },
                               ),
-                              validator: (value) {
-                                final text = value?.trim() ?? '';
-                                if (text.isNotEmpty &&
-                                    int.tryParse(text) == null) {
-                                  return 'Cấp quản lý phải là số nguyên.';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 14),
-                            TextFormField(
-                              controller: _noteController,
-                              maxLines: 4,
-                              textInputAction: TextInputAction.newline,
-                              decoration: InputDecoration(
-                                labelText: 'Ghi chú',
-                                alignLabelWithHint: true,
-                                errorText: _error?.fieldMessage('note'),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _noteController,
+                                maxLines: 4,
+                                textInputAction: TextInputAction.newline,
+                                decoration: InputDecoration(
+                                  labelText: 'Ghi chú',
+                                  alignLabelWithHint: true,
+                                  errorText: _error?.fieldMessage('note'),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

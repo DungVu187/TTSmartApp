@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/access_management/data/models/permission_models.dart';
@@ -85,7 +86,10 @@ class _FakeMixDesignRepository implements MixDesignRepository {
   ];
 
   @override
-  Future<MixDesignPage> getMixDesigns(MixDesignQuery query) async {
+  Future<MixDesignPage> getMixDesigns(
+    MixDesignQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     queries.add(query);
     return MixDesignPage(
       items: [_item((query.pageNumber - 1) * 10 + 1)],

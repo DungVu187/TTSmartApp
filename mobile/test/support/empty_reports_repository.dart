@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/reports/data/models/report_models.dart';
 import 'package:ttsmart_mobile/features/reports/data/repositories/reports_repository.dart';
 
@@ -12,15 +13,18 @@ class EmptyReportsRepository implements ReportsRepository {
 
   @override
   Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  ) async => OrderStatisticsFilterOptions.empty;
+    OrderStatisticsFilterQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => OrderStatisticsFilterOptions.empty;
 
   @override
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async =>
-      OrderStatisticsPage.empty(
-        viewMode: query.viewMode,
-        pageNumber: query.pageNumber,
-      );
+  Future<OrderStatisticsPage> search(
+    OrderStatisticsQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => OrderStatisticsPage.empty(
+    viewMode: query.viewMode,
+    pageNumber: query.pageNumber,
+  );
 
   @override
   Future<OrderStatisticsExportFile> export(

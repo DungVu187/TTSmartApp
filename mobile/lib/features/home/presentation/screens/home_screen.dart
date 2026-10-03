@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -128,18 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 6),
               FilterChipBar(
                 key: const ValueKey<String>('dashboard-filters'),
+                firstRowCount: canSelectCompany ? 2 : 1,
                 spacing: 6,
                 children: [
-                  FilterChipButton(
-                    key: ValueKey<String>(
-                      'dashboard-time-range-${_controller.timeRange.name}',
-                    ),
-                    size: FilterChipSize.small,
-                    active: true,
-                    icon: LucideIcons.calendar,
-                    label: _controller.timeRange.label,
-                    onTap: busy ? null : _pickTimeRange,
-                  ),
                   if (canSelectCompany)
                     FilterChipButton(
                       key: const ValueKey<String>('dashboard-company-filter'),
@@ -166,6 +159,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? null
                         : _pickStation,
                   ),
+                  FilterChipButton(
+                    key: ValueKey<String>(
+                      'dashboard-time-range-${_controller.timeRange.name}',
+                    ),
+                    size: FilterChipSize.small,
+                    active: true,
+                    icon: LucideIcons.calendar,
+                    label: _controller.timeRange.label,
+                    onTap: busy ? null : _pickTimeRange,
+                  ),
                 ],
               ),
               if (_controller.errorMessage != null) ...[
@@ -186,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   trailing: Semantics(
                     button: true,
                     label: 'Cập nhật lại',
-                    child: GestureDetector(
+                    child: TapArea(
                       onTap: busy ? null : _controller.refresh,
                       child: Text(
                         'Cập nhật ${_updatedLabel(snapshot.updatedAt)}',
@@ -324,8 +327,8 @@ class _Pill extends StatelessWidget {
         label,
         style: TextStyle(
           color: p.text2,
-          fontSize: 11,
-          height: 13 / 11,
+          fontSize: 12,
+          height: 15 / 12,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -358,7 +361,17 @@ class _MetricGrid extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
-            mainAxisExtent: 64,
+            // 24pt number + two 13pt label lines, grown with the phone's font
+            // size so "NV kinh doanh có đơn" never overflows.
+            mainAxisExtent: math.max(
+              64,
+              MediaQuery.textScalerOf(context).scale(24) +
+                  MediaQuery.textScalerOf(context).scale(15) *
+                      (MediaQuery.textScalerOf(context).scale(10) > 11.5
+                          ? 3
+                          : 2) +
+                  14,
+            ),
           ),
           itemBuilder: (context, index) {
             final metric = metrics[index];

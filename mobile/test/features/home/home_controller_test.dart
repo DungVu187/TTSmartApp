@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ttsmart_mobile/core/models/data_scope.dart';
 import 'package:ttsmart_mobile/core/models/time_range_preset.dart';
 import 'package:ttsmart_mobile/core/network/api_exception.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/home/data/models/dashboard_models.dart';
 import 'package:ttsmart_mobile/features/home/data/repositories/home_repository.dart';
 import 'package:ttsmart_mobile/features/home/presentation/controllers/home_controller.dart';
 
 class _FakeHomeRepository implements HomeRepository {
   final dashboardScopes = <DashboardScope?>[];
+  final cancellations = <ApiRequestCancellation?>[];
+
+  /// Holds the next dashboard until it completes or is cancelled.
+  Completer<void>? gate;
 
   static const scopes = <DashboardScope>[
     DashboardScope(
@@ -45,8 +52,21 @@ class _FakeHomeRepository implements HomeRepository {
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
+    ApiRequestCancellation? cancellation,
   }) async {
     dashboardScopes.add(scope);
+    cancellations.add(cancellation);
+    final held = gate;
+    gate = null;
+    if (held != null) {
+      await Future.any([
+        held.future,
+        if (cancellation != null) cancellation.whenCancelled,
+      ]);
+      if (cancellation?.isCancelled ?? false) {
+        throw const ApiRequestCancelledException();
+      }
+    }
     return DashboardSnapshot(
       scope: scope,
       timeRange: timeRange,
@@ -127,6 +147,33 @@ void main() {
       controller.dispose();
     },
   );
+
+  test('Chọn trạm khác khi tổng quan đang tải thì huỷ lượt cũ và hiện đúng '
+      'trạm mới', () async {
+    final repository = _FakeHomeRepository();
+    final controller = HomeController(repository);
+    await controller.initialize();
+
+    repository.gate = Completer<void>();
+    final first = controller.selectStation(_FakeHomeRepository.scopes[2]);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.isLoading, isTrue);
+    await controller.selectStation(_FakeHomeRepository.scopes[3]);
+    await first;
+
+    expect(repository.cancellations[1]!.isCancelled, isTrue);
+    expect(controller.selectedStation?.keyName, 'station-20');
+    expect(controller.snapshot?.scope?.keyName, 'station-20');
+    expect(controller.isLoading, isFalse);
+    expect(controller.errorMessage, isNull);
+
+    repository.gate = Completer<void>();
+    unawaited(controller.selectTimeRange(TimeRangePreset.thisMonth));
+    await Future<void>.delayed(Duration.zero);
+    controller.dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.cancellations.last!.isCancelled, isTrue);
+  });
 
   test('HomeController hiện lỗi API và tải lại scope khi retry', () async {
     final repository = _RetryHomeRepository();

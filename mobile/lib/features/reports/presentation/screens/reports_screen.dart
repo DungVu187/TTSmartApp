@@ -263,6 +263,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
         const SizedBox(height: 9),
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -274,18 +275,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 onTap: controller.isLoadingScope ? null : _pickCompany,
               ),
             FilterChipButton(
-              key: const ValueKey<String>('statistics-date-range'),
-              icon: LucideIcons.calendar,
-              label: _shortRange(controller.fromDate, controller.toDate),
-              active: true,
-              onTap: () => _pickDateRange(context),
-            ),
-            FilterChipButton(
               key: const ValueKey<String>('statistics-station'),
               icon: LucideIcons.factory,
               label: controller.selectedStation?.displayName ?? 'Chọn trạm',
               showChevron: true,
               onTap: controller.isLoadingScope ? null : _pickStation,
+            ),
+            FilterChipButton(
+              key: const ValueKey<String>('statistics-date-range'),
+              icon: LucideIcons.calendar,
+              label: _shortRange(controller.fromDate, controller.toDate),
+              active: true,
+              onTap: () => _pickDateRange(context),
             ),
           ],
         ),
@@ -312,7 +313,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 36),
               child: StateView(
-                icon: LucideIcons.chartNoAxesColumnIncreasing,
+                icon: LucideIcons.chartColumn,
                 title: 'Chọn trạm',
                 message: 'Chọn trạm và khoảng thời gian để xem các mẻ trộn.',
                 actions: [
@@ -355,7 +356,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       const SizedBox(height: 18),
       if (controller.loadedItems.isEmpty)
         const StateView(
-          icon: LucideIcons.chartNoAxesColumnIncreasing,
+          icon: LucideIcons.chartColumn,
           title: 'Chưa có mẻ trộn',
           message: 'Thử đổi khoảng thời gian hoặc bộ lọc.',
         )
@@ -414,7 +415,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     await optionsLoad;
   }
 
-  Future<void> _pickCompany() async {
+  Future<void> _pickCompany({bool autoSelectSingleStation = true}) async {
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn công ty',
@@ -423,29 +424,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
       selected: _controller.selectedCompanyId,
       options: [
         for (final company in _controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;
     await _controller.selectCompany(picked.value);
-    if (mounted && _controller.stations.length == 1) {
+    if (autoSelectSingleStation &&
+        mounted &&
+        _controller.stations.length == 1) {
       await _applyStation(_controller.stations.single.id);
     }
   }
 
   Future<void> _pickStation() async {
     if (_controller.isAdmin && _controller.selectedCompanyId == null) {
-      await _pickCompany();
+      if (_controller.companies.length == 1) {
+        await _controller.selectCompany(_controller.companies.single.id);
+      } else {
+        await _pickCompany(autoSelectSingleStation: false);
+      }
       if (!mounted || _controller.selectedCompanyId == null) return;
-      if (_controller.selectedStationId != null) return;
     }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm',
+      subtitle: _controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm',
       icon: LucideIcons.factory,
       selected: _controller.selectedStationId,
@@ -455,7 +458,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           PickerOption(
             value: station.id,
             title: station.displayName,
-            subtitle: station.companyName,
+            subtitle: _controller.selectedCompanyId == null
+                ? station.companyName
+                : null,
           ),
       ],
     );
@@ -1108,7 +1113,8 @@ class _BatchRow extends StatelessWidget {
                     customer?.isNotEmpty == true
                         ? customer!
                         : 'Mẻ #${item.rowNumber}',
-                    maxLines: 1,
+                    // The customer is what users scan for: wrap, don't cut.
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: p.text1,

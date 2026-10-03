@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../ui/app_palette.dart';
+import 'app_system_ui.dart';
 
 /// Legacy colour constants still referenced by screens that have not moved to
 /// [AppPalette] yet. New UI must read colours from `context.palette`.
@@ -26,7 +27,6 @@ class AppTheme {
   static ThemeData get dark => _build(AppPalette.dark, Brightness.dark);
 
   static ThemeData _build(AppPalette p, Brightness brightness) {
-    final isLight = brightness == Brightness.light;
     final colorScheme =
         ColorScheme.fromSeed(
           seedColor: p.primary,
@@ -35,7 +35,7 @@ class AppTheme {
           primary: p.primary,
           onPrimary: p.onPrimary,
           primaryContainer: p.primaryContainer,
-          onPrimaryContainer: isLight ? p.primary : p.text1,
+          onPrimaryContainer: p.onPrimaryContainer,
           secondary: p.secondary,
           secondaryContainer: p.infoBg,
           onSecondaryContainer: p.info,
@@ -55,9 +55,11 @@ class AppTheme {
           onErrorContainer: p.danger,
           scrim: p.scrim,
         );
+    // Visible outline on every field (Figma `input-border`): the old
+    // #E6EAF0 line disappeared on real phones.
     final fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: p.border),
+      borderSide: BorderSide(color: p.inputBorder),
     );
     final buttonText = TextStyle(
       fontFamily: fontFamily,
@@ -92,6 +94,7 @@ class AppTheme {
         backgroundColor: p.canvas,
         foregroundColor: p.text1,
         surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: appSystemUiStyle(p, brightness),
         iconTheme: IconThemeData(color: p.text1, size: 22),
         actionsIconTheme: IconThemeData(color: p.text1, size: 22),
         titleTextStyle: TextStyle(

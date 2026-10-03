@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_date_picker.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/error_panel.dart';
 import '../../../../core/widgets/searchable_autocomplete_field.dart';
+import '../../../../core/utils/vietnam_time.dart';
 import '../../../access_management/data/models/permission_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../../company_management/presentation/widgets/company_autocomplete_field.dart';
@@ -17,6 +18,7 @@ import '../../data/models/order_report_models.dart';
 import '../../data/repositories/order_report_repository.dart';
 import '../controllers/order_reports_controller.dart';
 import '../widgets/order_report_widgets.dart';
+import 'order_detail_screen.dart';
 
 class OrderReportsScreen extends StatefulWidget {
   const OrderReportsScreen({
@@ -222,6 +224,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
       children: [
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -237,23 +240,26 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               ),
             FilterChipButton(
               size: FilterChipSize.medium,
-              key: const ValueKey<String>('order-report-date-chip'),
-              icon: LucideIcons.calendar,
-              label: _shortRange(controller.fromDate, controller.toDate),
-              active: true,
-              onTap: () => _pickDateRange(controller),
-            ),
-            FilterChipButton(
-              size: FilterChipSize.medium,
               key: const ValueKey<String>('order-report-station-chip'),
               icon: LucideIcons.factory,
               label:
                   controller.selectedStation?.displayName ??
                   (controller.isAdmin ? 'Tất cả trạm' : 'Chọn trạm'),
               showChevron: true,
-              onTap: controller.isLoadingScope || controller.stations.isEmpty
+              onTap:
+                  controller.isLoadingScope ||
+                      (controller.stations.isEmpty &&
+                          controller.companies.isEmpty)
                   ? null
                   : () => _pickStation(controller),
+            ),
+            FilterChipButton(
+              size: FilterChipSize.medium,
+              key: const ValueKey<String>('order-report-date-chip'),
+              icon: LucideIcons.calendar,
+              label: _shortRange(controller.fromDate, controller.toDate),
+              active: true,
+              onTap: () => _pickDateRange(controller),
             ),
             FilterChipButton(
               size: FilterChipSize.medium,
@@ -332,7 +338,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 36),
       child: StateView(
-        icon: noStation ? LucideIcons.factory : LucideIcons.receiptText,
+        icon: noStation ? LucideIcons.factory : LucideIcons.clipboardList,
         title: mustPick ? 'Chọn trạm để xem đơn hàng' : 'Xem đơn hàng',
         message: mustPick
             ? 'Đơn hàng luôn được hiển thị theo một trạm cụ thể.'
@@ -411,15 +417,30 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
           message: 'Thử đổi khoảng ngày hoặc bỏ lọc nhân viên kinh doanh.',
         )
       else ...[
-        for (final item in controller.items)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _OrderCard(
-              item: item,
-              showCompany:
-                  controller.isAdmin && controller.selectedCompanyId == null,
-            ),
-          ),
+        // Figma 03: a compact list like Thống kê; the whole order opens on
+        // tap (OrderDetailScreen).
+        GroupLabel('${controller.totalCount} đơn hàng'),
+        const SizedBox(height: 8),
+        InsetCard(
+          dividerIndent: 23 + MediaQuery.textScalerOf(context).scale(46),
+          children: [
+            for (final item in controller.items)
+              _OrderRow(
+                item: item,
+                showStation: controller.selectedStationId == null,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => OrderDetailScreen(
+                      item: item,
+                      showCompany:
+                          controller.isAdmin &&
+                          controller.selectedCompanyId == null,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
         LoadMoreFooter(
           loading: controller.isLoadingMore,
           errorMessage: controller.loadMoreError?.message,
@@ -478,11 +499,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;
@@ -514,12 +531,37 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
     OrderReportsController controller, {
     bool reload = true,
   }) async {
+    final hadResult = controller.hasLoadedReport;
+    final companyBefore = controller.selectedCompanyId;
+    if (controller.isAdmin && companyBefore == null) {
+      if (controller.companies.length == 1) {
+        await _applyCompany(
+          controller,
+          controller.companies.single.id,
+          reload: false,
+        );
+      } else {
+        await _pickCompany(controller, reload: false);
+      }
+      if (!mounted || controller.selectedCompanyId == null) return;
+      if (controller.selectedStationId != null) {
+        if (reload && _shouldReload(controller, hadResult)) {
+          await controller.loadReport();
+        }
+        return;
+      }
+    }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm',
+      subtitle: controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm',
       icon: LucideIcons.factory,
-      clearLabel: controller.isAdmin ? 'Tất cả trạm' : null,
+      clearLabel: controller.isAdmin
+          ? controller.selectedCompanyId == null
+                ? 'Tất cả trạm'
+                : 'Tất cả trạm của công ty'
+          : null,
       selected: controller.selectedStationId,
       emptyMessage: 'Không có trạm trong phạm vi được cấp.',
       options: [
@@ -527,18 +569,34 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
           PickerOption(
             value: station.id,
             title: station.displayName,
-            subtitle: controller.isAdmin ? station.companyName : null,
+            subtitle: controller.selectedCompanyId == null
+                ? station.companyName
+                : null,
           ),
       ],
     );
-    if (!mounted || picked == null) return;
-    await _applyStation(controller, picked.value, reload: reload);
+    if (!mounted) return;
+    if (picked == null || picked.value == controller.selectedStationId) {
+      if (reload &&
+          companyBefore != controller.selectedCompanyId &&
+          _shouldReload(controller, hadResult)) {
+        await controller.loadReport();
+      }
+      return;
+    }
+    await _applyStation(
+      controller,
+      picked.value,
+      reload: reload,
+      hadResult: hadResult,
+    );
   }
 
   Future<void> _applyStation(
     OrderReportsController controller,
     int? stationId, {
     bool reload = true,
+    bool? hadResult,
   }) async {
     if (stationId == controller.selectedStationId) return;
     if (stationId == null && !controller.isAdmin) return;
@@ -546,6 +604,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
       controller,
       () => controller.selectStation(stationId),
       reload: reload,
+      hadResult: hadResult,
     );
   }
 
@@ -708,7 +767,7 @@ class _OrderReportsScreenState extends State<OrderReportsScreen> {
               mainAxisExtent: compact ? 174 : 180,
               children: [
                 OrderReportMetricCard(
-                  icon: LucideIcons.receiptText,
+                  icon: LucideIcons.clipboardList,
                   label: 'Tổng đơn hàng',
                   value: '${controller.totalCount}',
                   caption: 'Trong khoảng thời gian đã chọn',
@@ -826,11 +885,20 @@ String _formatCount(int value) {
 }
 
 /// One order of the phone list (Figma "03 Orders").
-class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.item, required this.showCompany});
+/// One order of the phone list: order time, customer + mác · dự án, and
+/// the produced / ordered volume with a small progress bar.
+class _OrderRow extends StatelessWidget {
+  const _OrderRow({
+    required this.item,
+    required this.showStation,
+    required this.onTap,
+  });
 
   final OrderReportItem item;
-  final bool showCompany;
+
+  /// "Tất cả trạm": the station goes into the second line.
+  final bool showStation;
+  final VoidCallback onTap;
 
   static String? _text(String? value) {
     final trimmed = value?.trim();
@@ -840,201 +908,158 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final orderedAt = item.orderedAtUtc?.toUtc().add(const Duration(hours: 7));
+    final at = item.orderedAtUtc == null
+        ? null
+        : utcToVietnamTime(item.orderedAtUtc!);
+    String two(int number) => number.toString().padLeft(2, '0');
     final ordered = item.orderedVolume ?? 0;
     final produced = item.producedVolume ?? 0;
-    final tags = <(IconData, String)>[
-      if (showCompany && _text(item.companyName) != null)
-        (LucideIcons.building, _text(item.companyName)!),
-      (LucideIcons.mapPin, item.stationDisplayName),
-      if (_text(item.projectName) != null)
-        (LucideIcons.building, _text(item.projectName)!),
-      if (_text(item.concreteGradeName) != null)
-        (LucideIcons.flaskConical, _text(item.concreteGradeName)!),
-      if (_text(item.employeeName) != null)
-        (LucideIcons.idCard, _text(item.employeeName)!),
+    final progress = orderProgressOf(ordered, produced);
+    final meta = [
+      ?_text(item.concreteGradeName),
+      if (showStation) item.stationDisplayName,
+      ?_text(item.projectName),
     ];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: p.border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F0F172A),
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Semantics(
+      button: true,
+      label:
+          '${_text(item.customerName) ?? 'Đơn #${item.orderId}'}, '
+          'đã sản xuất ${formatOrderReportVolume(produced)} trên '
+          '${formatOrderReportVolume(ordered)} mét khối',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+          child: Row(
             children: [
-              const IconTile(
-                icon: LucideIcons.receiptText,
-                size: 42,
-                radius: 13,
-                iconSize: 22,
+              // Grows with the phone's font size so "08:15" and "20/09"
+              // stay on one line.
+              SizedBox(
+                width: MediaQuery.textScalerOf(context).scale(46),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      at == null ? '—' : '${two(at.hour)}:${two(at.minute)}',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.visible,
+                      style: TextStyle(
+                        color: p.text1,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (at != null)
+                      Text(
+                        '${two(at.day)}/${two(at.month)}',
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.visible,
+                        style: TextStyle(
+                          color: p.text3,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Đơn #${item.orderId}',
-                      style: TextStyle(
-                        color: p.text1,
-                        fontSize: 15,
-                        height: 18 / 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _text(item.customerName) ?? 'Chưa có khách hàng',
-                      maxLines: 1,
+                      _text(item.customerName) ?? 'Đơn #${item.orderId}',
+                      maxLines:
+                          MediaQuery.textScalerOf(context).scale(10) > 11.5
+                          ? 3
+                          : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: p.text2,
-                        fontSize: 13,
-                        height: 16 / 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    orderedAt == null
-                        ? 'Chưa có ngày'
-                        : '${_two(orderedAt.day)}/${_two(orderedAt.month)}',
-                    style: TextStyle(
-                      color: p.text1,
-                      fontSize: 14,
-                      height: 17 / 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if (orderedAt != null)
-                    Text(
-                      '${_two(orderedAt.hour)}:${_two(orderedAt.minute)}',
-                      style: TextStyle(
-                        color: p.text2,
-                        fontSize: 11,
-                        height: 13 / 11,
+                        color: p.text1,
+                        fontSize: 16,
+                        height: 21 / 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (meta.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        meta.join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: p.text2,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: formatOrderReportVolume(produced),
+                          style: TextStyle(
+                            color: progress.tone == AppTone.neutral
+                                ? p.text3
+                                : p.tone(progress.tone).$1,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' m³',
+                          style: TextStyle(
+                            color: p.text2,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    'đặt ${formatOrderReportVolume(ordered)} m³',
+                    style: TextStyle(
+                      color: p.text3,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: 56,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: progress.ratio,
+                        minHeight: 4,
+                        color: p.tone(progress.tone).$1,
+                        backgroundColor: p.surfaceMuted,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final (icon, label) in tags)
-                _OrderTag(icon: icon, label: label),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: VolumeBox(
-                  compact: true,
-                  label: 'Khối lượng đặt',
-                  value: '${formatOrderReportVolume(item.orderedVolume)} m³',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: VolumeBox(
-                  compact: true,
-                  label: 'Đã sản xuất',
-                  value: '${formatOrderReportVolume(item.producedVolume)} m³',
-                  tone: AppTone.success,
-                ),
-              ),
-            ],
-          ),
-          if (ordered > 0) ...[
-            const SizedBox(height: 12),
-            Semantics(
-              label:
-                  'Đã sản xuất ${(produced / ordered * 100).round()}% '
-                  'khối lượng đặt',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  value: (produced / ordered).clamp(0, 1).toDouble(),
-                  minHeight: 6,
-                  color: p.success,
-                  backgroundColor: p.surfaceMuted,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Grey 26px tag of the order card (station, project, grade, employee).
-class _OrderTag extends StatelessWidget {
-  const _OrderTag({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return Container(
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: p.surfaceMuted,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: p.text2),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: p.text2,
-                fontSize: 11.5,
-                height: 14 / 11.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Figma C17: every order filter in one sheet. Changes apply to the
-/// controller at once (stations and employees depend on them); the list
-/// reloads when the sheet closes.
 class _OrderFiltersSheet extends StatelessWidget {
   const _OrderFiltersSheet({required this.host, required this.controller});
 
@@ -1107,15 +1132,19 @@ class _OrderFiltersSheet extends StatelessWidget {
                 SelectFieldButton(
                   key: const ValueKey<String>('order-report-filter-station'),
                   label: 'TRẠM',
-                  placeholder: controller.stations.isEmpty
+                  placeholder:
+                      controller.isAdmin && controller.selectedCompanyId == null
+                      ? 'Chọn công ty trước'
+                      : controller.stations.isEmpty
                       ? 'Không có dữ liệu'
                       : controller.isAdmin
-                      ? 'Tất cả trạm'
+                      ? 'Tất cả trạm của công ty'
                       : 'Chọn trạm',
                   value: controller.selectedStation?.displayName,
                   enabled:
                       !controller.isLoadingScope &&
-                      controller.stations.isNotEmpty,
+                      (controller.stations.isNotEmpty ||
+                          controller.companies.isNotEmpty),
                   onTap: () => host._pickStation(controller, reload: false),
                   onClear: controller.isAdmin && !noStation
                       ? () =>

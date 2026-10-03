@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/features/company_management/data/models/company_models.dart';
 import 'package:ttsmart_mobile/features/material_reporting/presentation/screens/material_report_screen.dart';
 
 import 'app_fixture.dart';
@@ -7,48 +8,151 @@ import 'fixtures_material.dart';
 import 'fixtures_org.dart';
 import 'harness.dart';
 
-/// Figma "Vận hành" C05–C08, C16 (material report).
+/// Figma "Vận hành" C05–C07 (Quản lý vật liệu) and C16 (station picker).
+class _OneCompanyRepository extends VisualCompanyRepository {
+  @override
+  Future<CompanyPage> getCompanies({
+    int pageNumber = 1,
+    int pageSize = 20,
+    String? search,
+    int? status = CompanyDataStatus.active,
+    bool? isLocked,
+  }) async => CompanyPage(
+    items: [visualCompanies.first],
+    pageNumber: 1,
+    pageSize: pageSize,
+    totalCount: 1,
+    totalPages: 1,
+  );
+}
+
 void main() {
   setUpAll(loadVisualFonts);
 
-  Future<void> open(WidgetTester tester) => pumpVisualScreen(
+  Future<void> open(
+    WidgetTester tester, {
+    bool emptyPeriod = false,
+    bool pending = false,
+    int? preparingPercent,
+  }) => pumpVisualScreen(
     tester,
     MaterialReportScreen(
-      repository: VisualMaterialRepository(),
+      repository: VisualMaterialRepository(
+        emptyPeriod: emptyPeriod,
+        pending: pending,
+        preparingPercent: preparingPercent,
+      ),
       companyRepository: VisualCompanyRepository(),
       isAdmin: false,
     ),
     admin: false,
+    settle: !pending && preparingPercent == null,
   );
 
-  testWidgets('C05 material overview', (tester) async {
-    await open(tester);
-    await snap('C05_material_overview');
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+  Future<void> scrollDown(WidgetTester tester, double by) async {
+    await tester.drag(find.byType(Scrollable).first, Offset(0, -by));
     await tester.pumpAndSettle();
-    await snap('C05_material_overview_bottom');
+  }
+
+  testWidgets('C05 stock', (tester) async {
+    await open(tester);
+    await snap('C05_material_stock');
+    await scrollDown(tester, 700);
+    await snap('C05_material_stock_bottom');
   });
 
-  testWidgets('C06 material transactions', (tester) async {
-    await open(tester);
-    await tester.tap(find.text('Giao dịch'));
+  testWidgets('SupAdmin material chooses company before station', (
+    tester,
+  ) async {
+    await pumpVisualScreen(
+      tester,
+      MaterialReportScreen(
+        repository: VisualMaterialRepository(),
+        companyRepository: VisualCompanyRepository(),
+        isAdmin: true,
+      ),
+    );
+    await tapKey(tester, 'material-station');
+    expect(find.text('Chọn công ty'), findsWidgets);
+    await tester.tap(find.text(visualCompanies.first.displayName).last);
     await tester.pumpAndSettle();
-    await snap('C06_material_transactions');
+    expect(find.text('Chọn trạm trộn'), findsWidgets);
+    expect(find.text(visualCompanies.first.displayName), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('C07 transaction detail', (tester) async {
-    await open(tester);
-    await tester.tap(find.text('Giao dịch'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Nhập cát vàng – NCC Minh Phát'));
-    await tester.pumpAndSettle();
-    await snap('C07_transaction_detail');
+  testWidgets('a single company skips the company step', (tester) async {
+    await pumpVisualScreen(
+      tester,
+      MaterialReportScreen(
+        repository: VisualMaterialRepository(),
+        companyRepository: _OneCompanyRepository(),
+        isAdmin: true,
+      ),
+    );
+    await tapKey(tester, 'material-station');
+    expect(find.text('Chọn trạm trộn'), findsWidgets);
+    expect(find.text('Chọn công ty'), findsNothing);
+    expect(find.text(visualCompanies.first.displayName), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('C08 material filters', (tester) async {
+  testWidgets('C05b stock value', (tester) async {
     await open(tester);
-    await tapKey(tester, 'material-filters');
-    await snap('C08_material_filters');
+    await tester.tap(find.text('Giá trị'));
+    await tester.pumpAndSettle();
+    await snap('C05b_material_value');
+  });
+
+  testWidgets('C05c material detail', (tester) async {
+    await open(tester);
+    await tapKey(tester, 'material-row-4');
+    await snap('C05c_material_detail');
+  });
+
+  testWidgets('C05d unit picker, then tấn', (tester) async {
+    await open(tester);
+    await tapKey(tester, 'material-unit-sand');
+    await snap('C05d_material_unit');
+    await tester.tap(find.text('tấn'));
+    await tester.pumpAndSettle();
+    await snap('C05d_material_unit_ton');
+  });
+
+  testWidgets('C05e loading', (tester) async {
+    await open(tester, pending: true);
+    await snap('C05e_material_loading');
+  });
+
+  testWidgets('C05f first read of the station', (tester) async {
+    await open(tester, preparingPercent: 42);
+    await snap('C05f_material_preparing');
+  });
+
+  testWidgets('C06 chart', (tester) async {
+    await open(tester);
+    await tester.tap(find.text('Biểu đồ'));
+    await tester.pumpAndSettle();
+    await snap('C06_material_chart');
+    await scrollDown(tester, 700);
+    await snap('C06_material_chart_bottom');
+  });
+
+  testWidgets('C07 vouchers and detail', (tester) async {
+    await open(tester);
+    await tester.tap(find.text('Phiếu'));
+    await tester.pumpAndSettle();
+    await snap('C07_material_vouchers');
+    await tester.tap(find.text('Nhập hàng từ trạm cân'));
+    await tester.pumpAndSettle();
+    await snap('C07b_material_voucher_detail');
+  });
+
+  testWidgets('C07c vouchers, empty period', (tester) async {
+    await open(tester, emptyPeriod: true);
+    await tester.tap(find.text('Phiếu'));
+    await tester.pumpAndSettle();
+    await snap('C07c_material_vouchers_empty');
   });
 
   testWidgets('C16 station picker', (tester) async {

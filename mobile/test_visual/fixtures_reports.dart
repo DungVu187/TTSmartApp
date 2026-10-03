@@ -1,6 +1,7 @@
 // Statistics sample data copied from Figma C01–C03.
 import 'dart:typed_data';
 
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/reports/data/models/report_models.dart';
 import 'package:ttsmart_mobile/features/reports/data/repositories/reports_repository.dart';
 
@@ -170,21 +171,23 @@ final visualStatisticsSummary = <OrderStatisticsMaterialSummaryRow>[
 
 class VisualReportsRepository implements ReportsRepository {
   @override
-  Future<List<OrderStatisticsStation>> getStations({int? companyId}) async =>
-      const [
-        OrderStatisticsStation(
-          id: 10,
-          companyId: 3,
-          name: 'Trạm Hà Nam',
-          typeTram: 1,
-          companyName: 'Công ty CP Bê tông TTSmart',
-        ),
-      ];
+  Future<List<OrderStatisticsStation>> getStations({
+    int? companyId,
+  }) async => const [
+    OrderStatisticsStation(
+      id: 10,
+      companyId: 3,
+      name: 'Trạm Hà Nam',
+      typeTram: 1,
+      companyName: 'Công ty Cổ phần Đầu tư và Xây dựng Bê tông TTSmart Hà Nam',
+    ),
+  ];
 
   @override
   Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  ) async => const OrderStatisticsFilterOptions(
+    OrderStatisticsFilterQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => const OrderStatisticsFilterOptions(
     vehiclePlates: ['29C-123.45', '29C-456.12', '90C-221.08'],
     customerNames: [
       'Công ty CP Xây dựng Hòa Bình',
@@ -195,19 +198,21 @@ class VisualReportsRepository implements ReportsRepository {
   );
 
   @override
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async =>
-      OrderStatisticsPage(
-        items: visualStatisticsItems,
-        totalCount: 86,
-        totalPages: 1,
-        pageNumber: 1,
-        pageSize: 20,
-        fromRowNumber: 1,
-        toRowNumber: 7,
-        totalMaterialQuantity: 2846120,
-        totalConcreteVolume: 1198.5,
-        materialSummaryRows: visualStatisticsSummary,
-      );
+  Future<OrderStatisticsPage> search(
+    OrderStatisticsQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => OrderStatisticsPage(
+    items: visualStatisticsItems,
+    totalCount: 86,
+    totalPages: 1,
+    pageNumber: 1,
+    pageSize: 20,
+    fromRowNumber: 1,
+    toRowNumber: 7,
+    totalMaterialQuantity: 2846120,
+    totalConcreteVolume: 1198.5,
+    materialSummaryRows: visualStatisticsSummary,
+  );
 
   @override
   Future<OrderStatisticsExportFile> export(

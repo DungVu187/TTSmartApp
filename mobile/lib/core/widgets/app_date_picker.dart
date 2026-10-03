@@ -31,7 +31,9 @@ Future<AppDateRangeSelection?> showAppDateRangePicker({
 }) {
   final current = now ?? DateTime.now();
   final minimum = _dateOnly(firstDate ?? DateTime(2000));
-  final maximum = _dateOnly(lastDate ?? DateTime(current.year + 20, 12, 31));
+  final requestedMaximum = _dateOnly(lastDate ?? current);
+  final today = _dateOnly(current);
+  final maximum = requestedMaximum.isBefore(today) ? requestedMaximum : today;
   return showAppModalSheet<AppDateRangeSelection>(
     context: context,
     builder: (_) => AppDateRangePickerSheet(
@@ -109,12 +111,14 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
   @override
   void initState() {
     super.initState();
-    _start = _clampDateTime(
-      widget.initialStart,
-      widget.firstDate,
-      widget.lastDate,
+    _start = _clampToNow(
+      _clampDateTime(widget.initialStart, widget.firstDate, widget.lastDate),
+      widget.now,
     );
-    _end = _clampDateTime(widget.initialEnd, widget.firstDate, widget.lastDate);
+    _end = _clampToNow(
+      _clampDateTime(widget.initialEnd, widget.firstDate, widget.lastDate),
+      widget.now,
+    );
     if (_end.isBefore(_start)) _end = _start;
   }
 
@@ -186,9 +190,10 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
           _TimeSelector(
             keyPrefix: widget.keyPrefix,
             fieldLabel: _activeField == _AppDateField.start
-                ? 'Từ ngày'
-                : 'Đến ngày',
+                ? 'Giờ bắt đầu'
+                : 'Giờ kết thúc',
             value: activeDate,
+            now: widget.now,
             onHourChanged: (hour) => _updateActiveTime(hour: hour),
             onMinuteChanged: (minute) => _updateActiveTime(minute: minute),
           ),
@@ -201,11 +206,11 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
     final date = _dateOnly(value);
     setState(() {
       if (_activeField == _AppDateField.start) {
-        _start = _withDate(_start, date);
+        _start = _clampToNow(_withDate(_start, date), widget.now);
         if (_end.isBefore(_start)) _end = _start;
         _activeField = _AppDateField.end;
       } else {
-        _end = _withDate(_end, date);
+        _end = _clampToNow(_withDate(_end, date), widget.now);
         if (_end.isBefore(_start)) _start = _end;
       }
     });
@@ -213,17 +218,22 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
 
   void _updateActiveTime({int? hour, int? minute}) {
     final active = _activeField == _AppDateField.start ? _start : _end;
-    final next = _withTime(
-      active,
-      hour ?? active.hour,
-      minute ?? active.minute,
-      isEnd: _activeField == _AppDateField.end,
+    final next = _clampToNow(
+      _withTime(
+        active,
+        hour ?? active.hour,
+        minute ?? active.minute,
+        isEnd: _activeField == _AppDateField.end,
+      ),
+      widget.now,
     );
     setState(() {
       if (_activeField == _AppDateField.start) {
         _start = next;
+        if (_end.isBefore(_start)) _end = _start;
       } else {
         _end = next;
+        if (_end.isBefore(_start)) _start = _end;
       }
     });
   }
@@ -251,8 +261,14 @@ class _AppDateRangePickerSheetState extends State<AppDateRangePickerSheet> {
       AppDateRangePreset.custom => (widget.now, widget.now),
     };
     setState(() {
-      _start = _clampDateTime(values.$1, widget.firstDate, widget.lastDate);
-      _end = _clampDateTime(values.$2, widget.firstDate, widget.lastDate);
+      _start = _clampToNow(
+        _clampDateTime(values.$1, widget.firstDate, widget.lastDate),
+        widget.now,
+      );
+      _end = _clampToNow(
+        _clampDateTime(values.$2, widget.firstDate, widget.lastDate),
+        widget.now,
+      );
       _activeField = _AppDateField.end;
     });
   }
@@ -486,17 +502,26 @@ class _DateField extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: SizedBox(
                 width: double.infinity,
-                child: FieldLabel(label.toUpperCase()),
+                child: Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    color: active ? p.primary : p.text3,
+                    fontSize: 12,
+                    height: 15 / 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
               ),
             ),
           ),
           Material(
-            color: p.surface,
+            color: active ? p.primaryContainer : p.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
                 color: active ? p.primary : p.border,
-                width: active ? 1.5 : 1,
+                width: active ? 2 : 1,
               ),
             ),
             child: InkWell(
@@ -517,9 +542,11 @@ class _DateField extends StatelessWidget {
                             : _formatDate(value),
                         maxLines: 1,
                         style: TextStyle(
-                          color: p.text1,
+                          color: active ? p.onPrimaryContainer : p.text1,
                           fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: active
+                              ? FontWeight.w700
+                              : FontWeight.w600,
                         ),
                       ),
                     ),
@@ -540,6 +567,7 @@ class _TimeSelector extends StatelessWidget {
     required this.keyPrefix,
     required this.fieldLabel,
     required this.value,
+    required this.now,
     required this.onHourChanged,
     required this.onMinuteChanged,
   });
@@ -547,6 +575,7 @@ class _TimeSelector extends StatelessWidget {
   final String keyPrefix;
   final String fieldLabel;
   final DateTime value;
+  final DateTime now;
   final ValueChanged<int> onHourChanged;
   final ValueChanged<int> onMinuteChanged;
 
@@ -557,24 +586,15 @@ class _TimeSelector extends StatelessWidget {
       children: [
         Icon(LucideIcons.clock, size: 20, color: p.text2),
         const SizedBox(width: 8),
-        Text(
-          'Chọn giờ',
-          style: TextStyle(
-            color: p.text1,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(width: 4),
         Expanded(
           child: Text(
-            '· $fieldLabel',
+            fieldLabel,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: p.text3,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              color: p.text1,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -582,6 +602,7 @@ class _TimeSelector extends StatelessWidget {
           key: ValueKey<String>('$keyPrefix-hour'),
           value: value.hour,
           max: 23,
+          maxSelectable: _sameDay(value, now) ? now.hour : 23,
           onChanged: onHourChanged,
         ),
         Padding(
@@ -595,6 +616,9 @@ class _TimeSelector extends StatelessWidget {
           key: ValueKey<String>('$keyPrefix-minute'),
           value: value.minute,
           max: 59,
+          maxSelectable: _sameDay(value, now) && value.hour == now.hour
+              ? now.minute
+              : 59,
           onChanged: onMinuteChanged,
         ),
       ],
@@ -607,11 +631,13 @@ class _TimeDropdown extends StatelessWidget {
     super.key,
     required this.value,
     required this.max,
+    required this.maxSelectable,
     required this.onChanged,
   });
 
   final int value;
   final int max;
+  final int maxSelectable;
   final ValueChanged<int> onChanged;
 
   @override
@@ -643,6 +669,7 @@ class _TimeDropdown extends StatelessWidget {
             for (var item = 0; item <= max; item++)
               DropdownMenuItem<int>(
                 value: item,
+                enabled: item <= maxSelectable,
                 child: Text(item.toString().padLeft(2, '0')),
               ),
           ],
@@ -703,7 +730,6 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
       _visibleMonth.month + 1,
       0,
     ).day;
-    final weeks = ((leading + daysInMonth) / 7).ceil();
     final canGoPrevious = _monthAfter(
       _visibleMonth,
       DateTime(widget.firstDate.year, widget.firstDate.month),
@@ -733,13 +759,20 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
               ),
               Expanded(
                 child: Center(
-                  child: Text(
-                    'Tháng ${_visibleMonth.month}, ${_visibleMonth.year}',
-                    style: TextStyle(
-                      color: p.text1,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
+                  child: TextButton.icon(
+                    key: ValueKey<String>('${widget.keyPrefix}-month-year'),
+                    onPressed: _openMonthYearPicker,
+                    style: TextButton.styleFrom(
+                      backgroundColor: p.surfaceMuted,
+                      foregroundColor: p.text1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
+                    label: Text(
+                      'Tháng ${_visibleMonth.month}, ${_visibleMonth.year}',
+                    ),
+                    icon: const Icon(LucideIcons.chevronDown, size: 16),
                   ),
                 ),
               ),
@@ -780,7 +813,7 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
             ],
           ),
           const SizedBox(height: 6),
-          for (var week = 0; week < weeks; week++)
+          for (var week = 0; week < 6; week++)
             Row(
               children: [
                 for (var weekday = 0; weekday < 7; weekday++)
@@ -877,6 +910,194 @@ class _MonthRangeCalendarState extends State<_MonthRangeCalendar> {
   void _nextMonth() => setState(
     () => _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1),
   );
+
+  Future<void> _openMonthYearPicker() async {
+    final month = await showDialog<DateTime>(
+      context: context,
+      builder: (_) => _MonthYearPickerDialog(
+        keyPrefix: widget.keyPrefix,
+        initialMonth: _visibleMonth,
+        firstDate: widget.firstDate,
+        lastDate: widget.lastDate,
+      ),
+    );
+    if (mounted && month != null) setState(() => _visibleMonth = month);
+  }
+}
+
+class _MonthYearPickerDialog extends StatefulWidget {
+  const _MonthYearPickerDialog({
+    required this.keyPrefix,
+    required this.initialMonth,
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  final String keyPrefix;
+  final DateTime initialMonth;
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  @override
+  State<_MonthYearPickerDialog> createState() => _MonthYearPickerDialogState();
+}
+
+class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
+  late int _year;
+  late int _firstYearOnPage;
+  var _showYears = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _year = widget.initialMonth.year;
+    _firstYearOnPage = _year - 11;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                if (_showYears)
+                  IconButton(
+                    tooltip: 'Quay lại chọn tháng',
+                    onPressed: () => setState(() => _showYears = false),
+                    icon: const Icon(LucideIcons.arrowLeft),
+                  ),
+                Expanded(
+                  child: Text(
+                    _showYears ? 'Chọn năm' : 'Chọn tháng',
+                    style: TextStyle(
+                      color: p.text1,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Đóng',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(LucideIcons.x),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                IconButton(
+                  tooltip: _showYears ? '12 năm trước' : 'Năm trước',
+                  onPressed: _showYears
+                      ? (_firstYearOnPage > widget.firstDate.year
+                            ? () => setState(() => _firstYearOnPage -= 12)
+                            : null)
+                      : (_year > widget.firstDate.year
+                            ? () => setState(() => _year--)
+                            : null),
+                  icon: const Icon(LucideIcons.chevronLeft),
+                ),
+                Expanded(
+                  child: TextButton(
+                    key: ValueKey<String>('${widget.keyPrefix}-select-year'),
+                    onPressed: _showYears
+                        ? null
+                        : () => setState(() {
+                            _showYears = true;
+                            _firstYearOnPage = _year - 11;
+                          }),
+                    child: Text(
+                      _showYears
+                          ? '$_firstYearOnPage–${_firstYearOnPage + 11}'
+                          : 'Năm $_year',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: _showYears ? '12 năm sau' : 'Năm sau',
+                  onPressed: _showYears
+                      ? (_firstYearOnPage + 11 < widget.lastDate.year
+                            ? () => setState(() => _firstYearOnPage += 12)
+                            : null)
+                      : (_year < widget.lastDate.year
+                            ? () => setState(() => _year++)
+                            : null),
+                  icon: const Icon(LucideIcons.chevronRight),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisExtent: 48,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              itemCount: 12,
+              itemBuilder: (context, index) {
+                final year = _firstYearOnPage + index;
+                final month = index + 1;
+                final candidate = DateTime(_year, month);
+                final enabled = _showYears
+                    ? year >= widget.firstDate.year &&
+                          year <= widget.lastDate.year
+                    : !_monthBefore(candidate, widget.firstDate) &&
+                          !_monthAfter(candidate, widget.lastDate);
+                final selected = _showYears
+                    ? year == _year
+                    : _year == widget.initialMonth.year &&
+                          month == widget.initialMonth.month;
+                return Opacity(
+                  opacity: enabled ? 1 : 0.4,
+                  child: Material(
+                    color: selected ? p.primaryContainer : p.surfaceMuted,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      key: ValueKey<String>(
+                        '${widget.keyPrefix}-${_showYears ? 'year-$year' : 'month-$month'}',
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: !enabled
+                          ? null
+                          : () {
+                              if (_showYears) {
+                                setState(() {
+                                  _year = year;
+                                  _showYears = false;
+                                });
+                              } else {
+                                Navigator.pop(context, candidate);
+                              }
+                            },
+                      child: Center(
+                        child: Text(
+                          _showYears ? '$year' : 'Tháng $month',
+                          style: TextStyle(
+                            color: selected ? p.onPrimaryContainer : p.text1,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SheetActions extends StatelessWidget {
@@ -959,6 +1180,9 @@ DateTime _clampDateTime(DateTime value, DateTime firstDate, DateTime lastDate) {
   if (date.isAfter(lastDate)) return _withDate(value, lastDate);
   return value;
 }
+
+DateTime _clampToNow(DateTime value, DateTime now) =>
+    value.isAfter(now) ? now : value;
 
 bool _sameDay(DateTime left, DateTime right) =>
     left.year == right.year &&

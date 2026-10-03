@@ -8,3 +8,4 @@ TestResults/
 coverage/
 *.log
 src/TTSmart.Api/uploads/
+src/TTSmart.Api/App_Data/

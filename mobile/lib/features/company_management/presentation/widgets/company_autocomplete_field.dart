@@ -46,7 +46,6 @@ class CompanyAutocompleteField extends StatelessWidget {
             ? company.displayName
             : '${company.displayName} $code';
       },
-      optionSubtitle: (company) => company.code?.trim(),
       onSelected: onSelected,
       onCleared: onCleared,
       enabled: enabled,

@@ -6,6 +6,7 @@ import 'package:ttsmart_mobile/core/app_scope.dart';
 import 'package:ttsmart_mobile/core/models/data_scope.dart';
 import 'package:ttsmart_mobile/core/models/time_range_preset.dart';
 import 'package:ttsmart_mobile/core/network/api_client.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/core/storage/token_storage.dart';
 import 'package:ttsmart_mobile/core/theme/app_theme.dart';
 import 'package:ttsmart_mobile/features/access_management/data/models/permission_models.dart';
@@ -28,7 +29,10 @@ import '../../support/empty_reports_repository.dart';
 const _surfaceSize = Size(411, 914);
 const _selectedBackground = Color(0xFFDBEAFE);
 const _selectedColor = Color(0xFF2563EB);
-const _unselectedColor = Color(0xFF64748B);
+// Figma: the icon inside the pill uses on-primary-container.
+const _selectedIconColor = Color(0xFF1D4ED8);
+// Figma text-2 after the contrast pass (7.6:1 on white).
+const _unselectedColor = Color(0xFF475569);
 
 class _MemoryTokenStorage implements TokenStorage {
   @override
@@ -125,6 +129,7 @@ class _ShellHomeRepository implements HomeRepository {
   Future<DashboardSnapshot> getDashboard({
     required DashboardScope? scope,
     required TimeRangePreset timeRange,
+    ApiRequestCancellation? cancellation,
   }) async {
     dashboardCallCount++;
     lastScope = scope;
@@ -266,13 +271,7 @@ void main() {
       find.byKey(const ValueKey<String>('shell-bottom-navigation')),
       findsOneWidget,
     );
-    for (final tab in <String>[
-      'home',
-      'orders',
-      'statistics',
-      'system',
-      'more',
-    ]) {
+    for (final tab in <String>['home', 'orders', 'statistics', 'mix', 'more']) {
       expect(find.byKey(ValueKey<String>('shell-nav-$tab')), findsOneWidget);
     }
     _expectNavigationColors(tester, selectedKey: 'home', unselectedKey: 'more');
@@ -327,18 +326,15 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    // "Hệ thống" is a full tab page (Figma S01).
-    await tester.tap(find.byKey(const ValueKey<String>('shell-nav-system')));
+    // Cấp phối is a tab; the old S01 hub is no longer in navigation.
+    await tester.tap(find.byKey(const ValueKey<String>('shell-nav-mix')));
     await tester.pumpAndSettle();
-    expect(find.text('Hệ thống'), findsWidgets);
-    for (final module in <String>['users', 'roles', 'functions']) {
-      expect(find.byKey(ValueKey<String>('system-$module')), findsOneWidget);
-    }
-    _expectNavigationColors(
-      tester,
-      selectedKey: 'system',
-      unselectedKey: 'home',
+    expect(
+      find.byKey(const ValueKey<String>('mix-design-filters')),
+      findsOneWidget,
     );
+    expect(find.byType(BackButton), findsNothing);
+    _expectNavigationColors(tester, selectedKey: 'mix', unselectedKey: 'home');
     expect(tester.takeException(), isNull);
 
     // "Xem thêm" is a sheet over the current tab (Figma 05 More).
@@ -346,29 +342,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey<String>('more-sheet')), findsOneWidget);
     expect(find.text('VẬN HÀNH'), findsOneWidget);
-    expect(find.text('TỔ CHỨC & HỆ THỐNG'), findsOneWidget);
+    expect(find.text('TỔ CHỨC'), findsOneWidget);
+    expect(find.text('HỆ THỐNG'), findsOneWidget);
     for (final label in <String>[
-      'Quản lý cấp phối',
       'Quản lý cân ô tô',
       'Quản lý vật liệu',
       'Quản lý trạm',
       'Quản lý công ty',
+      'Người dùng',
+      'Phân quyền',
+      'Chức năng',
     ]) {
       expect(find.byKey(ValueKey<String>('more-tile-$label')), findsOneWidget);
     }
+    expect(
+      find.byKey(const ValueKey<String>('more-tile-Quản lý cấp phối')),
+      findsNothing,
+    );
     expect(find.text('Quản lý xe'), findsNothing);
     expect(find.text('Quản lý camera'), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.tap(
-      find.byKey(const ValueKey<String>('more-tile-Quản lý cấp phối')),
+      find.byKey(const ValueKey<String>('more-tile-Người dùng')),
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey<String>('more-sheet')), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('mix-design-filters')),
-      findsOneWidget,
-    );
+    expect(find.text('Người dùng'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }
@@ -393,7 +393,12 @@ void _expectNavigationColors(
     (selectedContainer.decoration! as BoxDecoration).color,
     _selectedBackground,
   );
-  _expectNavigationForeground(tester, selectedItem, _selectedColor);
+  _expectNavigationForeground(
+    tester,
+    selectedItem,
+    _selectedColor,
+    iconColor: _selectedIconColor,
+  );
 
   final unselectedItem = find.byKey(
     ValueKey<String>('shell-nav-$unselectedKey'),
@@ -404,13 +409,14 @@ void _expectNavigationColors(
 void _expectNavigationForeground(
   WidgetTester tester,
   Finder item,
-  Color expectedColor,
-) {
+  Color expectedColor, {
+  Color? iconColor,
+}) {
   final iconFinder = find.descendant(of: item, matching: find.byType(Icon));
   final textFinder = find.descendant(of: item, matching: find.byType(Text));
 
   expect(iconFinder, findsOneWidget);
   expect(textFinder, findsOneWidget);
-  expect(tester.widget<Icon>(iconFinder).color, expectedColor);
+  expect(tester.widget<Icon>(iconFinder).color, iconColor ?? expectedColor);
   expect(tester.widget<Text>(textFinder).style?.color, expectedColor);
 }

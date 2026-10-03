@@ -121,23 +121,25 @@ class VisualMixDesignRepository implements MixDesignRepository {
   ];
 
   @override
-  Future<MixDesignPage> getMixDesigns(MixDesignQuery query) async =>
-      MixDesignPage(
-        items: [
-          _mix(1, 'M150', 150, '10±2'),
-          _mix(2, 'M200', 200, '12±2'),
-          _mix(3, 'M250', 250, '12±2'),
-          _mix(4, 'M300', 300, '12±2'),
-          _mix(5, 'M300 R7', 300, '14±2'),
-          _mix(6, 'M350', 350, '14±2'),
-          _mix(7, 'M400', 400, '16±2'),
-        ],
-        pageNumber: 1,
-        pageSize: 20,
-        totalCount: 32,
-        totalPages: 1,
-        materialColumns: _mixColumns,
-      );
+  Future<MixDesignPage> getMixDesigns(
+    MixDesignQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async => MixDesignPage(
+    items: [
+      _mix(1, 'M150', 150, '10±2'),
+      _mix(2, 'M200', 200, '12±2'),
+      _mix(3, 'M250', 250, '12±2'),
+      _mix(4, 'M300', 300, '12±2'),
+      _mix(5, 'M300 R7', 300, '14±2'),
+      _mix(6, 'M350', 350, '14±2'),
+      _mix(7, 'M400', 400, '16±2'),
+    ],
+    pageNumber: 1,
+    pageSize: 20,
+    totalCount: 32,
+    totalPages: 1,
+    materialColumns: _mixColumns,
+  );
 }
 
 // ------------------------------------------------------------- weigh station

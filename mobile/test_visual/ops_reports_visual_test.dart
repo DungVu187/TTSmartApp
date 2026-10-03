@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/features/reports/presentation/screens/reports_screen.dart';
 
 import 'app_fixture.dart';
+import 'fixtures_org.dart';
+import 'fixtures_reports.dart';
 import 'harness.dart';
 
 /// Figma "Vận hành" C01–C04, C15, C17 (statistics + orders filters).
@@ -16,6 +19,20 @@ void main() {
   testWidgets('C01 statistics', (tester) async {
     await openStatistics(tester);
     await snap('C01_statistics');
+  });
+
+  testWidgets('SupAdmin statistics chooses company before station', (
+    tester,
+  ) async {
+    await pumpVisualShell(tester);
+    await tapKey(tester, 'shell-nav-statistics');
+    await tapKey(tester, 'statistics-station');
+    expect(find.text('Chọn công ty'), findsWidgets);
+    await tester.tap(find.text(visualCompanies.first.displayName).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Chọn trạm'), findsWidgets);
+    expect(find.text(visualCompanies.first.displayName), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('C02 batch detail', (tester) async {
@@ -48,7 +65,15 @@ void main() {
   });
 
   testWidgets('C15 date range picker', (tester) async {
-    await openStatistics(tester);
+    await pumpVisualScreen(
+      tester,
+      ReportsScreen(
+        repository: VisualReportsRepository(),
+        companyRepository: VisualCompanyRepository(),
+        now: () => DateTime(2026, 9, 21, 9, 41),
+      ),
+      admin: false,
+    );
     await tapKey(tester, 'statistics-date-range');
     await tapKey(tester, 'statistics-date-preset-sevenDays');
     await snap('C15_date_range');

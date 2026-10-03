@@ -88,47 +88,60 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'Tất cả',
-                        selected: _filter == _NotificationFilter.all,
-                        onTap: () =>
-                            setState(() => _filter = _NotificationFilter.all),
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Chưa đọc',
-                        count: _controller.unreadCount,
-                        selected: _filter == _NotificationFilter.unread,
-                        onTap: () => setState(
-                          () => _filter = _NotificationFilter.unread,
-                        ),
-                      ),
-                      if (showCategories) ...[
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Đơn hàng',
-                          selected: _filter == _NotificationFilter.orders,
-                          onTap: () => setState(
-                            () => _filter = _NotificationFilter.orders,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _FilterChip(
+                            label: 'Tất cả',
+                            selected: _filter == _NotificationFilter.all,
+                            onTap: () => setState(
+                              () => _filter = _NotificationFilter.all,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Hệ thống',
-                          selected: _filter == _NotificationFilter.system,
-                          onTap: () => setState(
-                            () => _filter = _NotificationFilter.system,
+                        Expanded(
+                          child: _FilterChip(
+                            label: 'Chưa đọc',
+                            count: _controller.unreadCount,
+                            selected: _filter == _NotificationFilter.unread,
+                            onTap: () => setState(
+                              () => _filter = _NotificationFilter.unread,
+                            ),
                           ),
                         ),
                       ],
+                    ),
+                    if (showCategories) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _FilterChip(
+                              label: 'Đơn hàng',
+                              selected: _filter == _NotificationFilter.orders,
+                              onTap: () => setState(
+                                () => _filter = _NotificationFilter.orders,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _FilterChip(
+                              label: 'Hệ thống',
+                              selected: _filter == _NotificationFilter.system,
+                              onTap: () => setState(
+                                () => _filter = _NotificationFilter.system,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
               Expanded(child: _buildBody(p, items.where(_matches).toList())),
@@ -229,18 +242,22 @@ class _MarkAllButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           onTap: enabled ? onPressed : null,
           child: SizedBox(
-            height: 40,
+            height: 44,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(LucideIcons.checkCheck, size: 18, color: p.primary),
+                  Icon(
+                    LucideIcons.checkCheck,
+                    size: 18,
+                    color: p.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Đọc tất cả',
                     style: TextStyle(
-                      color: p.primary,
+                      color: p.onPrimaryContainer,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -275,8 +292,8 @@ class _FilterChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+      child: TapArea(
+        onTap: onTap,
         child: Material(
           color: selected ? p.primary : p.surface,
           shape: StadiumBorder(
@@ -290,7 +307,7 @@ class _FilterChip extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       label,

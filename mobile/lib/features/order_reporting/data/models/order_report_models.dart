@@ -67,6 +67,7 @@ class OrderReportItem {
     required this.producedVolume,
     required this.orderedAtUtc,
     required this.employeeName,
+    this.ticketCount,
     this.companyId,
     this.companyName,
     this.stationCode,
@@ -85,6 +86,7 @@ class OrderReportItem {
       producedVolume: _optionalDouble(json, 'producedVolume'),
       orderedAtUtc: optionalUtcDateTime(json, 'orderedAtUtc'),
       employeeName: optionalString(json, 'employeeName'),
+      ticketCount: optionalInt(json, 'ticketCount'),
       companyId: optionalInt(json, 'companyId'),
       companyName: optionalString(json, 'companyName'),
       stationCode: optionalString(json, 'stationCode'),
@@ -101,6 +103,10 @@ class OrderReportItem {
   final double? producedVolume;
   final DateTime? orderedAtUtc;
   final String? employeeName;
+
+  /// "Số phiếu" of the web report (DATHANG.TONGSOPHIEU); null when the
+  /// station has none or the server is older.
+  final int? ticketCount;
   final int? companyId;
   final String? companyName;
   final String? stationCode;

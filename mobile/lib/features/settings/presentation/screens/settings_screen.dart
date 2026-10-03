@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/app_scope.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/ui/app_ui.dart';
 import '../../../../core/widgets/app_content.dart';
 import '../../../auth/presentation/screens/account_screen.dart';
@@ -111,6 +112,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                  if (ThemeScope.maybeOf(context) case final theme?) ...[
+                    const SizedBox(height: 20),
+                    _ThemeGroup(controller: theme),
+                  ],
                   const SizedBox(height: 20),
                   const InsetGroup(
                     label: 'Ứng dụng',
@@ -131,6 +136,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Figma A03 "Giao diện": Sáng / Tối / Theo hệ thống, the current one ticked.
+class _ThemeGroup extends StatelessWidget {
+  const _ThemeGroup({required this.controller});
+
+  final ThemeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    Widget row(
+      ThemeMode mode,
+      IconData icon,
+      AppTone tone,
+      String title, {
+      String? subtitle,
+    }) {
+      final selected = controller.mode == mode;
+      return Semantics(
+        selected: selected,
+        inMutuallyExclusiveGroup: true,
+        child: NavRow(
+          key: ValueKey<String>('settings-theme-${mode.name}'),
+          leading: IconTile(icon: icon, tone: tone),
+          title: title,
+          subtitle: subtitle,
+          showChevron: false,
+          trailing: selected
+              ? Icon(LucideIcons.check, size: 22, color: p.primary)
+              : const SizedBox(width: 22),
+          onTap: () => controller.setMode(mode),
+        ),
+      );
+    }
+
+    return InsetGroup(
+      label: 'Giao diện',
+      dividerIndent: kLeadingDividerIndent,
+      children: [
+        row(ThemeMode.light, LucideIcons.sun, AppTone.warning, 'Sáng'),
+        row(ThemeMode.dark, LucideIcons.moon, AppTone.violet, 'Tối'),
+        row(
+          ThemeMode.system,
+          LucideIcons.smartphone,
+          AppTone.neutral,
+          'Theo hệ thống',
+          subtitle: 'Tự đổi theo cài đặt của điện thoại',
+        ),
+      ],
     );
   }
 }

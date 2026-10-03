@@ -10,6 +10,7 @@ public sealed class StationOrder
     public float? OrderedVolume { get; set; }
     public DateTime? OrderedAt { get; set; }
     public float? ProducedVolume { get; set; }
+    public int? TicketCount { get; set; }
     public int? ConcreteGradeId { get; set; }
 }
 

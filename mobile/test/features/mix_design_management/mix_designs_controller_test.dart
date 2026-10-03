@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/company_management/data/models/company_models.dart';
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
 import 'package:ttsmart_mobile/features/mix_design_management/data/models/mix_design_models.dart';
@@ -16,7 +17,10 @@ class _FakeMixDesignRepository implements MixDesignRepository {
   }
 
   @override
-  Future<MixDesignPage> getMixDesigns(MixDesignQuery query) async {
+  Future<MixDesignPage> getMixDesigns(
+    MixDesignQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     queries.add(query);
     return MixDesignPage(
       items: [_item((query.pageNumber - 1) * 10 + 1)],

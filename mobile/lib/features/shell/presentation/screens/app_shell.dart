@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -7,8 +9,8 @@ import '../../../../core/ui/app_ui.dart';
 import '../../../auth/presentation/screens/account_screen.dart';
 import '../../../home/presentation/controllers/home_controller.dart';
 import '../../../home/presentation/screens/home_screen.dart';
+import '../../../mix_design_management/presentation/screens/mix_designs_screen.dart';
 import '../../../more/presentation/screens/more_screen.dart';
-import '../../../more/presentation/screens/system_screen.dart';
 import '../../../order_reporting/presentation/screens/order_reports_screen.dart';
 import '../../../notifications/data/models/notification_models.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
@@ -17,8 +19,9 @@ import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../widgets/app_header.dart';
 import '../module_registry.dart';
+import '../../../../core/theme/app_system_ui.dart';
 
-enum _ShellTabKey { home, orders, statistics, system, more }
+enum _ShellTabKey { home, orders, statistics, mix, more }
 
 class _ShellTabDefinition {
   const _ShellTabDefinition({
@@ -140,9 +143,11 @@ class _AppShellState extends State<AppShell> {
     final orderStatisticsModule = visibleOperations
         .where((module) => module.keyName == 'order-statistics')
         .firstOrNull;
+    final mixDesignsModule = visibleOperations
+        .where((module) => module.keyName == 'mix-designs')
+        .firstOrNull;
     final canViewOrderReports = orderReportsModule != null;
     final canViewOrderStatistics = orderStatisticsModule != null;
-    final canViewSystem = visibleAccessModules(app).isNotEmpty;
     final tabs = <_ShellTabDefinition>[
       _ShellTabDefinition(
         keyName: _ShellTabKey.home,
@@ -178,9 +183,9 @@ class _AppShellState extends State<AppShell> {
       if (canViewOrderReports)
         _ShellTabDefinition(
           keyName: _ShellTabKey.orders,
-          label: orderReportsModule.label,
-          icon: LucideIcons.receiptText,
-          selectedIcon: LucideIcons.receiptText,
+          label: 'Đơn hàng',
+          icon: LucideIcons.clipboardList,
+          selectedIcon: LucideIcons.clipboardList,
           child: OrderReportsScreen(
             repository: widget.repositories.orderReports,
             companyRepository: widget.repositories.companies,
@@ -190,22 +195,25 @@ class _AppShellState extends State<AppShell> {
       if (canViewOrderStatistics)
         _ShellTabDefinition(
           keyName: _ShellTabKey.statistics,
-          label: orderStatisticsModule.label,
-          icon: LucideIcons.chartNoAxesColumnIncreasing,
-          selectedIcon: LucideIcons.chartNoAxesColumnIncreasing,
+          label: 'Thống kê',
+          icon: LucideIcons.chartColumn,
+          selectedIcon: LucideIcons.chartColumn,
           child: ReportsScreen(
             repository: widget.repositories.reports,
             companyRepository: widget.repositories.companies,
             showHeading: false,
           ),
         ),
-      if (canViewSystem)
+      if (mixDesignsModule != null)
         _ShellTabDefinition(
-          keyName: _ShellTabKey.system,
-          label: 'Hệ thống',
-          icon: LucideIcons.settings,
-          selectedIcon: LucideIcons.settings,
-          child: SystemScreen(repositories: widget.repositories),
+          keyName: _ShellTabKey.mix,
+          label: 'Cấp phối',
+          icon: LucideIcons.flaskConical,
+          selectedIcon: LucideIcons.flaskConical,
+          child: MixDesignsScreen(
+            repository: widget.repositories.mixDesigns,
+            companyRepository: widget.repositories.companies,
+          ),
         ),
       const _ShellTabDefinition(
         keyName: _ShellTabKey.more,
@@ -263,30 +271,44 @@ class _ShellBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return DecoratedBox(
-      key: const ValueKey<String>('shell-bottom-navigation'),
-      decoration: BoxDecoration(
-        color: p.surface,
-        border: Border(top: BorderSide(color: p.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 54,
-          child: Row(
-            children: [
-              for (var index = 0; index < tabs.length; index++)
-                Expanded(
-                  child: _ShellNavigationItem(
-                    key: ValueKey<String>(
-                      'shell-nav-${tabs[index].keyName.name}',
-                    ),
-                    tab: tabs[index],
-                    selected: index == selectedIndex,
-                    onTap: () => onSelected(index),
-                  ),
+    return AppSystemUi(
+      navigationBar: p.surface,
+      child: DecoratedBox(
+        key: const ValueKey<String>('shell-bottom-navigation'),
+        decoration: BoxDecoration(
+          color: p.surface,
+          border: Border(top: BorderSide(color: p.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          // Tab labels follow the phone's font size up to 1.2× (like the
+          // system tab bars) and the bar grows with them instead of cutting
+          // the label (it overflowed at 1.3×).
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.2,
+            child: Builder(
+              builder: (context) => SizedBox(
+                height: math.max(
+                  54,
+                  39 + MediaQuery.textScalerOf(context).scale(15),
                 ),
-            ],
+                child: Row(
+                  children: [
+                    for (var index = 0; index < tabs.length; index++)
+                      Expanded(
+                        child: _ShellNavigationItem(
+                          key: ValueKey<String>(
+                            'shell-nav-${tabs[index].keyName.name}',
+                          ),
+                          tab: tabs[index],
+                          selected: index == selectedIndex,
+                          onTap: () => onSelected(index),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -334,20 +356,27 @@ class _ShellNavigationItem extends StatelessWidget {
                 child: Icon(
                   selected ? tab.selectedIcon : tab.icon,
                   size: 22,
-                  color: foregroundColor,
+                  color: selected ? p.onPrimaryContainer : p.text2,
                 ),
               ),
               const SizedBox(height: 3),
-              Text(
-                tab.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: foregroundColor,
-                  fontSize: 11,
-                  height: 13 / 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              // Side padding keeps neighbouring labels apart on 360dp
+              // phones with a large font (they touched at 1.3×).
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    tab.label,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: foregroundColor,
+                      fontSize: 12,
+                      height: 15 / 12,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ],

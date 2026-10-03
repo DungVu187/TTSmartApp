@@ -159,6 +159,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       padding: const EdgeInsets.fromLTRB(kPagePadding, 4, kPagePadding, 28),
       children: [
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -243,11 +244,7 @@ class _MixDesignsScreenState extends State<MixDesignsScreen> {
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;

@@ -160,3 +160,12 @@ public sealed record MaterialReportTotalsResponse(
     decimal ImportValueVnd,
     decimal ExportValueVnd,
     decimal InventoryValueVnd);
+
+/// <summary>
+/// 202 while the first read of a station's mixing history runs in the background; the client asks
+/// again in a few seconds. <see cref="Status"/> is always "preparing".
+/// </summary>
+public sealed record MaterialReportPreparingResponse(
+    string Status,
+    int ProgressPercent,
+    string Message);

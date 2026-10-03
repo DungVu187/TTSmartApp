@@ -216,6 +216,10 @@ class MaterialSummaryItem {
     required this.exportValueVnd,
     required this.inventoryValueVnd,
     required this.hasMissingImportPrice,
+    this.slotNumber,
+    this.materialTypeId,
+    this.kilogramsPerCubicMeter,
+    this.kilogramsPerLiter,
   });
 
   factory MaterialSummaryItem.fromJson(Object? value) {
@@ -231,6 +235,10 @@ class MaterialSummaryItem {
       exportValueVnd: _requireDouble(json, 'exportValueVnd'),
       inventoryValueVnd: _requireDouble(json, 'inventoryValueVnd'),
       hasMissingImportPrice: requireBool(json, 'hasMissingImportPrice'),
+      slotNumber: optionalInt(json, 'slotNumber'),
+      materialTypeId: optionalInt(json, 'materialTypeId'),
+      kilogramsPerCubicMeter: _optionalDouble(json, 'kilogramsPerCubicMeter'),
+      kilogramsPerLiter: _optionalDouble(json, 'kilogramsPerLiter'),
     );
   }
 
@@ -244,6 +252,15 @@ class MaterialSummaryItem {
   final double exportValueVnd;
   final double inventoryValueVnd;
   final bool hasMissingImportPrice;
+
+  /// Door number in CUAVL ("cửa số 3").
+  final int? slotNumber;
+  final int? materialTypeId;
+
+  /// From the last import lot with a conversion; null when none has one,
+  /// so m³ / lít cannot be shown ("Chưa có hệ số", as on the web).
+  final double? kilogramsPerCubicMeter;
+  final double? kilogramsPerLiter;
 }
 
 class MaterialChartItem {
@@ -336,6 +353,8 @@ class MaterialTransaction {
   final List<MaterialTransactionDetail> details;
 
   bool get isSummary => type == 'summary-export';
+  bool get isImport => type == 'import';
+  bool get isStocktake => type == 'stocktake';
 }
 
 class MaterialTransactionDetail {

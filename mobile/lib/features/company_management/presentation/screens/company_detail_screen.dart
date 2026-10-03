@@ -581,17 +581,6 @@ class _CompanyHeaderCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          if (company.code?.trim().isNotEmpty == true) ...[
-            const SizedBox(height: 3),
-            Text(
-              company.code!.trim(),
-              style: TextStyle(
-                color: p.text2,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
           Wrap(
             alignment: WrapAlignment.center,

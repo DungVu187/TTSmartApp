@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../company_management/data/models/company_models.dart';
 import '../../../company_management/data/repositories/company_repository.dart';
 import '../../data/models/order_report_models.dart';
@@ -67,6 +68,8 @@ class OrderReportsController extends ChangeNotifier {
   int _scopeRequestVersion = 0;
   int _employeeRequestVersion = 0;
   int _reportRequestVersion = 0;
+  final _employeeRequest = LatestApiRequest();
+  final _reportRequest = LatestApiRequest();
   bool _initialized = false;
   bool _disposed = false;
 
@@ -174,15 +177,21 @@ class OrderReportsController extends ChangeNotifier {
       return;
     }
     final requestVersion = _reportRequestVersion;
+    final cancellation = _reportRequest.next();
     isLoadingMore = true;
     loadMoreError = null;
     _notify();
     try {
-      final page = await repository.search(_query(pageNumber + 1));
+      final page = await repository.search(
+        _query(pageNumber + 1),
+        cancellation: cancellation,
+      );
       if (requestVersion != _reportRequestVersion) return;
       final existingIds = items.map(_itemKey).toSet();
       items.addAll(page.items.where((item) => existingIds.add(_itemKey(item))));
       _applyPageMetadata(page);
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (caught) {
       if (requestVersion == _reportRequestVersion) loadMoreError = caught;
     } finally {
@@ -267,6 +276,7 @@ class OrderReportsController extends ChangeNotifier {
     final requestedToDate = toDate;
     if (branchId == null) return;
     final requestVersion = ++_employeeRequestVersion;
+    final cancellation = _employeeRequest.next();
     isLoadingEmployees = true;
     employeeError = null;
     _notify();
@@ -276,6 +286,7 @@ class OrderReportsController extends ChangeNotifier {
         companyId: companyId,
         fromDate: requestedFromDate,
         toDate: requestedToDate,
+        cancellation: cancellation,
       );
       if (requestVersion != _employeeRequestVersion ||
           branchId != selectedStationId ||
@@ -293,6 +304,8 @@ class OrderReportsController extends ChangeNotifier {
         selectedEmployeeName = null;
       }
       if (previousEmployeeName != selectedEmployeeName) _clearReport();
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (caught) {
       if (requestVersion == _employeeRequestVersion) employeeError = caught;
     } finally {
@@ -318,6 +331,7 @@ class OrderReportsController extends ChangeNotifier {
       return;
     }
     final requestVersion = ++_reportRequestVersion;
+    final cancellation = _reportRequest.next();
     validationMessage = null;
     reportError = null;
     loadMoreError = null;
@@ -329,7 +343,10 @@ class OrderReportsController extends ChangeNotifier {
     }
     _notify();
     try {
-      final page = await repository.search(_query(1));
+      final page = await repository.search(
+        _query(1),
+        cancellation: cancellation,
+      );
       if (requestVersion != _reportRequestVersion ||
           branchId != selectedStationId ||
           (isAdmin ? selectedCompanyId : null) != companyId) {
@@ -340,6 +357,8 @@ class OrderReportsController extends ChangeNotifier {
         ..addAll(page.items);
       _applyPageMetadata(page);
       hasLoadedReport = true;
+    } on ApiRequestCancelledException {
+      return;
     } on ApiException catch (caught) {
       if (requestVersion == _reportRequestVersion) reportError = caught;
     } finally {
@@ -381,6 +400,7 @@ class OrderReportsController extends ChangeNotifier {
 
   void _clearStationData() {
     ++_employeeRequestVersion;
+    _employeeRequest.cancel();
     employees.clear();
     selectedEmployeeName = null;
     employeeError = null;
@@ -390,6 +410,7 @@ class OrderReportsController extends ChangeNotifier {
 
   void _clearReport() {
     ++_reportRequestVersion;
+    _reportRequest.cancel();
     items.clear();
     stationSummaries.clear();
     unavailableStations.clear();
@@ -435,6 +456,8 @@ class OrderReportsController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _employeeRequest.cancel();
+    _reportRequest.cancel();
     super.dispose();
   }
 }

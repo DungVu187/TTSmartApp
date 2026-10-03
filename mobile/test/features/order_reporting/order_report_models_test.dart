@@ -21,6 +21,7 @@ void main() {
             'producedVolume': 20.333,
             'orderedAtUtc': '2026-07-31T03:00:00Z',
             'employeeName': 'Nguyễn Văn A',
+            'ticketCount': 3,
           },
         ],
         'pageNumber': 1,
@@ -57,6 +58,7 @@ void main() {
 
       expect(page.items.single.orderId, 101);
       expect(page.items.single.projectName, isNull);
+      expect(page.items.single.ticketCount, 3);
       expect(page.items.single.orderedAtUtc, DateTime.utc(2026, 7, 31, 3));
       expect(page.totalOrderedVolume, 24.5);
       expect(page.totalProducedVolume, 20.333);

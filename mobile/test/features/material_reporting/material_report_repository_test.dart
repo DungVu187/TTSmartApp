@@ -61,6 +61,46 @@ void main() {
       expect(requestedUri.queryParameters['from'], '2026-08-01T00:00:00+07:00');
     },
   );
+
+  test('202 "preparing" becomes the progress of the first read', () async {
+    final client = ApiClient(
+      baseUri: Uri.parse('https://example.test'),
+      timeout: const Duration(seconds: 2),
+      httpClient: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'status': 'preparing',
+            'progressPercent': 42.6,
+            'message': 'Đang tổng hợp dữ liệu tiêu hao của trạm lần đầu.',
+          }),
+          202,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        ),
+      ),
+    )..accessToken = 'test-token';
+    addTearDown(client.close);
+
+    await expectLater(
+      ApiMaterialReportRepository(client).getReport(
+        MaterialReportQuery(
+          branchId: 10,
+          from: DateTime(2026, 8, 1),
+          to: DateTime(2026, 8, 14, 23, 59),
+          materialGroup: MaterialGroupFilter.all,
+          viewMode: MaterialViewMode.all,
+          valueMode: MaterialValueMode.quantity,
+          pageNumber: 1,
+        ),
+      ),
+      throwsA(
+        isA<MaterialReportPreparing>().having(
+          (error) => error.progressPercent,
+          'progressPercent',
+          43,
+        ),
+      ),
+    );
+  });
 }
 
 Map<String, Object?> _reportJson() => <String, Object?>{

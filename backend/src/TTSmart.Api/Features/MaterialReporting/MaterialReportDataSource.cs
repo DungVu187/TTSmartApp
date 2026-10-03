@@ -78,10 +78,41 @@ public sealed class MaterialReportingOptions
     public const string SectionName = "MaterialReporting";
 
     public int CommandTimeoutSeconds { get; init; } = 120;
+
+    /// <summary>
+    /// Keep the mixing consumption of the stations (see MaterialMixingLedgerStore) instead of
+    /// adding up the whole history on the station database for every report.
+    /// </summary>
+    public bool UseMixingLedger { get; init; } = true;
+
+    /// <summary>Folder of the ledger files; by default App_Data/material-ledger of the API.</summary>
+    public string? LedgerDirectory { get; init; }
+
+    /// <summary>Mixing detail rows read per query while a ledger is built or checked.</summary>
+    public int LedgerChunkDetailRows { get; init; } = 10_000;
+
+    /// <summary>Pause between two chunk queries, so the station server keeps serving others.</summary>
+    public int LedgerChunkPauseMilliseconds { get; init; } = 200;
+
+    /// <summary>The mixes of the last days stay open: read again on every refresh.</summary>
+    public int LedgerOpenDays { get; init; } = 3;
+
+    /// <summary>A report reads the new mixes of a station at most this often.</summary>
+    public int LedgerRefreshSeconds { get; init; } = 15;
+
+    /// <summary>How long a report waits for a first build before answering "preparing".</summary>
+    public int LedgerPrepareWaitSeconds { get; init; } = 8;
+
+    /// <summary>The sealed ranges are read again after this many hours (edits of old mixes).</summary>
+    public int LedgerVerifyHours { get; init; } = 24;
+
+    /// <summary>Ledger entries kept in memory for all stations (about 16 bytes each).</summary>
+    public long LedgerMaxEntriesInMemory { get; init; } = 8_000_000;
 }
 
-public sealed class SqlMaterialReportDataSource(
+internal sealed class SqlMaterialReportDataSource(
     IStationOperationsDbContextFactory dbContextFactory,
+    IMaterialMixingLedgerStore ledgerStore,
     IOptions<MaterialReportingOptions> options,
     ILogger<SqlMaterialReportDataSource> logger) : IMaterialReportDataSource
 {
@@ -95,6 +126,11 @@ public sealed class SqlMaterialReportDataSource(
     {
         try
         {
+            // First, so a station whose history is still being read answers at once.
+            var ledger = options.Value.UseMixingLedger
+                ? await GetLedgerAsync(target, cancellationToken)
+                : null;
+
             await using var dbContext = dbContextFactory.Create(target);
             var materials = await dbContext.MixDesignMaterialSlots.AsNoTracking()
                 .OrderBy(item => item.SlotNumber)
@@ -139,16 +175,23 @@ public sealed class SqlMaterialReportDataSource(
                     warnings,
                     options.Value.CommandTimeoutSeconds,
                     cancellationToken));
+            // Must stay last: the mixing consumption is added up between the lots and issues
+            // loaded above, so FIFO needs exactly those (see MaterialMixingBuckets).
             await MeasureStageAsync(
                 "MixingIssues",
                 target.BranchId,
-                () => LoadMixingIssuesAsync(
-                    connection,
-                    toLocal,
-                    issues,
-                    warnings,
-                    options.Value.CommandTimeoutSeconds,
-                    cancellationToken));
+                () => ledger is null
+                    ? LoadMixingIssuesAsync(
+                        connection,
+                        materials,
+                        imports,
+                        issues,
+                        fromLocal,
+                        toLocal,
+                        warnings,
+                        options.Value.CommandTimeoutSeconds,
+                        cancellationToken)
+                    : AddMixingIssues(ledger, materials, imports, issues, fromLocal, toLocal, warnings));
 
             return new MaterialReportSnapshot(
                 materials,
@@ -180,6 +223,44 @@ public sealed class SqlMaterialReportDataSource(
             logger.LogWarning(exception, "Material report schema is incompatible for branch {BranchId}", target.BranchId);
             throw new ServiceUnavailableException(UnavailableMessage, exception);
         }
+    }
+
+    private async Task<MaterialMixingLedger?> GetLedgerAsync(
+        StationDatabaseTarget target,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var ledger = await ledgerStore.GetAsync(target, cancellationToken);
+        logger.LogInformation(
+            "Material report stage completed. BranchId={BranchId}, Stage=MixingLedger, ElapsedMs={ElapsedMs:F1}",
+            target.BranchId,
+            stopwatch.Elapsed.TotalMilliseconds);
+        return ledger;
+    }
+
+    /// <summary>The mixing issues from the ledger: the rows of the bucketed query.</summary>
+    private static Task AddMixingIssues(
+        MaterialMixingLedger ledger,
+        IReadOnlyList<MaterialDefinition> materials,
+        IReadOnlyCollection<MaterialImportLot> imports,
+        ICollection<MaterialIssueEvent> issues,
+        DateTime fromLocal,
+        DateTime toLocal,
+        ICollection<string> warnings)
+    {
+        if (!ledger.HasMixingTables)
+        {
+            warnings.Add("Trạm chưa có đủ dữ liệu tiêu hao vật liệu khi trộn.");
+            return Task.CompletedTask;
+        }
+
+        var boundaries = MaterialMixingBuckets.BuildBoundaries(imports, issues.ToArray(), fromLocal, toLocal);
+        var rows = ledger.ToBucketRows(materials, boundaries, toLocal);
+        foreach (var issue in MaterialMixingBuckets.ToIssueEvents(rows, boundaries))
+        {
+            issues.Add(issue);
+        }
+        return Task.CompletedTask;
     }
 
     private async Task MeasureStageAsync(
@@ -462,8 +543,11 @@ public sealed class SqlMaterialReportDataSource(
 
     private static async Task LoadMixingIssuesAsync(
         DbConnection connection,
-        DateTime toLocal,
+        IReadOnlyList<MaterialDefinition> materials,
+        IReadOnlyCollection<MaterialImportLot> imports,
         ICollection<MaterialIssueEvent> issues,
+        DateTime fromLocal,
+        DateTime toLocal,
         ICollection<string> warnings,
         int commandTimeoutSeconds,
         CancellationToken cancellationToken)
@@ -478,49 +562,114 @@ public sealed class SqlMaterialReportDataSource(
             }
         }
 
+        // Only the scale and manual events are in `issues` yet: they and the lots are the
+        // instants that split the mixing consumption (see MaterialMixingBuckets).
+        var boundaries = MaterialMixingBuckets.BuildBoundaries(imports, issues.ToArray(), fromLocal, toLocal);
+
+        // Slots still in CUAVL are mapped by slot number, so their historical names do not
+        // matter; slots no longer there keep their historical name, which is how FIFO maps them.
+        var currentSlots = materials.Select(item => item.SlotNumber).Distinct().Order().ToArray();
+        var isCurrentSlot = currentSlots.Length == 0
+            ? "1=0"
+            : $"H.[STTCUAVL] IN ({string.Join(",", currentSlots.Select(slot => slot.ToString(CultureInfo.InvariantCulture)))})";
+        var nameHash =
+            $"CASE WHEN {isCurrentSlot} THEN NULL ELSE CAST(HASHBYTES('SHA1',ISNULL(CAST(H.[TENCUAVL] AS nvarchar(4000)),N'')) AS binary(20)) END";
+
         await using var command = connection.CreateCommand();
         command.CommandTimeout = commandTimeoutSeconds;
-        command.CommandText = """
-            WITH FilteredMixingHistory AS
+        // One pass over the history with narrow numeric keys (the previous query grouped and
+        // sorted millions of rows on the nvarchar(max) names):
+        // 1. each mix gets the last boundary at or before its finish time, once per mix instead
+        //    of per detail row; a mix finishing exactly at an issue instant stays on its own;
+        // 2. consumption per mix and slot, kept only when positive, like the single events;
+        // 3. added up per bucket and slot, then CUAVL codes and names joined on the few results.
+        command.CommandText = $"""
+            DECLARE @Boundary TABLE
             (
-                SELECT [MALSTRON], [GIOXONG]
-                FROM [dbo].[LSTRON]
-                WHERE [GIOXONG] IS NOT NULL AND [GIOXONG] <= @To
+                [BucketNo] int NOT NULL PRIMARY KEY,
+                [At] datetime2(3) NOT NULL UNIQUE,
+                [IsIssue] bit NOT NULL
+            );
+            INSERT INTO @Boundary ([BucketNo],[At],[IsIssue])
+            SELECT X.value('@n','int'), X.value('@t','datetime2(3)'), X.value('@i','bit')
+            FROM @Boundaries.nodes('/r/b') AS T(X);
+
+            WITH MixingHistory AS
+            (
+                SELECT
+                    M.[MALSTRON],
+                    B.[BucketNo],
+                    CASE WHEN B.[IsIssue]=1 AND B.[At]=CAST(M.[GIOXONG] AS datetime2(3)) THEN M.[MALSTRON] END AS [TieMixingId]
+                FROM [dbo].[LSTRON] M
+                CROSS APPLY
+                (
+                    SELECT TOP 1 X.[BucketNo], X.[At], X.[IsIssue]
+                    FROM @Boundary X
+                    WHERE X.[At] <= CAST(M.[GIOXONG] AS datetime2(3))
+                    ORDER BY X.[At] DESC
+                ) B
+                WHERE M.[GIOXONG] IS NOT NULL AND M.[GIOXONG] <= @To
+            ),
+            MixingEvent AS
+            (
+                SELECT
+                    M.[BucketNo],
+                    M.[TieMixingId],
+                    H.[STTCUAVL],
+                    {nameHash} AS [NameHash],
+                    MIN(CASE WHEN {isCurrentSlot} THEN NULL ELSE H.[MACUAVL] END) AS [NameSourceId],
+                    SUM(ROUND(ISNULL(D.[SOLUONG],0)+ISNULL(D.[SOLUONGT],0),0)) AS [QuantityKg]
+                FROM MixingHistory M
+                INNER JOIN [dbo].[LSCHITIETMETRON] MD ON MD.[MALSTRON]=M.[MALSTRON]
+                INNER JOIN [dbo].[LSCHITIETMETRONLSCUAVL] D ON D.[MACHITIETMETRON]=MD.[MACHITIETMETRON]
+                INNER JOIN [dbo].[LSCUAVL] H ON H.[MACUAVL]=D.[MACUAVL]
+                GROUP BY M.[MALSTRON], M.[BucketNo], M.[TieMixingId], H.[STTCUAVL], {nameHash}
+            ),
+            MixingBucket AS
+            (
+                SELECT
+                    [BucketNo],
+                    [TieMixingId],
+                    [STTCUAVL],
+                    [NameHash],
+                    MIN([NameSourceId]) AS [NameSourceId],
+                    SUM([QuantityKg]) AS [QuantityKg]
+                FROM MixingEvent
+                WHERE [QuantityKg] > 0
+                GROUP BY [BucketNo], [TieMixingId], [STTCUAVL], [NameHash]
             )
             SELECT
-                CAST(M.[MALSTRON] AS bigint) AS MixingId,
-                CAST(M.[GIOXONG] AS datetime2(3)) AS OccurredAt,
+                B.[BucketNo],
+                CAST(B.[TieMixingId] AS bigint) AS TieMixingId,
                 CAST(C.[MACUAVL] AS int) AS MaterialCode,
-                CAST(H.[STTCUAVL] AS int) AS SlotNumber,
-                ISNULL(CAST(COALESCE(C.[TENCUAVL],H.[TENCUAVL]) AS nvarchar(max)),N'') AS MaterialName,
-                CAST(SUM(ROUND(ISNULL(D.[SOLUONG],0)+ISNULL(D.[SOLUONGT],0),0)) AS decimal(24,4)) AS QuantityKg
-            FROM FilteredMixingHistory M
-            INNER JOIN [dbo].[LSCHITIETMETRON] MD ON MD.[MALSTRON]=M.[MALSTRON]
-            INNER JOIN [dbo].[LSCHITIETMETRONLSCUAVL] D ON D.[MACHITIETMETRON]=MD.[MACHITIETMETRON]
-            INNER JOIN [dbo].[LSCUAVL] H ON H.[MACUAVL]=D.[MACUAVL]
-            LEFT JOIN [dbo].[CUAVL] C ON C.[STTCUAVL]=H.[STTCUAVL]
-            GROUP BY M.[MALSTRON],M.[GIOXONG],C.[MACUAVL],H.[STTCUAVL],C.[TENCUAVL],H.[TENCUAVL]
-            OPTION (FORCE ORDER, RECOMPILE);
+                CAST(B.[STTCUAVL] AS int) AS SlotNumber,
+                ISNULL(CAST(CASE WHEN B.[NameHash] IS NULL THEN C.[TENCUAVL] ELSE HN.[TENCUAVL] END AS nvarchar(max)),N'') AS MaterialName,
+                CAST(B.[QuantityKg] AS decimal(24,4)) AS QuantityKg
+            FROM MixingBucket B
+            LEFT JOIN [dbo].[CUAVL] C ON B.[NameHash] IS NULL AND C.[STTCUAVL]=B.[STTCUAVL]
+            LEFT JOIN [dbo].[LSCUAVL] HN ON HN.[MACUAVL]=B.[NameSourceId]
+            OPTION (RECOMPILE);
             """;
         AddDateTimeParameter(command, "@To", toLocal);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        AddXmlParameter(command, "@Boundaries", MaterialMixingBuckets.ToXml(boundaries));
+        var rows = new List<MaterialMixingBucketRow>();
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            var mixingId = reader.GetInt64(0);
-            var occurredAt = reader.GetDateTime(1);
-            var code = GetNullableInt32(reader, 2);
-            var slot = GetNullableInt32(reader, 3);
-            var name = GetNullableString(reader, 4);
-            var quantity = GetDecimal(reader, 5);
-            var materialIdentity = code ?? slot ?? 0;
-            issues.Add(new MaterialIssueEvent(
-                $"mix:{mixingId.ToString(CultureInfo.InvariantCulture)}:{materialIdentity.ToString(CultureInfo.InvariantCulture)}",
-                checked(mixingId * 100 + materialIdentity),
-                code,
-                slot,
-                name,
-                occurredAt,
-                quantity));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new MaterialMixingBucketRow(
+                    reader.GetInt32(0),
+                    reader.IsDBNull(1) ? null : reader.GetInt64(1),
+                    GetNullableInt32(reader, 2),
+                    GetNullableInt32(reader, 3),
+                    GetNullableString(reader, 4),
+                    GetDecimal(reader, 5)));
+            }
+        }
+
+        foreach (var issue in MaterialMixingBuckets.ToIssueEvents(rows, boundaries))
+        {
+            issues.Add(issue);
         }
     }
 
@@ -599,6 +748,15 @@ public sealed class SqlMaterialReportDataSource(
         var parameter = command.CreateParameter();
         parameter.ParameterName = name;
         parameter.DbType = DbType.DateTime2;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+
+    private static void AddXmlParameter(DbCommand command, string name, string value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.DbType = DbType.Xml;
         parameter.Value = value;
         command.Parameters.Add(parameter);
     }

@@ -175,19 +175,22 @@ class ApiClient {
     } on SocketException {
       throw const ApiException(
         type: ApiFailureType.network,
-        message: 'Không thể kết nối máy chủ. Hãy kiểm tra mạng và địa chỉ API.',
+        message:
+            'Không thể kết nối máy chủ. Kiểm tra kết nối mạng rồi thử lại.',
       );
     } on http.RequestAbortedException {
       throw const ApiRequestCancelledException();
     } on http.ClientException {
       throw const ApiException(
         type: ApiFailureType.network,
-        message: 'Không thể kết nối máy chủ. Hãy kiểm tra mạng và địa chỉ API.',
+        message:
+            'Không thể kết nối máy chủ. Kiểm tra kết nối mạng rồi thử lại.',
       );
     } catch (_) {
       throw const ApiException(
         type: ApiFailureType.unknown,
-        message: 'Đã xảy ra lỗi ngoài dự kiến. Vui lòng thử lại.',
+        message:
+            'Đã có lỗi xảy ra. Hãy thử lại, nếu vẫn lỗi, liên hệ quản trị hệ thống.',
       );
     }
   }

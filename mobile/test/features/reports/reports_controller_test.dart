@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ttsmart_mobile/core/network/api_exception.dart';
+import 'package:ttsmart_mobile/core/network/api_request_cancellation.dart';
 import 'package:ttsmart_mobile/features/company_management/data/models/company_models.dart';
 import 'package:ttsmart_mobile/features/company_management/data/repositories/company_repository.dart';
 import 'package:ttsmart_mobile/features/reports/data/models/report_models.dart';
@@ -36,8 +37,9 @@ class _FakeReportsRepository implements ReportsRepository {
 
   @override
   Future<OrderStatisticsFilterOptions> getFilterOptions(
-    OrderStatisticsFilterQuery query,
-  ) async {
+    OrderStatisticsFilterQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     filterQueries.add(query);
     return const OrderStatisticsFilterOptions(
       vehiclePlates: ['51A-12345'],
@@ -48,7 +50,10 @@ class _FakeReportsRepository implements ReportsRepository {
   }
 
   @override
-  Future<OrderStatisticsPage> search(OrderStatisticsQuery query) async {
+  Future<OrderStatisticsPage> search(
+    OrderStatisticsQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     searchQueries.add(query);
     final pending = pendingSearch;
     if (pending != null) return pending.future;

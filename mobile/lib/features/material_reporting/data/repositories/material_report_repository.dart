@@ -1,12 +1,24 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_request_cancellation.dart';
 import '../../../../core/network/json_helpers.dart';
 import '../models/material_report_models.dart';
+
+/// The API is still reading the station's mixing history for the first time
+/// (a few minutes on a large station, once); ask again a few seconds later.
+class MaterialReportPreparing implements Exception {
+  const MaterialReportPreparing({required this.progressPercent});
+
+  final int progressPercent;
+}
 
 abstract interface class MaterialReportRepository {
   Future<List<MaterialReportStation>> getStations({int? companyId});
 
-  Future<MaterialReport> getReport(MaterialReportQuery query);
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  });
 }
 
 class ApiMaterialReportRepository implements MaterialReportRepository {
@@ -32,7 +44,10 @@ class ApiMaterialReportRepository implements MaterialReportRepository {
   }
 
   @override
-  Future<MaterialReport> getReport(MaterialReportQuery query) async {
+  Future<MaterialReport> getReport(
+    MaterialReportQuery query, {
+    ApiRequestCancellation? cancellation,
+  }) async {
     _validateOptionalId(query.companyId, 'companyId');
     _validateOptionalId(query.branchId, 'branchId');
     if (query.from.isAfter(query.to)) {
@@ -48,8 +63,15 @@ class ApiMaterialReportRepository implements MaterialReportRepository {
     final response = await _apiClient.get(
       '/api/material-reports',
       query: query.toQueryParameters(),
+      cancellation: cancellation,
       requestTimeout: _reportRequestTimeout,
     );
+    if (response is Map<String, dynamic> && response['status'] == 'preparing') {
+      final progress = response['progressPercent'];
+      throw MaterialReportPreparing(
+        progressPercent: progress is num ? progress.round().clamp(0, 99) : 0,
+      );
+    }
     return _parse(() => MaterialReport.fromJson(response));
   }
 

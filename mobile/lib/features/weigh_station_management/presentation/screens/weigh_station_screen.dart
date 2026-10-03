@@ -225,6 +225,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
         ),
         const SizedBox(height: 9),
         FilterChipBar(
+          firstRowCount: controller.isAdmin ? 2 : 1,
           children: [
             if (controller.isAdmin)
               FilterChipButton(
@@ -237,15 +238,6 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                     : () => _pickCompany(controller),
               ),
             FilterChipButton(
-              key: const ValueKey<String>('weigh-station-date-range'),
-              icon: LucideIcons.calendar,
-              label:
-                  '${_shortDate(controller.fromDate)} – '
-                  '${_shortDate(controller.toDate)}',
-              active: true,
-              onTap: () => _pickDateRange(controller),
-            ),
-            FilterChipButton(
               key: const ValueKey<String>('weigh-station-station'),
               icon: LucideIcons.scale,
               label: stationName ?? 'Chọn trạm cân',
@@ -253,6 +245,15 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
               onTap: controller.isLoadingStations
                   ? null
                   : () => _pickStation(controller),
+            ),
+            FilterChipButton(
+              key: const ValueKey<String>('weigh-station-date-range'),
+              icon: LucideIcons.calendar,
+              label:
+                  '${_shortDate(controller.fromDate)} – '
+                  '${_shortDate(controller.toDate)}',
+              active: true,
+              onTap: () => _pickDateRange(controller),
             ),
           ],
         ),
@@ -445,7 +446,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                       Text(
                         'Loại hàng nhiều nhất',
                         style: TextStyle(
-                          color: p.primary,
+                          color: p.onPrimaryContainer,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -469,7 +470,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
                 Text(
                   '${formatWeighNumber(top.goodsWeightKg)} kg',
                   style: TextStyle(
-                    color: p.primary,
+                    color: p.onPrimaryContainer,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -540,11 +541,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
       selected: controller.selectedCompanyId,
       options: [
         for (final company in controller.companies)
-          PickerOption(
-            value: company.id,
-            title: company.displayName,
-            subtitle: company.code,
-          ),
+          PickerOption(value: company.id, title: company.displayName),
       ],
     );
     if (!mounted || picked == null) return;
@@ -553,12 +550,17 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
 
   Future<void> _pickStation(WeighStationController controller) async {
     if (controller.isAdmin && controller.selectedCompanyId == null) {
-      await _pickCompany(controller);
+      if (controller.companies.length == 1) {
+        await controller.selectCompany(controller.companies.single.id);
+      } else {
+        await _pickCompany(controller);
+      }
       if (!mounted || controller.selectedCompanyId == null) return;
     }
     final picked = await showPickerSheet<int>(
       context: context,
       title: 'Chọn trạm cân',
+      subtitle: controller.selectedCompany?.displayName,
       searchHint: 'Tìm trạm cân',
       icon: LucideIcons.scale,
       tone: AppTone.violet,
@@ -1004,7 +1006,7 @@ class _WeighStationScreenState extends State<WeighStationScreen> {
     final summary = controller.summaryResult;
     if (!controller.hasSearched) {
       return const AppEmptyState(
-        icon: LucideIcons.chartNoAxesColumnIncreasing,
+        icon: LucideIcons.chartColumn,
         title: 'Chưa có dữ liệu tổng hợp',
         message: 'Kết quả tổng hợp sẽ xuất hiện sau khi bấm Tìm kiếm.',
       );
@@ -1376,7 +1378,9 @@ class _TicketRow extends StatelessWidget {
       ),
       subtitle:
           '${goods?.isNotEmpty == true ? goods : 'Số phiếu ${item.ticketNumber}'}'
-          ' · ${formatWeighShortDateTime(item.weighingAt)}',
+          // Date and time stay together when the line wraps on 360dp.
+          ' · ${formatWeighShortDateTime(item.weighingAt).replaceAll(' ', ' ')}',
+      subtitleMaxLines: 2,
       showChevron: false,
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1434,15 +1438,16 @@ class _SummaryGoodsRow extends StatelessWidget {
     final name = item.goodsName?.trim();
     final details = <String>[
       if (item.convertedQuantities.isNotEmpty)
-        'Quy đổi ${item.convertedQuantities.map((value) => '${formatWeighNumber(value.quantity)} ${value.unit}').join(' · ')}'
+        'Quy đổi ${item.convertedQuantities.map((value) => '${formatWeighNumber(value.quantity)} ${value.unit}').join(' · ')}'
       else if (item.conversionMessage != null)
         item.conversionMessage!,
       if (showValue && item.materialValueVnd != null)
-        formatWeighCurrency(item.materialValueVnd),
+        formatWeighCurrency(item.materialValueVnd).replaceAll(' ', ' '),
     ];
     return NavRow(
       title: name?.isNotEmpty == true ? name! : 'Loại hàng #${item.stt}',
       subtitle: details.isEmpty ? null : details.join(' · '),
+      subtitleMaxLines: 2,
       showChevron: false,
       trailing: Column(
         mainAxisSize: MainAxisSize.min,

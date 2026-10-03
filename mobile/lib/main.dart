@@ -7,6 +7,7 @@ import 'app_dependencies.dart';
 import 'core/config/app_config.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/auth/data/repositories/auth_repository.dart';
 import 'features/company_management/data/repositories/company_repository.dart';
 import 'features/auth/presentation/controllers/app_controller.dart';
@@ -20,8 +21,11 @@ import 'features/reports/data/repositories/reports_repository.dart';
 import 'features/station_management/data/repositories/station_repository.dart';
 import 'features/weigh_station_management/data/repositories/weigh_station_repository.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Read the saved Light / Dark choice before the first frame (no flash).
+  final themeController = ThemeController(store: SecureThemePreferenceStore());
+  await themeController.load();
   LicenseRegistry.addLicense(() async* {
     final license = await rootBundle.loadString('assets/fonts/inter/OFL.txt');
     yield LicenseEntryWithLineBreaks(const ['Inter'], license);
@@ -48,5 +52,11 @@ void main() {
     stations: ApiStationRepository(apiClient),
     weighStations: ApiWeighStationRepository(apiClient),
   );
-  runApp(TTsmartApp(controller: controller, repositories: repositories));
+  runApp(
+    TTsmartApp(
+      controller: controller,
+      repositories: repositories,
+      themeController: themeController,
+    ),
+  );
 }

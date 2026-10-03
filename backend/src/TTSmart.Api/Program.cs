@@ -131,6 +131,20 @@ builder.Services
     .Bind(builder.Configuration.GetSection(MaterialReportingOptions.SectionName))
     .Validate(options => options.CommandTimeoutSeconds is > 0 and <= 300,
         "MaterialReporting:CommandTimeoutSeconds phải từ 1 đến 300.")
+    .Validate(options => options.LedgerChunkDetailRows is >= 100 and <= 200_000,
+        "MaterialReporting:LedgerChunkDetailRows phải từ 100 đến 200000.")
+    .Validate(options => options.LedgerChunkPauseMilliseconds is >= 0 and <= 60_000,
+        "MaterialReporting:LedgerChunkPauseMilliseconds phải từ 0 đến 60000.")
+    .Validate(options => options.LedgerOpenDays is >= 1 and <= 60,
+        "MaterialReporting:LedgerOpenDays phải từ 1 đến 60.")
+    .Validate(options => options.LedgerRefreshSeconds is >= 0 and <= 3600,
+        "MaterialReporting:LedgerRefreshSeconds phải từ 0 đến 3600.")
+    .Validate(options => options.LedgerPrepareWaitSeconds is >= 0 and <= 60,
+        "MaterialReporting:LedgerPrepareWaitSeconds phải từ 0 đến 60.")
+    .Validate(options => options.LedgerVerifyHours is >= 1 and <= 720,
+        "MaterialReporting:LedgerVerifyHours phải từ 1 đến 720.")
+    .Validate(options => options.LedgerMaxEntriesInMemory >= 100_000,
+        "MaterialReporting:LedgerMaxEntriesInMemory phải từ 100000.")
     .ValidateOnStart();
 builder.Services
     .AddOptions<NotificationOptions>()
@@ -183,6 +197,10 @@ builder.Services.AddScoped<IWeighStationDataSource, SqlWeighStationDataSource>()
 builder.Services.AddScoped<IWeighStationMaterialValueDataSource, SqlWeighStationMaterialValueDataSource>();
 builder.Services.AddScoped<IWeighStationService, WeighStationService>();
 builder.Services.AddScoped<IWeighStationExportService, WeighStationExportService>();
+builder.Services.AddSingleton<MaterialMixingLedgerStore>();
+builder.Services.AddSingleton<IMaterialMixingLedgerStore>(services =>
+    services.GetRequiredService<MaterialMixingLedgerStore>());
+builder.Services.AddHostedService<MaterialMixingLedgerWorker>();
 builder.Services.AddScoped<IMaterialReportDataSource, SqlMaterialReportDataSource>();
 builder.Services.AddScoped<IMaterialReportService, MaterialReportService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();

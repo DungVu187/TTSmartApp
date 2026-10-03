@@ -32,6 +32,7 @@ public sealed class StationOperationsMappingTests
         Assert.Equal("METKHOIDATHANG", order.FindProperty(nameof(StationOrder.OrderedVolume))!.GetColumnName(orderTable));
         Assert.Equal("METKHOITICHLUY", order.FindProperty(nameof(StationOrder.ProducedVolume))!.GetColumnName(orderTable));
         Assert.Equal("NGAYDATHANG", order.FindProperty(nameof(StationOrder.OrderedAt))!.GetColumnName(orderTable));
+        Assert.Equal("TONGSOPHIEU", order.FindProperty(nameof(StationOrder.TicketCount))!.GetColumnName(orderTable));
         Assert.Equal("real", order.FindProperty(nameof(StationOrder.OrderedVolume))!.GetColumnType());
         Assert.Equal("real", order.FindProperty(nameof(StationOrder.ProducedVolume))!.GetColumnType());
         Assert.Equal("datetime", order.FindProperty(nameof(StationOrder.OrderedAt))!.GetColumnType());

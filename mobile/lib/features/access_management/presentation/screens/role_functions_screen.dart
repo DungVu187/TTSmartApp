@@ -117,7 +117,7 @@ class _RoleFunctionsScreenState extends State<RoleFunctionsScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Thay đổi sẽ ghi đè quyền hiện tại của ${_items.length} chức năng. Chỉ lưu lên máy chủ khi bấm Lưu phân quyền.',
+            'Thay đổi sẽ ghi đè quyền hiện tại của ${_items.length} chức năng.',
             style: TextStyle(color: sheetContext.palette.text2),
           ),
           const SizedBox(height: 16),
@@ -443,7 +443,7 @@ class _GroupHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -238,7 +238,14 @@ class NavRow extends StatelessWidget {
     this.showChevron,
     this.titleStyle,
     this.background,
+    this.titleMaxLines = 1,
+    this.subtitleMaxLines = 1,
   });
+
+  /// Data rows on narrow phones (360dp) wrap instead of hiding the time or
+  /// the amount behind "…"; wide phones still show one line.
+  final int titleMaxLines;
+  final int subtitleMaxLines;
 
   final String title;
   final String? subtitle;
@@ -256,6 +263,12 @@ class NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final chevron = (showChevron ?? onTap != null) && value == null;
+    // Larger system fonts: wrap instead of cutting names with "…".
+    final bigText = MediaQuery.textScalerOf(context).scale(10) > 11.5;
+    final titleLines = bigText && titleMaxLines < 2 ? 2 : titleMaxLines;
+    final subtitleLines = bigText && subtitleMaxLines < 2
+        ? 2
+        : subtitleMaxLines;
     final content = Padding(
       padding: EdgeInsets.fromLTRB(13, 13, chevron ? 9 : 13, 13),
       child: Row(
@@ -268,7 +281,7 @@ class NavRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  maxLines: 1,
+                  maxLines: titleLines,
                   overflow: TextOverflow.ellipsis,
                   style:
                       titleStyle ??
@@ -286,7 +299,7 @@ class NavRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    maxLines: 1,
+                    maxLines: subtitleLines,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: subtitleColor ?? p.text2,

@@ -203,7 +203,6 @@ class _StationsScreenState extends State<StationsScreen> {
                             PickerOption(
                               value: company.id,
                               title: company.displayName,
-                              subtitle: company.code,
                             ),
                         ],
                       );
@@ -330,21 +329,24 @@ class _StationsScreenState extends State<StationsScreen> {
           onChanged: _onSearchChanged,
         ),
       if (activeFilters.isNotEmpty)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final filter in activeFilters)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InputChip(
-                    label: Text(filter.label),
-                    avatar: Icon(filter.icon, size: 17),
-                    onDeleted: filter.onDeleted,
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final filter in activeFilters)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 328),
+                child: InputChip(
+                  label: Text(
+                    filter.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  avatar: Icon(filter.icon, size: 17),
+                  onDeleted: filter.onDeleted,
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       if (_companiesError != null)
         ErrorBanner(

@@ -16,6 +16,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  /// Version line block at the bottom (and the matching space on top).
+  static const double _footerHeight = 56;
+
   final _formKey = GlobalKey<FormState>();
   final _userNameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -53,13 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     return InputDecoration(
       filled: true,
-      fillColor: WidgetStateColor.resolveWith(
-        (states) =>
-            states.contains(WidgetState.focused) ||
-                states.contains(WidgetState.error)
-            ? p.surface
-            : p.surfaceMuted,
-      ),
+      // Figma 01 Login: white box with a visible outline, blue when focused.
+      fillColor: p.surface,
       contentPadding: const EdgeInsets.symmetric(vertical: 16),
       prefixIcon: Icon(icon, size: 20, color: p.text3),
       prefixIconConstraints: const BoxConstraints(minWidth: 46),
@@ -67,8 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
       errorText: errorText,
       errorMaxLines: 2,
       counterText: '',
-      border: border(Colors.transparent, 1),
-      enabledBorder: border(Colors.transparent, 1),
+      border: border(p.inputBorder, 1),
+      enabledBorder: border(p.inputBorder, 1),
       focusedBorder: border(p.primary, 1.5),
       errorBorder: border(p.danger, 1.5),
       focusedErrorBorder: border(p.danger, 1.5),
@@ -100,13 +98,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Same height as the version line at the bottom, so the
+                  // free space splits evenly and the form sits in the middle
+                  // of the screen (it used to hug the top).
+                  const SizedBox(height: _footerHeight),
                   AutofillGroup(
                     child: Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 40),
                           const Center(child: AppLogo.large()),
                           const SizedBox(height: 28),
                           Text(
@@ -247,39 +248,62 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 18),
-                          Text.rich(
-                            TextSpan(
-                              style: TextStyle(
-                                color: p.text2,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              children: [
-                                const TextSpan(text: 'Quên mật khẩu? Liên hệ '),
-                                TextSpan(
-                                  text: 'quản trị viên',
-                                  style: TextStyle(
-                                    color: p.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                          // Looks like a link, so it answers when tapped.
+                          TapArea(
+                            onTap: () => showAppConfirmDialog(
+                              context,
+                              icon: LucideIcons.keyRound,
+                              title: 'Quên mật khẩu?',
+                              message:
+                                  'Quản trị viên công ty có thể đặt lại mật khẩu '
+                                  'cho bạn trong Hệ thống › Người dùng. Hãy liên '
+                                  'hệ họ để nhận mật khẩu mới.',
+                              confirmLabel: 'Đã hiểu',
+                              destructive: false,
+                              showCancel: false,
                             ),
-                            textAlign: TextAlign.center,
+                            child: Text.rich(
+                              TextSpan(
+                                style: TextStyle(
+                                  color: p.text2,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: 'Quên mật khẩu? Liên hệ ',
+                                  ),
+                                  TextSpan(
+                                    text: 'quản trị viên',
+                                    style: TextStyle(
+                                      color: p.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 32, bottom: 16),
-                    child: Text(
-                      'TTsmart · Phiên bản $kAppVersion',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: p.text3,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                  SizedBox(
+                    height: _footerHeight,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'TTsmart · Phiên bản $kAppVersion',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: p.text3,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),
