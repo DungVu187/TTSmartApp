@@ -13,6 +13,11 @@ on:
       - '.github/workflows/backend-ci-cd.yml'
   workflow_dispatch:
     inputs:
+      runner_preflight:
+        description: 'Check the VPS runner, runtime, and safe write access without deploying'
+        type: boolean
+        required: true
+        default: false
       deploy:
         description: 'Deploy the tested backend artifact to TTSmartMobileApi on IIS'
         type: boolean
@@ -50,6 +55,46 @@ jobs:
           path: ${{ runner.temp }}/ttsmart-api-publish/
           if-no-files-found: error
           retention-days: 14
+
+  runner_preflight:
+    name: Check VPS runner without deploying
+    if: github.event_name == 'workflow_dispatch' && inputs.runner_preflight && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: [self-hosted, windows, x64, ttsmart-iis]
+    steps:
+      - name: Check IIS files and runner permissions
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $site = 'C:\Deploy\TTSmartMobileApi'
+          $backups = 'C:\Deploy\TTSmartMobileApi-backups'
+          Write-Host "Runner account: $(whoami)"
+          foreach ($file in @('web.config', 'appsettings.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $site $file) -PathType Leaf)) {
+              throw "IIS site is missing $file"
+            }
+          }
+          $module = Join-Path ${env:ProgramFiles} 'IIS\Asp.Net Core Module\V2\aspnetcorev2.dll'
+          if (-not (Test-Path -LiteralPath $module -PathType Leaf)) {
+            throw 'ASP.NET Core IIS module file is missing.'
+          }
+          $runtimes = & dotnet --list-runtimes
+          if ($LASTEXITCODE -ne 0 -or -not ($runtimes -match '^Microsoft\.AspNetCore\.App 10\.')) {
+            throw 'ASP.NET Core 10 runtime is missing.'
+          }
+          foreach ($directory in @($site, $backups)) {
+            if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+              throw "Required directory does not exist: $directory"
+            }
+            $probe = Join-Path $directory ('.ttsmart-ci-probe-' + [guid]::NewGuid().ToString('N') + '.tmp')
+            try {
+              [IO.File]::WriteAllText($probe, 'write check')
+            }
+            finally {
+              if (Test-Path -LiteralPath $probe) { Remove-Item -LiteralPath $probe -Force }
+            }
+          }
+          Write-Host 'Runner preflight passed. No application files were replaced.'
 
   deploy:
     name: Deploy to IIS

@@ -23,6 +23,8 @@ The IIS and Nginx values above came from screenshots and the Nginx configuration
 
 Production deployment is a separate, manual `workflow_dispatch` run from `main` with `deploy=true`. The deploy job uses a Windows self-hosted runner labelled `ttsmart-iis` and the GitHub `production` environment. It downloads the artifact from that same run and executes `backend/scripts/deploy-iis.ps1`.
 
+While CD is paused, a manual run with `runner_preflight=true` and `deploy=false` checks that the runner can see the .NET 10 runtime, IIS module file, existing site configuration, and write tiny temporary probe files to the site and backup directories. It removes both probes immediately and does not replace application files. Create `C:\Deploy\TTSmartMobileApi-backups` and grant the runner service account the needed permissions before expecting this check to pass.
+
 The script verifies the fixed site name and path, ASP.NET Core IIS module file, .NET 10 runtime, artifact commit ID, and existing server configuration before changing files. The operator must separately confirm the IIS site and app pool in IIS Manager because the runner uses the low-privilege `NETWORK SERVICE` account. The script places `app_offline.htm`, backs up code to `C:\Deploy\TTSmartMobileApi-backups`, copies the tested publish output, removes `app_offline.htm`, then checks that both endpoints report the exact deployed commit:
 
 - `http://127.0.0.1:5003/health/live` (IIS directly)
@@ -41,6 +43,6 @@ The script preserves the server's `web.config` and `appsettings*.json`, plus `up
 5. In GitHub repository Settings → Environments, configure `production` with required reviewers and restrict deployment to `main`. The workflow is manual, but the environment rule adds an independent approval gate.
 6. Confirm the VPS can reach GitHub Actions and can request `https://mobile.dangnhap.net/health/live` over TLS. The local health check uses the IIS port and does not require Nginx.
 
-Before the first deployment, run the workflow once with `deploy=false` to confirm CI and artifact creation. Then run `deploy=true` in an approved window. The first production run and its rollback path still require live verification on the VPS.
+Before the first deployment, run the workflow with `runner_preflight=true` and `deploy=false` to confirm CI, the artifact, and the runner's local permissions. After that passes and the deploy job is enabled, run `deploy=true` in an approved window. The first production run and its rollback path still require live verification on the VPS.
 
 For a manual preflight on the VPS, download or publish the artifact into a temporary directory and run `deploy-iis.ps1` with the same arguments as the workflow **without** `-Apply`. It validates the target without copying files.
