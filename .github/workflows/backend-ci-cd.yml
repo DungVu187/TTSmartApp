@@ -1,0 +1,80 @@
+name: Backend CI and IIS delivery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci-cd.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci-cd.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy the tested backend artifact to TTSmartMobileApi on IIS'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, test, and publish
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore backend/TTSmart.sln
+      - name: Test without SQL E2E
+        run: dotnet test backend/tests/TTSmart.Api.Tests/TTSmart.Api.Tests.csproj -c Release --no-restore --filter "Category!=SqlE2E" --verbosity normal
+      - name: Publish API
+        shell: powershell
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'ttsmart-api-publish'
+          dotnet publish backend/src/TTSmart.Api/TTSmart.Api.csproj -c Release --no-restore -o $output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item -LiteralPath (Join-Path $output 'appsettings.Development.json') -ErrorAction SilentlyContinue
+          if (-not (Test-Path -LiteralPath (Join-Path $output 'web.config'))) { throw 'IIS web.config was not published.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ttsmart-api-${{ github.sha }}
+          path: ${{ runner.temp }}/ttsmart-api-publish/
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: Deploy to IIS
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: [self-hosted, windows, x64, ttsmart-iis]
+    environment: production
+    concurrency:
+      group: ttsmart-mobile-api-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ttsmart-api-${{ github.sha }}
+          path: ${{ runner.temp }}/ttsmart-api-publish
+      - name: Deploy tested artifact and check IIS plus Nginx
+        shell: powershell
+        run: |
+          .\backend\scripts\deploy-iis.ps1 `
+            -PackageDirectory (Join-Path $env:RUNNER_TEMP 'ttsmart-api-publish') `
+            -SiteName 'TTSmartMobileApi' `
+            -AppPoolName 'TTSmartMobileApi' `
+            -SitePath 'C:\Deploy\TTSmartMobileApi' `
+            -BackupRoot 'C:\Deploy\TTSmartMobileApi-backups' `
+            -LocalHealthUrl 'http://127.0.0.1:5003/health/live' `
+            -PublicHealthUrl 'https://mobile.dangnhap.net/health/live' `
+            -ReleaseId '${{ github.sha }}' `
+            -Apply

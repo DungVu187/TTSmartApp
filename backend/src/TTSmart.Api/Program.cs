@@ -58,6 +58,7 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<WebAuthDbContext>((serviceProvider, options) =>
 {
     var connectionString = serviceProvider.GetRequiredService<IConfiguration>()
@@ -417,6 +418,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 }
 
 app.MapControllers();
+app.MapHealthChecks("/health/live").AllowAnonymous();
 app.Run();
 
 static void AddPolicy(
