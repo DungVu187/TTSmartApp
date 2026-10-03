@@ -1,10 +1,8 @@
 # Backend CI/CD on Windows IIS
 
-**Deployment paused on 2026-10-03:** the operator reported that PM2 runs a
-different `ttsmart-api` on port `5000`; the mobile API is routed by Nginx to
-the IIS site on port `5003`. The deploy job remains disabled until the runner's
-filesystem permissions and the live port `5003` route are verified. CI remains
-active. Do not run this IIS script against the PM2-managed service.
+PM2 runs a different `ttsmart-api` on port `5000`; the mobile API is routed by
+Nginx to the IIS site on port `5003`. This workflow targets only the IIS mobile
+API. Do not run this script against the PM2-managed service.
 
 ## Verified target and scope
 
