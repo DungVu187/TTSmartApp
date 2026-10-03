@@ -100,6 +100,9 @@ foreach ($file in @('TTSmart.Api.dll', 'web.config', 'release-id.txt')) {
         throw "Published artifact is missing $file"
     }
 }
+if (Get-ChildItem -LiteralPath $packageDirectory -Filter 'appsettings*.json' -File) {
+    throw 'The publish artifact must not contain appsettings files.'
+}
 $artifactRelease = (Get-Content -LiteralPath (Join-Path $packageDirectory 'release-id.txt') -Raw).Trim()
 if ($artifactRelease -ne $ReleaseId) {
     throw "Artifact release does not match requested commit $ReleaseId"

@@ -17,7 +17,7 @@ The IIS and Nginx values above came from screenshots and the Nginx configuration
 
 ## What the workflow does
 
-`.github/workflows/backend-ci-cd.yml` runs on backend changes to `main` and on pull requests targeting `main`. A GitHub-hosted Windows runner restores, tests without the `SqlE2E` category, publishes the API, and uploads the exact publish directory as an artifact. It removes `appsettings.Development.json` from that artifact.
+`.github/workflows/backend-ci-cd.yml` runs on backend changes to `main` and on pull requests targeting `main`. A GitHub-hosted Windows runner restores, tests without the `SqlE2E` category, publishes the API, and uploads the publish directory as an artifact. It removes all `appsettings*.json` files from the artifact. The existing server copies remain the configuration source for the deployed API.
 
 Production deployment is a separate, manual `workflow_dispatch` run from `main` with `deploy=true`. The deploy job uses a Windows self-hosted runner labelled `ttsmart-iis` and the GitHub `production` environment. It downloads the artifact from that same run and executes `backend/scripts/deploy-iis.ps1`.
 

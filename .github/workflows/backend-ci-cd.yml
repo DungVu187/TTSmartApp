@@ -46,7 +46,11 @@ jobs:
           $output = Join-Path $env:RUNNER_TEMP 'ttsmart-api-publish'
           dotnet publish backend/src/TTSmart.Api/TTSmart.Api.csproj -c Release --no-restore -o $output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Remove-Item -LiteralPath (Join-Path $output 'appsettings.Development.json') -ErrorAction SilentlyContinue
+          Get-ChildItem -LiteralPath $output -Filter 'appsettings*.json' -File |
+            Remove-Item -Force
+          if (Get-ChildItem -LiteralPath $output -Filter 'appsettings*.json' -File) {
+            throw 'Publish artifact still contains appsettings files.'
+          }
           Set-Content -LiteralPath (Join-Path $output 'release-id.txt') -Value '${{ github.sha }}' -Encoding Ascii
           if (-not (Test-Path -LiteralPath (Join-Path $output 'web.config'))) { throw 'IIS web.config was not published.' }
       - uses: actions/upload-artifact@v4
